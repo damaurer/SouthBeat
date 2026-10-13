@@ -28,11 +28,11 @@ const look = defaultCharacter().appearance;
 export const OPPONENTS: readonly Opponent[] = [
   {
     id: 'bernd-brummer',
-    title: 'Co-Teamleiter',
+    title: 'Bernd · Co-Teamleiter',
     blurb: 'Kräftig gebaut, mit Bart und Brille. Schubst dich mit seinem Bauch quer durchs Büro.',
     arenaId: 'kitchen',
     character: {
-      name: 'Bernd',
+      name: 'Bernd Brummer',
       appearance: { ...look, bodyType: 'heavy', accessory: 'glasses', beardStyle: 'full', hairStyle: 'short', hairColor: '#5a3d1e', outfitStyle: 'casual', outfitColor: '#5d6d7e' },
       moves: { light: 'keyboard-jab', heavy: 'monitor-slam', kick: 'chair-spin', special: 'belly-bump', ultimate: 'friday-deploy' },
       stats: { strength: 7, speed: 3, defense: 7, stamina: 7 },
@@ -66,11 +66,11 @@ export const OPPONENTS: readonly Opponent[] = [
   },
   {
     id: 'konrad-kettner',
-    title: 'Teamleiter',
+    title: 'Konrad · Teamleiter',
     blurb: 'Der Panzer-General. Mit seiner Spezialattacke rollt ein Panzer über dich hinweg.',
     arenaId: 'bunker',
     character: {
-      name: 'Konrad',
+      name: 'Konrad Kettner',
       appearance: { ...look, accessory: 'cap', beardStyle: 'mustache', hairStyle: 'short', hairColor: '#7a7a7a', outfitStyle: 'uniform', outfitColor: '#4b5320' },
       moves: { light: 'mouse-flick', heavy: 'laptop-uppercut', kick: 'chair-spin', special: 'tank-roll', ultimate: 'rm-rf' },
       stats: { strength: 8, speed: 4, defense: 7, stamina: 7 },
@@ -104,11 +104,11 @@ export const OPPONENTS: readonly Opponent[] = [
   },
   {
     id: 'lena-flink',
-    title: 'HO',
+    title: 'Lena · HO',
     blurb: 'Blitzschnell. Glänzt mit schnellen Angriffen und Kombos, die kaum Pausen lassen.',
     arenaId: 'meeting-room',
     character: {
-      name: 'Lena',
+      name: 'Lena Flink',
       appearance: { ...look, bodyType: 'slim', hairStyle: 'ponytail', hairColor: '#a33a1c', skinColor: '#f1c27d', eyeColor: '#2e8b57', outfitStyle: 'blouse', outfitColor: '#8e44ad' },
       moves: { light: 'combo-flurry', heavy: 'combo-chain', kick: 'cable-sweep', special: 'stack-overflow', ultimate: 'infinite-loop' },
       stats: { strength: 5, speed: 10, defense: 4, stamina: 6 },
@@ -142,11 +142,11 @@ export const OPPONENTS: readonly Opponent[] = [
   },
   {
     id: 'ralf-rackwitz',
-    title: 'CTO',
+    title: 'Ralf · CTO',
     blurb: 'Schlägt mit Server-Bauteilen zu und wirft hin und wieder eine Festplatte nach dir.',
     arenaId: 'server-room',
     character: {
-      name: 'Ralf',
+      name: 'Ralf Rackwitz',
       appearance: { ...look, accessory: 'headset', beardStyle: 'stubble', hairStyle: 'spiky', hairColor: '#111111', outfitStyle: 'hoodie', outfitColor: '#1f3a5f' },
       moves: { light: 'keyboard-jab', heavy: 'rack-slam', kick: 'cable-sweep', special: 'hdd-throw', ultimate: 'blue-screen' },
       stats: { strength: 8, speed: 6, defense: 7, stamina: 8 },
@@ -180,7 +180,7 @@ export const OPPONENTS: readonly Opponent[] = [
   },
   {
     id: 'gustav-grossmaul',
-    title: 'CPO · Endboss',
+    title: 'Gustav · CPO · Endboss',
     blurb: 'Der Endboss. Ein alter Mann mit langem Bart, der mit Tomaten wirft, ununterbrochen redet und Kunden Dinge verspricht, die es noch gar nicht gibt.',
     arenaId: 'rooftop',
     boss: true,

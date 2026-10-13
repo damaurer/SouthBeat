@@ -31,11 +31,11 @@ W / S und ↑ / ↓ sind für Springen und Ducken reserviert. Ö und Ä beziehen
 
 | Gegner | Rolle | Stil | Arena |
 | --- | --- | --- | --- |
-| Bernd | Co-Teamleiter | Kräftig, Bart und Brille, Bauch-Schubser mit riesigem Rückstoß | Teeküche |
-| Konrad | Teamleiter | Panzer-General, Spezialattacke Panzer-Walze rollt über die ganze Arena | Bunker-Office |
-| Lena | HO | Sehr schnell, Kombo-Angriffe mit mehreren Treffern pro Taste | Meetingraum |
-| Ralf | CTO | Rack-Schlag mit Server-Bauteilen, wirft Festplatten | Serverraum |
-| Gustav Großmaul | CPO, Endboss | Alter Mann mit langem Bart, wirft Tomaten (Ultimate Tomatenhagel), redet ununterbrochen und verspricht Kunden Features, die weder abgestimmt noch implementiert sind | Dachterrasse-Office mit Tomatenbeeten |
+| Bernd Brummer (Bernd) | Co-Teamleiter | Kräftig, Bart und Brille, Bauch-Schubser mit riesigem Rückstoß | Teeküche |
+| Konrad Kettner (Konrad) | Teamleiter | Panzer-General, Spezialattacke Panzer-Walze rollt über die ganze Arena | Bunker-Office |
+| Lena Flink (Lena) | HO | Sehr schnell, Kombo-Angriffe mit mehreren Treffern pro Taste | Meetingraum |
+| Ralf Rackwitz (Ralf) | CTO | Rack-Schlag mit Server-Bauteilen, wirft Festplatten | Serverraum |
+| Gustav Großmaul (Gustav) | CPO, Endboss | Alter Mann mit langem Bart, wirft Tomaten (Ultimate Tomatenhagel), redet ununterbrochen und verspricht Kunden Features, die weder abgestimmt noch implementiert sind | Dachterrasse-Office mit Tomatenbeeten |
 
 Die Gegner sprechen in Sprechblasen am oberen Bildschirmrand. Die Sprechblasen sind rein kosmetisch und beeinflussen das Spiel nicht. Gegner und Sprüche stehen in `src/app/singleplayer/opponents.ts`. Außerdem sagen alle Kämpfer, auch in normalen Kämpfen und im 2-Spieler-Modus, hin und wieder etwas, wenn sie getroffen werden: Spieler 1 links oben, Spieler 2 rechts oben. Jeder Gegner hat dafür eigene Sprüche, alle anderen nutzen die allgemeinen aus `src/app/fight/hit-lines.ts`.
 

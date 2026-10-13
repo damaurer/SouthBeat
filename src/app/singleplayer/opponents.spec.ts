@@ -28,7 +28,7 @@ function run(s: FightState, frames: number): number {
 
 describe('single-player opponents', () => {
   it('has four opponents and Gustav Großmaul as the final boss', () => {
-    expect(OPPONENTS.map((o) => o.character.name)).toEqual(['Bernd', 'Konrad', 'Lena', 'Ralf', 'Gustav Großmaul']);
+    expect(OPPONENTS.map((o) => o.character.name)).toEqual(['Bernd Brummer', 'Konrad Kettner', 'Lena Flink', 'Ralf Rackwitz', 'Gustav Großmaul']);
     expect(OPPONENTS.at(-1)!.boss).toBeTrue();
   });
 
