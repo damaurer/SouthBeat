@@ -7,7 +7,7 @@ import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from '../fight/
 import { Spark } from '../fight/render';
 import { Brawler, StageState } from './brawl';
 import { renderStage, feetY } from './render-stage';
-import { ITEM_NAMES, STAGES, paintStage } from './stages';
+import { GRUNT_TYPES, ITEM_NAMES, STAGES, paintStage } from './stages';
 
 interface BrawlerHud {
   name: string;
@@ -65,6 +65,7 @@ export class StageScreen {
   private chatter = new LineDeck([]);
   private bossHit = new LineDeck([]);
   private playerHit = new LineDeck(HIT_LINES);
+  private gruntHit = new Map<string, LineDeck>();
   private lastLine = -Infinity;
 
   constructor() {
@@ -86,7 +87,7 @@ export class StageScreen {
       if (e.type === 'hit') {
         const t = s.brawlers.find((b) => b.id === e.target);
         if (!t) continue;
-        this.sparks.push({ x: t.x, y: feetY(t.z) - 28, life: 12, big: e.slot === 'ultimate' });
+        this.sparks.push({ x: t.x, y: feetY(t.z) - 28, life: 12, big: e.slot === 'ultimate', blocked: e.armored });
         this.react(s, t, e.slot);
       } else if (e.type === 'pickup') {
         const who = s.brawlers.find((b) => b.id === e.who);
@@ -140,10 +141,19 @@ export class StageScreen {
   }
 
   private react(s: StageState, t: Brawler, slot: Parameters<typeof saysSomething>[0]): void {
-    if (t.brain === 'grunt' || s.frame - this.lastLine < HIT_LINE_COOLDOWN || !saysSomething(slot, this.random)) return;
+    if (s.frame - this.lastLine < HIT_LINE_COOLDOWN || !saysSomething(slot, this.random)) return;
+    const deck = t.brain === 'boss' ? this.bossHit : t.kind ? this.gruntDeck(t.kind) : this.playerHit;
+    if (!deck) return;
     this.lastLine = s.frame;
-    const deck = t.brain === 'boss' ? this.bossHit : this.playerHit;
     this.bubble.set({ speaker: t.name, text: deck.draw(this.random), until: s.frame + 90 });
+  }
+
+  private gruntDeck(kind: string): LineDeck | null {
+    const lines = GRUNT_TYPES[kind]?.lines;
+    if (!lines?.length) return null;
+    let deck = this.gruntHit.get(kind);
+    if (!deck) this.gruntHit.set(kind, (deck = new LineDeck(lines)));
+    return deck;
   }
 
   private updateHud(s: StageState): void {

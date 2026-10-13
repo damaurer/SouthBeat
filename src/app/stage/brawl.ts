@@ -49,6 +49,8 @@ export interface Brawler {
   /** 0 or 1 for players and their CPU partner. */
   player: 0 | 1 | null;
   name: string;
+  /** Enemy type from stages.ts, for enemies of the waves. */
+  kind: string | null;
   character: Character;
   cpu: CpuProfile;
   speed: number;
@@ -63,6 +65,8 @@ export interface Brawler {
   knockedDown: boolean;
   invulnerable: number;
   weapon: { kind: 'keyboard'; uses: number } | null;
+  /** Light hits and kicks don't interrupt it. */
+  armor: boolean;
   lives: number;
   /** Frames until a knocked-out player comes back, or a beaten enemy disappears. */
   downFor: number;
@@ -92,7 +96,7 @@ export interface Item {
 }
 
 export type StageEvent =
-  | { type: 'hit'; attacker: number; target: number; slot: MoveSlot; damage: number }
+  | { type: 'hit'; attacker: number; target: number; slot: MoveSlot; damage: number; armored?: boolean }
   | { type: 'ko'; target: number }
   | { type: 'pickup'; who: number; kind: ItemKind }
   | { type: 'ultimate'; who: number; move: Move }
@@ -163,6 +167,7 @@ function brawler(state: StageState, team: Team, brain: Brain, character: Charact
     brain,
     player: null,
     name: character.name,
+    kind: null,
     character,
     cpu,
     speed,
@@ -177,6 +182,7 @@ function brawler(state: StageState, team: Team, brain: Brain, character: Charact
     knockedDown: false,
     invulnerable: 0,
     weapon: null,
+    armor: false,
     lives: LIVES,
     downFor: 0,
     out: false,
@@ -196,6 +202,8 @@ function spawnWave(state: StageState): void {
     // Later stages hit a little harder.
     const hp = Math.round(g.hp * (1 + state.stage.index * 0.15));
     const b = brawler(state, 'enemy', 'grunt', g.character, hp, g.cpu, g.speed);
+    b.kind = g.kind;
+    b.armor = g.armor;
     const fromRight = i % 2 === 0;
     b.x = fromRight ? left + SCREEN + 12 + i * 14 : left - 12 - i * 14;
     b.z = (i * 11) % (DEPTH + 1);
@@ -286,18 +294,23 @@ function advance(state: StageState, b: Brawler): void {
   if (active && a.move.projectileSpeed && a.slot !== 'ultimate') {
     if (!a.thrown) {
       a.thrown = true;
-      state.projectiles.push({
-        owner: b.id,
-        team: b.team,
-        move: a.move,
-        character: b.character,
-        x: b.x + b.facing * 12,
-        z: b.z,
-        dir: b.facing,
-        travelled: 0,
-        range: reachOf(a.move) * 1.4,
-        damage: 0,
-      });
+      // Moves with several shots fan them out over the depth of the floor.
+      const shots = a.move.shots ?? 1;
+      for (let i = 0; i < shots; i++) {
+        const spread = shots === 1 ? 0 : (i - (shots - 1) / 2) * 9;
+        state.projectiles.push({
+          owner: b.id,
+          team: b.team,
+          move: a.move,
+          character: b.character,
+          x: b.x + b.facing * (12 + i * 4),
+          z: Math.max(0, Math.min(DEPTH, b.z + spread)),
+          dir: b.facing,
+          travelled: 0,
+          range: reachOf(a.move) * 1.4,
+          damage: 0,
+        });
+      }
     }
   } else if (active) {
     if (a.move.dashSpeed && Object.keys(a.landed).length === 0) b.x += b.facing * a.move.dashSpeed;
@@ -331,6 +344,12 @@ function strike(state: StageState, from: Brawler, to: Brawler, slot: MoveSlot, m
   }
   to.hp = Math.max(0, to.hp - damage);
   const t = TIMING[slot];
+  if (to.armor && (slot === 'light' || slot === 'kick') && to.hp > 0) {
+    // Armored enemies take the damage but keep going.
+    from.meter = Math.min(METER_MAX, from.meter + damage * 1.2);
+    state.events.push({ type: 'hit', attacker: from.id, target: to.id, slot, damage, armored: true });
+    return;
+  }
   const knockdown = slot === 'kick' || slot === 'ultimate' || to.hp === 0;
   to.hitstun = move.hitstun ?? (knockdown ? Math.max(t.hitstun, 40) : t.hitstun);
   to.knockedDown = knockdown;

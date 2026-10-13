@@ -39,6 +39,8 @@ export interface Move {
   hits?: number;
   /** Projectile speed in pixels per frame; the move hits when the projectile reaches the target. */
   projectileSpeed?: number;
+  /** Several projectiles at once, spread over the depth of the floor (stage mode). */
+  shots?: number;
   /** Peak height of a lobbed projectile in pixels. */
   arc?: number;
   /** The fighter rushes forward this many pixels per frame while the move is active. */
@@ -184,6 +186,19 @@ export const MOVES: readonly Move[] = [
   { id: 'hdd-throw', name: 'Festplatten-Wurf', slot: 'special', damage: 10, startupFrames: 14, reach: 150, projectileSpeed: 5, exclusive: true },
   { id: 'tomato-throw', name: 'Tomatenwurf', slot: 'special', damage: 7, startupFrames: 10, reach: 160, projectileSpeed: 4, exclusive: true },
   { id: 'tomato-rain', name: 'Tomatenhagel', slot: 'ultimate', damage: 8, startupFrames: 18, reach: 140, hits: 4, exclusive: true },
+
+  // Moves of the office enemies in the stage mode.
+  { id: 'priority-poke', name: 'Prio-1-Stupser', slot: 'light', damage: 4, startupFrames: 5, exclusive: true },
+  { id: 'ticket-spam', name: 'Ticket-Flut', slot: 'special', damage: 4, startupFrames: 14, reach: 140, projectileSpeed: 3.5, shots: 3, exclusive: true },
+  { id: 'edge-case', name: 'Edge-Case-Stich', slot: 'light', damage: 2, startupFrames: 4, hits: 3, exclusive: true },
+  { id: 'bug-report', name: 'Bug-Report', slot: 'special', damage: 6, startupFrames: 10, reach: 130, projectileSpeed: 2.5, exclusive: true },
+  { id: 'cable-whip', name: 'LAN-Kabel-Peitsche', slot: 'kick', damage: 7, startupFrames: 10, reach: 44, exclusive: true },
+  { id: 'reboot', name: 'Aus- und wieder an', slot: 'special', damage: 5, startupFrames: 18, reach: 30, hitstun: 75, knockback: 2, exclusive: true },
+  { id: 'headhunt', name: 'Headhunter-Sprint', slot: 'special', damage: 7, startupFrames: 8, reach: 26, dashSpeed: 5, hitstun: 20, exclusive: true },
+  { id: 'card-throw', name: 'Visitenkarten-Wurf', slot: 'special', damage: 5, startupFrames: 7, reach: 170, projectileSpeed: 7, exclusive: true },
+  { id: 'golf-swing', name: 'Golfschwung', slot: 'heavy', damage: 12, startupFrames: 16, reach: 36, knockback: 30, exclusive: true },
+  { id: 'mop-sweep', name: 'Wischmop-Feger', slot: 'kick', damage: 8, startupFrames: 12, reach: 46, exclusive: true },
+  { id: 'bucket-lob', name: 'Putzeimer-Wurf', slot: 'special', damage: 10, startupFrames: 16, reach: 100, projectileSpeed: 3, arc: 26, exclusive: true },
 ];
 
 /** Moves a player can pick in the editor. */

@@ -21,6 +21,8 @@ const SPECIAL_COLORS: Record<string, [string, string]> = {
   'coffee-throw': ['#6f3b1a', '#f5deb3'],
   'merge-conflict': ['#e74c3c', '#2ecc71'],
   'stack-overflow': ['#f48024', '#ffffff'],
+  reboot: ['#2a6fdb', '#ffffff'],
+  headhunt: ['#0a66c2', '#ffffff'],
 };
 
 const ULTIMATE_COLORS: Record<string, [string, string]> = {
@@ -254,6 +256,35 @@ export function drawProjectile(p: Painter, id: string, x: number, facing: 1 | -1
     }
     case 'tank-roll':
       drawTank(p, px, facing, frame, ground);
+      return;
+    case 'ticket-spam':
+      // A yellow sticky ticket with a few lines of text.
+      p.rect(px - 4, chest - 4, 8, 8, '#f7d84a');
+      p.hline(px - 3, chest - 2, 6, '#8a6d00');
+      p.hline(px - 3, chest, 4, '#8a6d00');
+      p.set(px + 3, chest + 3, '#e74c3c');
+      return;
+    case 'bug-report': {
+      // A beetle crawling along the floor.
+      const y = ground - 3;
+      const leg = frame % 6 < 3 ? 0 : 1;
+      p.rect(px - 4, y - 2, 8, 4, '#2d7a2d');
+      p.rect(px + facing * 4 - 1, y - 1, 2, 2, '#140c1c');
+      for (const lx of [-3, 0, 3]) {
+        p.set(px + lx, y - 3 + leg, '#140c1c');
+        p.set(px + lx, y + 2 - leg, '#140c1c');
+      }
+      p.set(px - facing * 2, y - 1, '#e74c3c');
+      return;
+    }
+    case 'card-throw':
+      p.rect(px - 3, chest - 2, 7, 4, '#ffffff');
+      p.hline(px - 2, chest - 1, 3, '#0a66c2');
+      return;
+    case 'bucket-lob':
+      p.rect(px - 4, chest - 4, 8, 7, '#2a6fdb');
+      p.hline(px - 4, chest - 4, 8, '#9fc3e6');
+      p.rect(px - 3, chest - 6, 6, 1, '#7f8c8d');
       return;
     case 'coffee-throw':
       p.rect(px - 2, chest - 3, 5, 6, '#f2f2f2');

@@ -2,7 +2,8 @@ import { defaultCharacter } from '../character/balance';
 import { seeded } from '../arena/painter';
 import { NO_INPUT } from '../fight/combat';
 import { DEPTH, createStage, stepStage } from './brawl';
-import { STAGES, WORLD_WIDTH, paintStage } from './stages';
+import { findMove } from '../character/character.model';
+import { GRUNT_TYPES, STAGES, WORLD_WIDTH, makeGrunt, paintStage } from './stages';
 
 describe('stage mode', () => {
   const me = defaultCharacter();
@@ -68,6 +69,50 @@ describe('stage mode', () => {
     }
     expect(p.out).toBeTrue();
     expect(s.phase).toBe('gameover');
+  });
+
+  it('only sends enemy types that exist, each with moves that exist', () => {
+    const kinds = new Set(STAGES.flatMap((st) => st.waves.flat(2)));
+    for (const kind of kinds) expect(GRUNT_TYPES[kind]).withContext(kind).toBeDefined();
+    for (const [kind, t] of Object.entries(GRUNT_TYPES)) {
+      for (const id of Object.values(t.moves)) expect(findMove(id)).withContext(`${kind}: ${id}`).toBeDefined();
+    }
+    for (const kind of ['po', 'qa', 'support', 'recruiter', 'sales', 'janitor']) expect(kinds.has(kind)).withContext(kind).toBeTrue();
+  });
+
+  it('lets the product owner throw three tickets spread over the depth', () => {
+    const s = createStage(STAGES[0], [{ character: me, brain: 'human' }]);
+    const po = s.brawlers[1];
+    po.character = makeGrunt('po', 1).character;
+    Object.assign(po, { x: 150, z: 14, facing: -1, cooldown: 999 });
+    s.brawlers = [s.brawlers[0], po];
+    po.action = { slot: 'special', move: findMove('ticket-spam')!, frame: 0, startup: 2, active: 4, total: 20, landed: {}, thrown: false };
+    for (let i = 0; i < 4; i++) stepStage(s, [NO_INPUT], seeded(1));
+    expect(s.projectiles.length).toBe(3);
+    expect(new Set(s.projectiles.map((p) => p.z)).size).toBe(3);
+  });
+
+  it('keeps the armored janitor going through light hits, but not heavy ones', () => {
+    const s = createStage(STAGES[0], [{ character: me, brain: 'human' }]);
+    const [p, janitor] = s.brawlers;
+    s.brawlers = [p, janitor];
+    janitor.armor = true;
+    janitor.kind = 'janitor';
+    Object.assign(p, { x: 100, z: 10, facing: 1 });
+    Object.assign(janitor, { x: 115, z: 10, cooldown: 999 });
+    stepStage(s, [{ ...NO_INPUT, light: true }], seeded(1));
+    for (let i = 0; i < 12; i++) stepStage(s, [NO_INPUT], seeded(1));
+    expect(janitor.hp).toBeLessThan(janitor.maxHp);
+    expect(janitor.hitstun).toBe(0);
+    for (let i = 0; i < 20; i++) stepStage(s, [NO_INPUT], seeded(1));
+    Object.assign(janitor, { x: p.x + 15, z: p.z });
+    stepStage(s, [{ ...NO_INPUT, heavy: true }], seeded(1));
+    let stunned = false;
+    for (let i = 0; i < 25; i++) {
+      stepStage(s, [NO_INPUT], seeded(1));
+      stunned ||= janitor.hitstun > 0;
+    }
+    expect(stunned).toBeTrue();
   });
 
   it('lets two computer players fight through the first stage and beat its boss', () => {

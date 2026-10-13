@@ -60,7 +60,17 @@ Online-Multiplayer folgt.
 Unter `/stages` (Startseite: „Stage-Modus (Koop)“) geht es wie in klassischen Beat 'em ups von links nach rechts durch fünf Stages: Teeküche, Bunker-Office, Meetingraum, Serverraum und Dachterrasse-Office. Gespielt wird allein, zu zweit an einer Tastatur oder mit einem CPU-Partner; jeder wählt seinen Kämpfer in der Kämpferauswahl.
 
 - **2,5D**: Die Arenen sind auf drei Bildschirme verlängert und haben Bodentiefe. Mit Springen/Ducken-Tasten (W/S bzw. ↑/↓) läuft man nach hinten und vorn. Figuren werden nach Tiefe sortiert gezeichnet, und Angriffe treffen nur Gegner auf ungefähr derselben Tiefe.
-- **Wellen**: Pro Bildschirm kommen Gegnerwellen (Praktikanten, Berater, Scrum Master) von beiden Seiten. Sind alle besiegt, erscheint „GO →“ und die Kamera scrollt weiter. Spätere Stages schicken mehr und zähere Gegner.
+- **Wellen**: Pro Bildschirm kommen Gegnerwellen von beiden Seiten. Sind alle besiegt, erscheint „GO →“ und die Kamera scrollt weiter. Jedes Büro hat seine eigene Mischung, spätere Stages schicken mehr und zähere Gegner. Getroffene Gegner geben ab und zu einen Spruch von sich.
+- **Gegner aus dem Büroalltag**:
+  - *Praktikant*: schwach, aber viele.
+  - *Berater*: zäh, schießt mit USB-Sticks.
+  - *Scrum Master*: schnell, wirft Tastaturen im Bogen.
+  - *Product Owner*: „Ticket-Flut“ wirft drei Tickets auf einmal, über die ganze Tiefe verteilt.
+  - *QA-Testerin*: schnelle Dreifach-Stiche („Edge-Case-Stich“) und Bug-Reports, die über den Boden krabbeln.
+  - *IT-Support*: „Aus- und wieder an“ lähmt über eine Sekunde, die LAN-Kabel-Peitsche reicht weit.
+  - *Recruiterin*: sehr schnell, der Headhunter-Sprint überbrückt große Abstände.
+  - *Vertriebler*: Visitenkarten fliegen schnell und weit, der Golfschwung schleudert dich weg.
+  - *Hausmeister*: gepanzert, leichte Schläge und Tritte halten ihn nicht auf (blaue Funken); Wischmop mit großer Reichweite und Putzeimer-Würfe.
 - **Bosse**: Am Ende jeder Stage wartet der Einzelspieler-Gegner dieser Arena mit seinen Spezialangriffen und Sprüchen, als letzter Gustav Großmaul.
 - **Gegenstände**: Kaffee (+20 Leben) und Pizza (+50) liegen auf der Karte, besiegte Gegner lassen manchmal Kaffee fallen. Eine Tastatur als Waffe macht die nächsten 10 Schläge um 60 % stärker. Aufgehoben wird durch Drüberlaufen.
 - **Leben**: Jeder Spieler hat drei Leben; Leben und Action-Balken gehen in die nächste Stage mit. Sind alle raus, ist Game Over, die Stage lässt sich neu starten.
