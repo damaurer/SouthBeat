@@ -21,6 +21,15 @@ describe('fight animation', () => {
     expect(punch.right).toBeGreaterThan(extent(idle).right + 6);
   });
 
+  it('draws the fighter from the side, looking to the right', () => {
+    const px = posedSprite(look, poseFor(idle, 0));
+    const face = px.filter((p) => p.y >= 9 && p.y <= 11).map((p) => p.x);
+    // The nose sticks out on the right, well past the middle of the 32 px sprite box.
+    expect(Math.max(...face) - 16).toBeGreaterThanOrEqual(6);
+    expect(16 - Math.min(...face)).toBeLessThan(6);
+    expect(extent(idle).width).toBeLessThan(26);
+  });
+
   it('lies flat on the floor after a knockdown', () => {
     const lying = extent({ ...idle, knockedDown: true, hitstun: 40, downFrames: 30 });
     const standing = extent(idle);

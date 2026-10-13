@@ -1,10 +1,12 @@
 import { Appearance } from '../character/character.model';
-import { BodyPart, PartPixel, Pivots, Pixel, SPRITE_HEIGHT, SPRITE_WIDTH, spriteParts } from '../character/sprite';
+import { BodyPart, JOINTS, PartPixel, profileParts } from '../character/profile';
+import { Pixel, SPRITE_HEIGHT, SPRITE_WIDTH } from '../character/sprite';
 
 /**
- * A fighter's posture in one frame. Angles are in radians: 0 lets an arm or leg hang
- * straight down, positive values swing it forward (towards the opponent), negative ones
- * behind the body. Offsets are in sprite pixels; positive y moves down.
+ * A fighter's posture in one frame, seen from the side facing right. Angles are in radians:
+ * 0 lets an arm or leg hang straight down, positive values swing it forward (towards the
+ * opponent), negative ones behind the body. Elbows bend the forearm forward and up, knees
+ * bend the shin back. Offsets are in sprite pixels; positive y moves down.
  */
 export interface Pose {
   x: number;
@@ -14,6 +16,10 @@ export interface Pose {
   head: number;
   armBack: number;
   armFront: number;
+  elbowBack: number;
+  elbowFront: number;
+  kneeBack: number;
+  kneeFront: number;
   /** Pushes an arm further out along its direction, as in a punch. */
   reachBack: number;
   reachFront: number;
@@ -34,6 +40,10 @@ export const NEUTRAL: Pose = {
   head: 0,
   armBack: 0,
   armFront: 0,
+  elbowBack: 0,
+  elbowFront: 0,
+  kneeBack: 0,
+  kneeFront: 0,
   reachBack: 0,
   reachFront: 0,
   legBack: 0,
@@ -57,7 +67,6 @@ export function blend(a: Pose, b: Pose, t: number): Pose {
 
 interface Rig {
   parts: Record<BodyPart, PartPixel[]>;
-  pivots: Pivots;
   cache: Map<string, Pixel[]>;
 }
 
@@ -66,10 +75,9 @@ const rigs = new WeakMap<Appearance, Rig>();
 function rigFor(look: Appearance): Rig {
   let rig = rigs.get(look);
   if (!rig) {
-    const { pixels, pivots } = spriteParts(look);
-    const parts: Record<BodyPart, PartPixel[]> = { head: [], body: [], armBack: [], armFront: [], legBack: [], legFront: [] };
-    for (const px of pixels) parts[px.part].push(px);
-    rig = { parts, pivots, cache: new Map() };
+    const parts = Object.fromEntries(ORDER.map((part) => [part, [] as PartPixel[]])) as Record<BodyPart, PartPixel[]>;
+    for (const px of profileParts(look)) parts[px.part].push(px);
+    rig = { parts, cache: new Map() };
     rigs.set(look, rig);
   }
   return rig;
@@ -101,11 +109,10 @@ const GRID_W = SPRITE_WIDTH + MARGIN_X * 2;
 const GRID_H = SPRITE_HEIGHT + MARGIN_Y;
 const OUTLINE = '#140c1c';
 const FEET: Point = [SPRITE_WIDTH / 2, SPRITE_HEIGHT - 2];
-const LEG_LENGTH = 12;
-const HIPS: Point = [SPRITE_WIDTH / 2, 33];
+const HIPS: Point = [16, 33];
 
-/** Parts drawn back to front. */
-const ORDER: BodyPart[] = ['armBack', 'legBack', 'legFront', 'body', 'head', 'armFront'];
+/** Parts drawn back to front: far limbs, body and head, then the near arm on top. */
+const ORDER: BodyPart[] = ['armBack', 'foreBack', 'legBack', 'shinBack', 'legFront', 'shinFront', 'body', 'head', 'armFront', 'foreFront'];
 
 /**
  * The fighter's pixels in the given pose, relative to the sprite's top-left corner
@@ -115,44 +122,54 @@ export function posedSprite(look: Appearance, p: Pose): Pixel[] {
   const rig = rigFor(look);
   const q = (v: number, step: number): number => Math.round(v / step);
   const key = [p.x, p.y, p.reachBack, p.reachFront].map((v) => q(v, 1)).concat(
-    [p.lean, p.head, p.armBack, p.armFront, p.legBack, p.legFront, p.roll].map((v) => q(v, 0.04)),
+    [p.lean, p.head, p.armBack, p.armFront, p.elbowBack, p.elbowFront, p.legBack, p.legFront, p.kneeBack, p.kneeFront, p.roll].map((v) => q(v, 0.04)),
     [p.legScale, p.flatten].map((v) => q(v, 0.05)),
   ).join(',');
   const hit = rig.cache.get(key);
   if (hit) return hit;
 
   const grid: (string | null)[] = Array(GRID_W * GRID_H).fill(null);
-  const { pivots } = rig;
   const move: Transform = (x, y) => [x + p.x, y + p.y];
   // Parts above their pivot (body, head, the whole figure) tilt forward with a negative turn.
   const body = then(turn(HIPS[0], HIPS[1], -p.lean), move);
-  // Crouching lowers the hips; the legs get shorter so the feet stay on the floor.
-  const legScale = p.legScale !== 1 ? p.legScale : Math.max(0.3, 1 - Math.max(0, p.y) / LEG_LENGTH);
   const whole: Transform = (x, y) => {
     const [rx, ry] = turn(FEET[0], FEET[1], -p.roll)(x, y);
     return [rx, FEET[1] + (ry - FEET[1]) * p.flatten];
   };
+  const [sx, sy] = JOINTS.shoulder;
+  const [ex, ey] = JOINTS.elbow;
+  const upperArm = (angle: number, reach: number): Transform => {
+    const out: Transform = (x, y) => [x + Math.sin(angle) * reach, y + Math.cos(angle) * reach];
+    return then(then(turn(sx, sy, angle), out), body);
+  };
+  const forearm = (angle: number, elbow: number, reach: number): Transform => then(turn(ex, ey, elbow), upperArm(angle, reach));
+  const thigh = (hip: readonly [number, number], angle: number): Transform => {
+    const squash: Transform = (x, y) => [x, hip[1] + (y - hip[1]) * p.legScale];
+    return then(then(squash, turn(hip[0], hip[1], angle)), move);
+  };
+  const shin = (hip: readonly [number, number], angle: number, knee: number): Transform => then(turn(hip[0], JOINTS.knee, -knee), thigh(hip, angle));
   const limb = (part: BodyPart): Transform => {
     switch (part) {
       case 'body':
         return body;
       case 'head':
-        return then(turn(...pivots.head, -p.head), body);
+        return then(turn(...JOINTS.neck, -p.head), body);
       case 'armBack':
-      case 'armFront': {
-        const [cx, cy] = pivots[part];
-        const angle = part === 'armBack' ? p.armBack : p.armFront;
-        const reach = part === 'armBack' ? p.reachBack : p.reachFront;
-        const out: Transform = (x, y) => [x + Math.sin(angle) * reach, y + Math.cos(angle) * reach];
-        return then(then(turn(cx, cy, angle), out), body);
-      }
+        return upperArm(p.armBack, p.reachBack);
+      case 'foreBack':
+        return forearm(p.armBack, p.elbowBack, p.reachBack);
+      case 'armFront':
+        return upperArm(p.armFront, p.reachFront);
+      case 'foreFront':
+        return forearm(p.armFront, p.elbowFront, p.reachFront);
       case 'legBack':
-      case 'legFront': {
-        const [cx, cy] = pivots[part];
-        const angle = part === 'legBack' ? p.legBack : p.legFront;
-        const squash: Transform = (x, y) => [x, cy + (y - cy) * legScale];
-        return then(then(squash, turn(cx, cy, angle)), move);
-      }
+        return thigh(JOINTS.hipBack, p.legBack);
+      case 'shinBack':
+        return shin(JOINTS.hipBack, p.legBack, p.kneeBack);
+      case 'legFront':
+        return thigh(JOINTS.hipFront, p.legFront);
+      case 'shinFront':
+        return shin(JOINTS.hipFront, p.legFront, p.kneeFront);
     }
   };
   for (const part of ORDER) {

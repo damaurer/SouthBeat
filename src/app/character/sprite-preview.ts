@@ -1,12 +1,17 @@
 import { Component, computed, input } from '@angular/core';
 import { Appearance } from './character.model';
-import { SPRITE_HEIGHT, SPRITE_WIDTH, spritePixels } from './sprite';
+import { STANCE } from '../fight/animate';
+import { posedSprite } from '../fight/pose';
+import { SPRITE_HEIGHT, SPRITE_WIDTH } from './sprite';
+
+/** Room around the sprite box for the arms and feet of the side view. */
+const PAD = 4;
 
 @Component({
   selector: 'app-sprite-preview',
   template: `
     <svg
-      [attr.viewBox]="'0 0 ' + width + ' ' + height"
+      [attr.viewBox]="-pad + ' 0 ' + width + ' ' + height"
       shape-rendering="crispEdges"
       role="img"
       aria-label="Vorschau des Charakters"
@@ -23,7 +28,9 @@ import { SPRITE_HEIGHT, SPRITE_WIDTH, spritePixels } from './sprite';
 })
 export class SpritePreview {
   readonly appearance = input.required<Appearance>();
-  protected readonly width = SPRITE_WIDTH;
+  protected readonly pad = PAD;
+  protected readonly width = SPRITE_WIDTH + PAD * 2;
   protected readonly height = SPRITE_HEIGHT;
-  protected readonly pixels = computed(() => spritePixels(this.appearance()));
+  /** The fighter as seen in a fight: from the side, in guard. */
+  protected readonly pixels = computed(() => posedSprite(this.appearance(), STANCE));
 }

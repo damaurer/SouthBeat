@@ -291,7 +291,8 @@ function act(state: StageState, b: Brawler, c: Controls): boolean {
   const speed = walkSpeed(b.character) * b.speed;
   b.x += dx * speed;
   b.z = Math.max(0, Math.min(DEPTH, b.z + dz * speed * 0.6));
-  if (dx !== 0) b.facing = dx > 0 ? 1 : -1;
+  // Computer fighters face their target instead (see think), even while backing off.
+  if (dx !== 0 && b.brain === 'human') b.facing = dx > 0 ? 1 : -1;
   return dx !== 0 || dz !== 0;
 }
 
@@ -507,12 +508,14 @@ function think(state: StageState, b: Brawler, random: () => number): Controls {
       const lead = state.brawlers.find((p) => p.brain === 'human' && !p.out);
       if (lead && Math.abs(lead.x - b.x) > 40) c[lead.x > b.x ? 'right' : 'left'] = true;
       if (state.phase === 'go' && !lead) c.right = true;
+      if (c.left || c.right) b.facing = c.right ? 1 : -1;
     }
     return c;
   }
   const t = foes.reduce((best, f) => (Math.abs(f.x - b.x) + Math.abs(f.z - b.z) * 2 < Math.abs(best.x - b.x) + Math.abs(best.z - b.z) * 2 ? f : best));
   const dx = t.x - b.x;
   const dz = t.z - b.z;
+  if (dx !== 0) b.facing = dx > 0 ? 1 : -1;
   const light = reachOf(findMove(b.character.moves.light) ?? 'light');
   // Enemies stay on their side of the player instead of crowding one spot.
   const side = b.team === 'enemy' ? (b.x >= t.x ? 1 : -1) : -Math.sign(dx) || -1;
@@ -524,7 +527,6 @@ function think(state: StageState, b: Brawler, random: () => number): Controls {
     return c;
   }
   const lined = Math.abs(dz) <= 4;
-  b.facing = dx >= 0 ? 1 : -1;
   const special = findMove(b.character.moves.special);
   if (b.brain !== 'grunt' && lined && b.meter >= METER_MAX && Math.abs(dx) < reachOf(findMove(b.character.moves.ultimate) ?? 'ultimate')) {
     return { ...NO_CONTROLS, ultimate: true };

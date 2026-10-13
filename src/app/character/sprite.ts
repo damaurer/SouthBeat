@@ -14,7 +14,7 @@ export interface Pixel {
  * highlight on each region's top edge and a shadow on its right and bottom
  * edges, and a final pass draws a dark outline around the silhouette.
  */
-type Material =
+export type Material =
   | 'skin'
   | 'skinDark'
   | 'hair'
@@ -38,9 +38,9 @@ type Material =
   | 'gold';
 
 /** Materials that are too small or too dark to look right with edge lighting. */
-const FLAT: ReadonlySet<Material> = new Set(['skinDark', 'eyeWhite', 'iris', 'mouth', 'buckle', 'frame', 'rim', 'lash', 'lens', 'gold']);
+export const FLAT: ReadonlySet<Material> = new Set(['skinDark', 'eyeWhite', 'iris', 'mouth', 'buckle', 'frame', 'rim', 'lash', 'lens', 'gold']);
 
-const OUTLINE = '#140c1c';
+export const OUTLINE = '#140c1c';
 
 class Canvas {
   readonly grid: (Material | null)[][] = Array.from({ length: SPRITE_HEIGHT }, () =>
@@ -425,7 +425,7 @@ function drawBeard(c: Canvas, style: BeardStyle): void {
   }
 }
 
-function adjust(hex: string, amount: number): string {
+export function adjust(hex: string, amount: number): string {
   const n = parseInt(hex.slice(1), 16);
   const channel = (shift: number): string => {
     const v = (n >> shift) & 0xff;
@@ -442,7 +442,7 @@ const PANTS: Partial<Record<OutfitStyle, string>> = {
   blouse: '#2b2f3a',
 };
 
-function palette(look: Appearance): Record<Material, string> {
+export function palette(look: Appearance): Record<Material, string> {
   return {
     skin: look.skinColor,
     skinDark: adjust(look.skinColor, -0.25),
@@ -482,52 +482,6 @@ export function spritePixels(look: Appearance): Pixel[] {
     }
   }
   return pixels;
-}
-
-/** The parts of the body that move on their own when a fighter is animated. */
-export type BodyPart = 'head' | 'body' | 'armBack' | 'armFront' | 'legBack' | 'legFront';
-
-export interface PartPixel extends Pixel {
-  part: BodyPart;
-}
-
-/** Where each part turns: shoulders, hips and neck, in sprite pixels. */
-export type Pivots = Record<Exclude<BodyPart, 'body'>, [number, number]>;
-
-/**
- * The sprite without outline, every pixel labelled with its body part, so the fight
- * renderer can pose arms, legs and head. The arm side facing right counts as the front.
- */
-export function spriteParts(look: Appearance): { pixels: PartPixel[]; pivots: Pivots } {
-  const c = paint(look);
-  const shift = (y: number): number => bodyShift(look.bodyType ?? 'normal', y);
-  const part = (x: number, y: number): BodyPart => {
-    if (y < 17) return 'head';
-    if (y >= 34) return x < SPRITE_WIDTH / 2 ? 'legBack' : 'legFront';
-    if (y >= 19) {
-      if (x < 9 - shift(y)) return 'armBack';
-      if (x > 22 + shift(y)) return 'armFront';
-    }
-    return 'body';
-  };
-  const pixels: PartPixel[] = [];
-  for (let y = 0; y < SPRITE_HEIGHT; y++) {
-    for (let x = 0; x < SPRITE_WIDTH; x++) {
-      if (c.get(x, y) !== null) pixels.push({ x, y, fill: litColor(c, look, x, y), part: part(x, y) });
-    }
-  }
-  const s = shift(20);
-  return {
-    pixels,
-    pivots: { head: [15.5, 16.5], armBack: [7 - s, 20], armFront: [24 + s, 20], legBack: [12.5, 34], legFront: [19.5, 34] },
-  };
-}
-
-/** How far reshaping the body type moved the left and right edges in a row. */
-function bodyShift(body: BodyType, y: number): number {
-  if (body === 'heavy') return (y >= 17 && y <= 33 ? 2 : 0) + (y >= 24 && y <= 31 ? 1 : 0);
-  if (body === 'slim') return y >= 17 && y <= 33 ? -1 : 0;
-  return 0;
 }
 
 function paint(look: Appearance): Canvas {

@@ -30,6 +30,19 @@ describe('stage mode', () => {
     expect(p.z).toBeLessThanOrEqual(DEPTH);
   });
 
+  it('lets enemies keep looking at the player while they back off', () => {
+    const s = createStage(STAGES[0], [{ character: me, brain: 'human' }]);
+    const [p, grunt] = s.brawlers;
+    s.brawlers = [p, grunt];
+    Object.assign(p, { x: 100, z: 10, hitstun: 999 });
+    // Too close: the grunt steps back to the right but still faces left, at the player.
+    Object.assign(grunt, { x: 102, z: 10, facing: 1, cooldown: 50 });
+    const x0 = grunt.x;
+    for (let i = 0; i < 5; i++) stepStage(s, [NO_INPUT], seeded(1));
+    expect(grunt.x).toBeGreaterThan(x0);
+    expect(grunt.facing).toBe(-1);
+  });
+
   it('only hits enemies on about the same depth', () => {
     const s = createStage(STAGES[0], [{ character: me, brain: 'human' }]);
     const [p, near, far] = s.brawlers;

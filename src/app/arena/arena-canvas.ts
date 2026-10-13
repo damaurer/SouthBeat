@@ -1,10 +1,12 @@
 import { Component, ElementRef, afterRenderEffect, input, viewChild } from '@angular/core';
 import { Appearance } from '../character/character.model';
-import { SPRITE_HEIGHT, SPRITE_WIDTH, spritePixels } from '../character/sprite';
+import { SPRITE_HEIGHT, SPRITE_WIDTH } from '../character/sprite';
+import { STANCE } from '../fight/animate';
+import { posedSprite } from '../fight/pose';
 import { Arena, paintArena } from './arenas';
 import { ARENA_HEIGHT, ARENA_WIDTH, GROUND_Y } from './props';
 
-/** Fighter positions: left one faces right, right one is mirrored to face left. */
+/** Fighter positions: left one faces right, right one is mirrored to face left, so they look at each other. */
 const FIGHTER_X = [70, 138];
 
 @Component({
@@ -32,7 +34,7 @@ export class ArenaCanvas {
       if (!ctx) return;
       const p = paintArena(arena);
       fighters.slice(0, 2).forEach((look, i) =>
-        p.sprite(FIGHTER_X[i], GROUND_Y - SPRITE_HEIGHT, spritePixels(look), SPRITE_WIDTH, i === 1),
+        p.sprite(FIGHTER_X[i], GROUND_Y - SPRITE_HEIGHT, posedSprite(look, STANCE), SPRITE_WIDTH, i === 1),
       );
       ctx.putImageData(new ImageData(p.toRgba(), p.width, p.height), 0, 0);
     });
