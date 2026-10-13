@@ -107,6 +107,33 @@ Erstellte Kämpfer und Spielstatistiken (Matches, Siege, Niederlagen, Arenen) sp
 
 Der Server prüft jeden Kämpfer gegen die Balance-Regeln, manipulierte Werte werden abgelehnt.
 
+## Docker
+
+Das Image enthält den kompletten Server: Spielseiten, API, Speicherung und Online-Server auf einem Port.
+
+```bash
+docker build -t southbeat .
+docker run -d -p 4000:4000 -v southbeat-data:/app/data --name southbeat southbeat
+```
+
+Danach läuft SouthBeat auf `http://localhost:4000`. Kämpfer, Statistiken und Ladder-Fortschritt liegen im Volume `southbeat-data` und bleiben bei Neustarts und Updates erhalten.
+
+Oder mit Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Für Spiele im lokalen Netz muss der Server die Adresse kennen, unter der die anderen PCs ihn aufrufen: `docker run … -e NG_ALLOWED_HOSTS=192.168.1.20 …` bzw. `SOUTHBEAT_HOST=192.168.1.20 docker compose up -d`. Sonst antwortet er auf diese Adresse mit Fehler 400.
+
+| Variable | Standard | Zweck |
+| --- | --- | --- |
+| `PORT` | `4000` | Port im Container |
+| `SOUTHBEAT_DATA_FILE` | `/app/data/southbeat.json` | Speicherdatei |
+| `NG_ALLOWED_HOSTS` | – | zusätzliche Hostnamen/IPs, kommagetrennt |
+
+Falls Docker Hub das Herunterladen des Node-Basisimages begrenzt („429 Too Many Requests“), geht ein Spiegel: `docker build --build-arg NODE_IMAGE=mirror.gcr.io/library/node:22-alpine -t southbeat .`
+
 ## Entwicklung
 
 Voraussetzung: Node.js 20 oder neuer.

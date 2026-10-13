@@ -1,0 +1,16 @@
+# docker compose up -d    → SouthBeat on http://localhost:4000
+services:
+  southbeat:
+    build: .
+    image: southbeat
+    ports:
+      - "4000:4000"
+    environment:
+      # For play over the LAN: this PC's IP address (or host name), comma-separated for several.
+      NG_ALLOWED_HOSTS: ${SOUTHBEAT_HOST:-localhost}
+    volumes:
+      - southbeat-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  southbeat-data:
