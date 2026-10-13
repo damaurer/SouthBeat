@@ -6,6 +6,13 @@ import {
   Appearance,
   BEARD_LABELS,
   BODY_LABELS,
+  BODY_SHAPE_KEYS,
+  FACE_SHAPE_KEYS,
+  SHAPE_LABELS,
+  SHAPE_MAX,
+  SHAPE_MIN,
+  ShapeKey,
+  shapeValue,
   BODY_TYPES,
   BEARD_STYLES,
   Character,
@@ -58,6 +65,15 @@ export class CharacterEditor {
   protected readonly beardLabels = BEARD_LABELS;
   protected readonly outfitStyles = OUTFIT_STYLES;
   protected readonly hairLabels = HAIR_LABELS;
+  protected readonly shapeGroups: { title: string; keys: readonly ShapeKey[] }[] = [
+    { title: 'Körper', keys: BODY_SHAPE_KEYS },
+    { title: 'Gesicht', keys: FACE_SHAPE_KEYS },
+  ];
+  protected readonly shapeLabels = SHAPE_LABELS;
+  protected readonly shapeMin = SHAPE_MIN;
+  protected readonly shapeMax = SHAPE_MAX;
+  protected readonly shapeValue = shapeValue;
+  protected readonly shaped = computed(() => Object.keys(this.draft().appearance.shape ?? {}).length > 0);
   protected readonly outfitLabels = OUTFIT_LABELS;
   protected readonly slots = MOVE_SLOTS;
   protected readonly slotLabels = SLOT_LABELS;
@@ -84,6 +100,23 @@ export class CharacterEditor {
 
   protected setLook<K extends keyof Appearance>(key: K, value: Appearance[K]): void {
     this.update((c) => ({ ...c, appearance: { ...c.appearance, [key]: value } }));
+  }
+
+  /** Moves one slider; values back at 0 are dropped, so untouched fighters stay as before. */
+  protected setShape(key: ShapeKey, value: number): void {
+    this.update((c) => {
+      const shape = { ...c.appearance.shape, [key]: value };
+      if (value === 0) delete shape[key];
+      const { shape: _, ...rest } = c.appearance;
+      return { ...c, appearance: Object.keys(shape).length > 0 ? { ...rest, shape } : rest };
+    });
+  }
+
+  protected resetShape(): void {
+    this.update((c) => {
+      const { shape: _, ...rest } = c.appearance;
+      return { ...c, appearance: rest };
+    });
   }
 
   protected setMove(slot: MoveSlot, id: string): void {

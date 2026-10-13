@@ -138,6 +138,7 @@ export class GameDataRules {
         beardStyle: look.beardStyle,
         outfitColor: look.outfitColor,
         outfitStyle: look.outfitStyle,
+        ...(look.shape !== undefined ? { shape: look.shape } : {}),
       },
       moves: Object.fromEntries(MOVE_SLOTS.map((s) => [s, raw.moves?.[s]])),
       stats: Object.fromEntries(STAT_KEYS.map((k) => [k, raw.stats?.[k]])),

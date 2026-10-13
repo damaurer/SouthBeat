@@ -59,6 +59,15 @@ describe('GameDataRules', () => {
     expect(() => rules.createFighter({ ...c, projectileArt: ['<script>'] })).toThrowError(GameDataError);
   });
 
+  it('stores the slider proportions and rejects values out of range', () => {
+    const c = defaultCharacter();
+    const shape = { height: 3, belly: -2, nose: 1 };
+    expect(rules.createFighter({ ...c, appearance: { ...c.appearance, shape } }).appearance.shape).toEqual(shape);
+    for (const bad of [{ height: 4 }, { height: 1.5 }, { wings: 1 }, { height: '2' }, [1]]) {
+      expect(() => rules.createFighter({ ...c, appearance: { ...c.appearance, shape: bad as never } })).toThrowError(GameDataError);
+    }
+  });
+
   it('rejects signature moves of opponents for players', () => {
     const c = defaultCharacter();
     expect(() => rules.createFighter({ ...c, moves: { ...c.moves, special: 'tank-roll' } })).toThrowError(GameDataError);

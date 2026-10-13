@@ -77,6 +77,31 @@
         </label>
       </fieldset>
 
+      <fieldset class="shape">
+        <legend>Proportionen</legend>
+        <p class="hint">Nur Optik: Reichweite und Trefferzonen bleiben für alle Kämpfer gleich.</p>
+        @for (group of shapeGroups; track group.title) {
+          <h3>{{ group.title }}</h3>
+          @for (key of group.keys; track key) {
+            <label class="slider">
+              <span class="slider-name">{{ shapeLabels[key][0] }}</span>
+              <span class="end low">{{ shapeLabels[key][1] }}</span>
+              <input
+                type="range"
+                [min]="shapeMin"
+                [max]="shapeMax"
+                step="1"
+                [value]="shapeValue(draft().appearance, key)"
+                (input)="setShape(key, +$any($event.target).value)"
+                [attr.aria-label]="shapeLabels[key][0]"
+              />
+              <span class="end">{{ shapeLabels[key][2] }}</span>
+            </label>
+          }
+        }
+        <button type="button" class="reset" (click)="resetShape()" [disabled]="!shaped()">Alle Regler zurücksetzen</button>
+      </fieldset>
+
       <fieldset>
         <legend>Moves</legend>
         @for (slot of slots; track slot) {

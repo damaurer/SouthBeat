@@ -97,3 +97,35 @@ button {
 }
 
 .save { padding: 8px 24px; }
+
+.shape {
+  h3 {
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+
+  .hint {
+    margin: 0;
+    font-size: 0.8rem;
+    opacity: 0.75;
+  }
+
+  .reset { justify-self: start; }
+}
+
+.slider {
+  display: grid;
+  grid-template-columns: 6.5rem 4rem 1fr 4rem;
+  gap: 8px;
+
+  .end {
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+
+  .low { text-align: right; }
+
+  input { width: 100%; }
+}

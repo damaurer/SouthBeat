@@ -1,5 +1,6 @@
 import { Appearance } from '../character/character.model';
-import { BodyPart, JOINTS, PartPixel, profileParts } from '../character/profile';
+import { BodyPart, PartPixel, profileParts } from '../character/profile';
+import { Joints, reshape } from '../character/proportions';
 import { Pixel, SPRITE_HEIGHT, SPRITE_WIDTH } from '../character/sprite';
 
 /**
@@ -67,6 +68,7 @@ export function blend(a: Pose, b: Pose, t: number): Pose {
 
 interface Rig {
   parts: Record<BodyPart, PartPixel[]>;
+  joints: Joints;
   cache: Map<string, Pixel[]>;
 }
 
@@ -76,8 +78,9 @@ function rigFor(look: Appearance): Rig {
   let rig = rigs.get(look);
   if (!rig) {
     const parts = Object.fromEntries(ORDER.map((part) => [part, [] as PartPixel[]])) as Record<BodyPart, PartPixel[]>;
-    for (const px of profileParts(look)) parts[px.part].push(px);
-    rig = { parts, cache: new Map() };
+    const shaped = reshape(look, profileParts(look));
+    for (const px of shaped.pixels) parts[px.part].push(px);
+    rig = { parts, joints: shaped.joints, cache: new Map() };
     rigs.set(look, rig);
   }
   return rig;
@@ -109,7 +112,6 @@ const GRID_W = SPRITE_WIDTH + MARGIN_X * 2;
 const GRID_H = SPRITE_HEIGHT + MARGIN_Y;
 const OUTLINE = '#140c1c';
 const FEET: Point = [SPRITE_WIDTH / 2, SPRITE_HEIGHT - 2];
-const HIPS: Point = [16, 33];
 
 /** Parts drawn back to front: far limbs, body and head, then the near arm on top. */
 const ORDER: BodyPart[] = ['armBack', 'foreBack', 'legBack', 'shinBack', 'legFront', 'shinFront', 'body', 'head', 'armFront', 'foreFront'];
@@ -131,13 +133,14 @@ export function posedSprite(look: Appearance, p: Pose): Pixel[] {
   const grid: (string | null)[] = Array(GRID_W * GRID_H).fill(null);
   const move: Transform = (x, y) => [x + p.x, y + p.y];
   // Parts above their pivot (body, head, the whole figure) tilt forward with a negative turn.
-  const body = then(turn(HIPS[0], HIPS[1], -p.lean), move);
+  const j = rig.joints;
+  const body = then(turn(16, j.hipFront[1], -p.lean), move);
   const whole: Transform = (x, y) => {
     const [rx, ry] = turn(FEET[0], FEET[1], -p.roll)(x, y);
     return [rx, FEET[1] + (ry - FEET[1]) * p.flatten];
   };
-  const [sx, sy] = JOINTS.shoulder;
-  const [ex, ey] = JOINTS.elbow;
+  const [sx, sy] = j.shoulder;
+  const [ex, ey] = j.elbow;
   const upperArm = (angle: number, reach: number): Transform => {
     const out: Transform = (x, y) => [x + Math.sin(angle) * reach, y + Math.cos(angle) * reach];
     return then(then(turn(sx, sy, angle), out), body);
@@ -147,13 +150,13 @@ export function posedSprite(look: Appearance, p: Pose): Pixel[] {
     const squash: Transform = (x, y) => [x, hip[1] + (y - hip[1]) * p.legScale];
     return then(then(squash, turn(hip[0], hip[1], angle)), move);
   };
-  const shin = (hip: readonly [number, number], angle: number, knee: number): Transform => then(turn(hip[0], JOINTS.knee, -knee), thigh(hip, angle));
+  const shin = (hip: readonly [number, number], angle: number, knee: number): Transform => then(turn(hip[0], j.knee, -knee), thigh(hip, angle));
   const limb = (part: BodyPart): Transform => {
     switch (part) {
       case 'body':
         return body;
       case 'head':
-        return then(turn(...JOINTS.neck, -p.head), body);
+        return then(turn(...j.neck, -p.head), body);
       case 'armBack':
         return upperArm(p.armBack, p.reachBack);
       case 'foreBack':
@@ -163,13 +166,13 @@ export function posedSprite(look: Appearance, p: Pose): Pixel[] {
       case 'foreFront':
         return forearm(p.armFront, p.elbowFront, p.reachFront);
       case 'legBack':
-        return thigh(JOINTS.hipBack, p.legBack);
+        return thigh(j.hipBack, p.legBack);
       case 'shinBack':
-        return shin(JOINTS.hipBack, p.legBack, p.kneeBack);
+        return shin(j.hipBack, p.legBack, p.kneeBack);
       case 'legFront':
-        return thigh(JOINTS.hipFront, p.legFront);
+        return thigh(j.hipFront, p.legFront);
       case 'shinFront':
-        return shin(JOINTS.hipFront, p.legFront, p.kneeFront);
+        return shin(j.hipFront, p.legFront, p.kneeFront);
     }
   };
   for (const part of ORDER) {

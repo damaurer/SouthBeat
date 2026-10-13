@@ -1,4 +1,4 @@
-import { Accessory, Appearance, BeardStyle, BodyType, HairStyle, OutfitStyle } from './character.model';
+import { Accessory, Appearance, BeardStyle, BodyType, HairStyle, OutfitStyle, shapeValue } from './character.model';
 import { FLAT, Material, Pixel, SPRITE_HEIGHT, SPRITE_WIDTH, adjust, palette } from './sprite';
 
 /**
@@ -36,6 +36,10 @@ class PartCanvas {
   set(x: number, y: number, m: Material): void {
     if (x < 0 || y < 0 || x >= SPRITE_WIDTH || y >= SPRITE_HEIGHT) return;
     this.grids[this.part][y][x] = m;
+  }
+
+  clear(x: number, y: number): void {
+    if (this.grids[this.part][y]?.[x] !== undefined) this.grids[this.part][y][x] = null;
   }
 
   /** Recolors a pixel of the current part that is already painted. */
@@ -114,6 +118,67 @@ function drawHeadShape(c: PartCanvas): void {
   c.rect(15, 8, 2, 3, 'skinDark');
   c.set(16, 9, 'skin');
   c.rect(20, 13, 2, 1, 'mouth');
+}
+
+/** Chin, nose, eye and mouth sliders, applied to the bare head. */
+function shapeFace(c: PartCanvas, look: Appearance): void {
+  c.part = 'head';
+  const chin = shapeValue(look, 'chin');
+  if (chin >= 1) c.set(22, 13, 'skin');
+  if (chin >= 2) c.rect(20, 14, 2, 1, 'skin');
+  if (chin >= 3) c.rect(16, 16, 4, 1, 'skin');
+  if (chin <= -1) c.clear(20, 14);
+  if (chin <= -2) for (let x = 15; x <= 19; x++) c.clear(x, 15);
+  if (chin <= -3) c.clear(21, 13);
+
+  const nose = shapeValue(look, 'nose');
+  if (nose <= -1) c.clear(22, 9);
+  if (nose <= -2) c.clear(22, 10);
+  if (nose >= 1) c.set(23, 10, 'skin');
+  if (nose >= 2) {
+    c.set(23, 9, 'skin');
+    c.set(22, 11, 'skin');
+  }
+  if (nose >= 3) {
+    c.set(24, 10, 'skin');
+    c.set(23, 11, 'skin');
+  }
+
+  const eyes = shapeValue(look, 'eyes');
+  if (eyes <= -2) c.set(19, 8, 'skin');
+  if (eyes <= -3) c.set(20, 8, 'hair');
+  if (eyes >= 1) c.set(19, 9, 'eyeWhite');
+  if (eyes >= 2) c.set(20, 9, 'iris');
+  if (eyes >= 3) {
+    // Big eyes push the brow up.
+    c.set(18, 8, 'eyeWhite');
+    c.rect(19, 7, 2, 1, 'skin');
+    c.rect(18, 6, 3, 1, 'hair');
+  }
+
+  const mouth = shapeValue(look, 'mouth');
+  c.rect(20, 13, 2, 1, 'skin');
+  const width = Math.max(1, Math.min(4, 2 + Math.round(mouth / 1.5)));
+  c.rect(22 - width, 13, width, 1, 'mouth');
+  // Wide mouths smile at the corner, small ones turn down.
+  if (mouth >= 2) c.set(21 - width, 12, 'mouth');
+  if (mouth <= -2) c.set(21 - width, 14, 'mouth');
+}
+
+/** Longer or shorter hair at the back of the head, and a longer or shorter beard. */
+function shapeHair(c: PartCanvas, look: Appearance): void {
+  c.part = 'head';
+  const stretch = (inRegion: (x: number, y: number) => boolean, amount: number, keepAbove: number): void => {
+    for (let x = 0; x < SPRITE_WIDTH; x++) {
+      let bottom = -1;
+      for (let y = 0; y < SPRITE_HEIGHT; y++) if (c.get(x, y) === 'hair' && inRegion(x, y)) bottom = y;
+      if (bottom < 0) continue;
+      if (amount > 0) for (let i = 1; i <= amount; i++) c.set(x, bottom + i, 'hair');
+      else for (let i = 0; i < -amount && bottom - i > keepAbove; i++) c.clear(x, bottom - i);
+    }
+  };
+  if (look.hairStyle !== 'bald' && look.hairStyle !== 'mohawk') stretch((x, y) => x <= 14 && y >= 6, shapeValue(look, 'hair') * 2, 8);
+  if (look.beardStyle !== 'none' && look.beardStyle !== 'stubble') stretch((x, y) => x >= 15 && y >= 13, shapeValue(look, 'beard') * 2, 13);
 }
 
 function drawTorso(c: PartCanvas, look: Appearance, clothes: Clothes): void {
@@ -353,9 +418,11 @@ function paintProfile(look: Appearance): PartCanvas {
   drawLegDetails(c, 'front', look.outfitStyle);
   drawTorso(c, look, clothes);
   drawHeadShape(c);
+  shapeFace(c, look);
   if (look.bodyType === 'slim' && look.outfitStyle !== 'ninja') c.set(20, 7, 'lash');
   drawHair(c, look.hairStyle);
   drawBeard(c, look.beardStyle);
+  shapeHair(c, look);
   drawOutfitDetails(c, look.outfitStyle, look);
   if (look.outfitStyle !== 'ninja') drawAccessory(c, look.accessory ?? 'none');
   drawArm(c, 'front', clothes, look);

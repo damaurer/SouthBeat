@@ -30,6 +30,19 @@ describe('fight animation', () => {
     expect(extent(idle).width).toBeLessThan(26);
   });
 
+  it('draws the sliders: taller, longer legs and a bigger head, but always standing on the floor', () => {
+    const plain = posedSprite(look, poseFor(idle, 0));
+    const same = posedSprite({ ...look, shape: {} }, poseFor(idle, 0));
+    expect(same).toEqual(plain);
+    const box = (px: { x: number; y: number }[]) => ({ top: Math.min(...px.map((p) => p.y)), bottom: Math.max(...px.map((p) => p.y)) });
+    for (const shape of [{ height: 3 }, { legs: 3 }, { head: 3 }, { height: -3, legs: -3 }]) {
+      const tall = box(posedSprite({ ...look, shape }, poseFor(idle, 0)));
+      expect(tall.bottom).withContext(JSON.stringify(shape)).toBe(box(plain).bottom);
+      const grows = Object.values(shape)[0] > 0;
+      expect(grows ? tall.top < box(plain).top : tall.top > box(plain).top).withContext(JSON.stringify(shape)).toBeTrue();
+    }
+  });
+
   it('lies flat on the floor after a knockdown', () => {
     const lying = extent({ ...idle, knockedDown: true, hitstun: 40, downFrames: 30 });
     const standing = extent(idle);

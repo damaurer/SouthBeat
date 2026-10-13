@@ -6,6 +6,10 @@ import {
   HAIR_STYLES,
   MOVE_SLOTS,
   OUTFIT_STYLES,
+  SHAPE_KEYS,
+  SHAPE_MAX,
+  SHAPE_MIN,
+  Shape,
   STAT_KEYS,
   StatKey,
   Stats,
@@ -57,6 +61,14 @@ export function statErrors(stats: Stats): string[] {
 }
 
 /** Full check for a character, e.g. before it may enter a multiplayer match. */
+/** Slider values: only known keys, each a whole number within the slider range. */
+export function isValidShape(shape: unknown): shape is Shape {
+  if (!shape || typeof shape !== 'object' || Array.isArray(shape)) return false;
+  return Object.entries(shape).every(
+    ([key, value]) => (SHAPE_KEYS as readonly string[]).includes(key) && Number.isInteger(value) && value >= SHAPE_MIN && value <= SHAPE_MAX,
+  );
+}
+
 export function characterErrors(character: Character): string[] {
   const errors = statErrors(character.stats);
   const name = character.name.trim();
@@ -73,6 +85,9 @@ export function characterErrors(character: Character): string[] {
     ![look.skinColor, look.eyeColor, look.hairColor, look.outfitColor].every((c) => HEX_COLOR.test(c))
   ) {
     errors.push('Ungültiges Aussehen.');
+  }
+  if (look?.shape !== undefined && !isValidShape(look.shape)) {
+    errors.push('Ungültige Proportionen.');
   }
   if (character.projectileArt !== undefined && !isValidArt(character.projectileArt)) {
     errors.push('Ungültige Geschoss-Zeichnung.');

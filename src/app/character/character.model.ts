@@ -19,6 +19,37 @@ export interface Appearance {
   beardStyle: BeardStyle;
   outfitColor: string;
   outfitStyle: OutfitStyle;
+  /** Fine-tuning of body and face with sliders; purely cosmetic, every value defaults to 0. */
+  shape?: Shape;
+}
+
+/** Slider settings of the editor, each a whole number from SHAPE_MIN to SHAPE_MAX. */
+export const BODY_SHAPE_KEYS = ['height', 'build', 'shoulders', 'belly', 'head', 'arms', 'legs'] as const;
+export const FACE_SHAPE_KEYS = ['eyes', 'nose', 'mouth', 'chin', 'beard', 'hair'] as const;
+export const SHAPE_KEYS = [...BODY_SHAPE_KEYS, ...FACE_SHAPE_KEYS] as const;
+export type ShapeKey = (typeof SHAPE_KEYS)[number];
+export type Shape = Partial<Record<ShapeKey, number>>;
+export const SHAPE_MIN = -3;
+export const SHAPE_MAX = 3;
+
+export const SHAPE_LABELS: Record<ShapeKey, [string, string, string]> = {
+  height: ['Größe', 'klein', 'groß'],
+  build: ['Statur', 'schmal', 'breit'],
+  shoulders: ['Schultern', 'schmal', 'breit'],
+  belly: ['Bauch', 'flach', 'dick'],
+  head: ['Kopfgröße', 'klein', 'groß'],
+  arms: ['Armlänge', 'kurz', 'lang'],
+  legs: ['Beinlänge', 'kurz', 'lang'],
+  eyes: ['Augen', 'klein', 'groß'],
+  nose: ['Nase', 'klein', 'groß'],
+  mouth: ['Mund', 'schmal', 'breit'],
+  chin: ['Kinn', 'fliehend', 'markant'],
+  beard: ['Bartlänge', 'kurz', 'lang'],
+  hair: ['Haarlänge', 'kurz', 'lang'],
+};
+
+export function shapeValue(look: Appearance, key: ShapeKey): number {
+  return look.shape?.[key] ?? 0;
 }
 
 export type MoveSlot = 'light' | 'heavy' | 'kick' | 'special' | 'ultimate';
