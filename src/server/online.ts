@@ -5,7 +5,9 @@ import { Character, MOVE_SLOTS, MoveSlot } from '../app/character/character.mode
 import { ARENAS, findArena } from '../app/arena/arenas';
 import { Controls, FPS, FightState, createFight, step } from '../app/fight/combat';
 import { OWN_FIGHTER, builtInFighter } from '../app/select/roster';
-import { ClientMessage, LOBBY_NAME_MAX, LobbyInfo, ONLINE_PATH, ServerMessage, newRoomCode, normalizeCode, snapshotOf } from '../app/online/protocol';
+import { ClientMessage, GameMode, LOBBY_NAME_MAX, LobbyInfo, ONLINE_PATH, ServerMessage, newRoomCode, normalizeCode, snapshotOf, stageSnapshotOf } from '../app/online/protocol';
+import { Campaign, createCampaign, startStage, stepCampaign } from '../app/stage/campaign';
+import { STAGES } from '../app/stage/stages';
 
 interface Player {
   socket: WebSocket;
@@ -26,15 +28,21 @@ interface Player {
 interface Room {
   code: string;
   name: string;
+  mode: GameMode;
   arenaId: string;
   players: Player[];
   state: FightState | null;
+  /** The stage mode's run, played together by both players. */
+  campaign: Campaign | null;
+  /** Fighter ids whose characters the players already got in this stage. */
+  known: Set<number>;
+  knownRun: number;
   timer: ReturnType<typeof setInterval> | null;
 }
 
 /**
- * Online fights between two browsers. The server runs the fight engine and is the only
- * one that decides what happens; the browsers send their key presses and draw the frames
+ * Online fights between two browsers, one on one or together in the stage mode. The server
+ * runs the game and is the only one that decides what happens; the browsers send their key presses and draw the frames
  * they get back. That way both players always see the same fight.
  */
 export class OnlineServer {
@@ -64,7 +72,7 @@ export class OnlineServer {
       }
       if (msg.type === 'create' && !room) {
         player = this.player(socket, msg.rosterId, msg.fighter, msg.fighterId);
-        room = this.create(player, msg.name, msg.arenaId);
+        room = this.create(player, msg.name, msg.mode, msg.arenaId);
         this.browsing.delete(socket);
         this.announce();
       } else if (msg.type === 'join' && !room) {
@@ -84,7 +92,7 @@ export class OnlineServer {
         if (player.up) player.jumped = true;
         player.down = msg.down === true;
         if (MOVE_SLOTS.includes(msg.press as MoveSlot)) player.pressed.add(msg.press as MoveSlot);
-      } else if (msg.type === 'rematch' && room && player && room.state?.winner != null) {
+      } else if (msg.type === 'rematch' && room && player && this.finished(room)) {
         player.wantsRematch = true;
         const by = room.players.indexOf(player) as 0 | 1;
         room.players.forEach((p) => send(p.socket, { type: 'rematch-wanted', by }));
@@ -110,7 +118,7 @@ export class OnlineServer {
     return [...this.rooms.values()]
       .filter((r) => r.players.length === 1)
       .reverse()
-      .map((r) => ({ code: r.code, name: r.name, host: r.players[0].character.name, arenaId: r.arenaId }));
+      .map((r) => ({ code: r.code, name: r.name, host: r.players[0].character.name, mode: r.mode, arenaId: r.arenaId }));
   }
 
   private announce(): void {
@@ -139,26 +147,57 @@ export class OnlineServer {
     };
   }
 
-  private create(host: Player, name: unknown, arenaId: unknown): Room {
+  private create(host: Player, name: unknown, mode: unknown, arenaId: unknown): Room {
     let code = newRoomCode(this.random);
     while (this.rooms.has(code)) code = newRoomCode(this.random);
-    const arena = typeof arenaId === 'string' && findArena(arenaId).id === arenaId ? arenaId : ARENAS[Math.floor(this.random() * ARENAS.length)].id;
+    const stage = mode === 'stage';
+    // The stage mode goes through the stages' own arenas, so the host picks none.
+    const arena = stage
+      ? STAGES[0].arenaId
+      : typeof arenaId === 'string' && findArena(arenaId).id === arenaId
+        ? arenaId
+        : ARENAS[Math.floor(this.random() * ARENAS.length)].id;
     const clean = typeof name === 'string' ? name.replace(/\s+/g, ' ').trim().slice(0, LOBBY_NAME_MAX) : '';
-    const room: Room = { code, name: clean || `Lobby von ${host.character.name}`, arenaId: arena, players: [host], state: null, timer: null };
+    const room: Room = {
+      code,
+      name: clean || `Lobby von ${host.character.name}`,
+      mode: stage ? 'stage' : 'duel',
+      arenaId: arena,
+      players: [host],
+      state: null,
+      campaign: null,
+      known: new Set(),
+      knownRun: 0,
+      timer: null,
+    };
     this.rooms.set(code, room);
-    send(host.socket, { type: 'room', code, name: room.name, arenaId: arena });
+    send(host.socket, { type: 'room', code, name: room.name, mode: room.mode, arenaId: arena });
     return room;
+  }
+
+  /** A fight has a winner, or the stage run is lost or won: time for a rematch or a retry. */
+  private finished(room: Room): boolean {
+    if (room.mode === 'stage') return !!room.campaign && (room.campaign.won || room.campaign.state.phase === 'gameover');
+    return room.state?.winner != null;
   }
 
   private start(room: Room): void {
     this.stop(room);
     const [a, b] = room.players;
-    room.state = createFight(a.character, b.character, room.arenaId);
+    if (room.mode === 'stage') {
+      room.knownRun = 0;
+      const c = room.campaign;
+      if (c && !c.won) startStage(c, c.state.stage.index);
+      else room.campaign = createCampaign([a, b].map((p) => ({ character: p.character, brain: 'human' as const })));
+    } else {
+      room.state = createFight(a.character, b.character, room.arenaId);
+    }
     room.players.forEach((p, i) => {
       p.wantsRematch = false;
       p.pressed.clear();
       send(p.socket, {
         type: 'start',
+        mode: room.mode,
         you: i as 0 | 1,
         arenaId: room.arenaId,
         characters: [a.character, b.character],
@@ -166,6 +205,7 @@ export class OnlineServer {
         fighterIds: [a.fighterId, b.fighterId],
       });
     });
+    if (room.mode === 'stage') return this.runStage(room);
     // Frames are stepped by elapsed time, so a late timer catches up instead of slowing the fight.
     const startedAt = Date.now();
     room.timer = setInterval(() => {
@@ -180,6 +220,32 @@ export class OnlineServer {
       const snapshot = JSON.stringify({ type: 'state', snapshot: snapshotOf(state) } satisfies ServerMessage);
       room.players.forEach((p) => p.socket.readyState === WebSocket.OPEN && p.socket.send(snapshot));
       if (state.winner !== null) this.stop(room);
+    }, 1000 / FPS);
+  }
+
+  private runStage(room: Room): void {
+    const c = room.campaign!;
+    const [a, b] = room.players;
+    const startedAt = Date.now();
+    let frames = 0;
+    room.timer = setInterval(() => {
+      const due = Math.floor(((Date.now() - startedAt) * FPS) / 1000);
+      let events = [] as typeof c.state.events;
+      while (frames < due && !this.finished(room)) {
+        const run = c.run;
+        stepCampaign(c, [this.controls(a), this.controls(b)], this.random);
+        frames++;
+        // Events of a stage that just ended refer to its fighters, so they are dropped.
+        events = run === c.run ? events.concat(c.state.events) : [];
+      }
+      c.state.events = events;
+      if (room.knownRun !== c.run) {
+        room.knownRun = c.run;
+        room.known.clear();
+      }
+      const snapshot = JSON.stringify({ type: 'stage', snapshot: stageSnapshotOf(c, room.known) } satisfies ServerMessage);
+      room.players.forEach((p) => p.socket.readyState === WebSocket.OPEN && p.socket.send(snapshot));
+      if (this.finished(room)) this.stop(room);
     }, 1000 / FPS);
   }
 

@@ -21,34 +21,7 @@
       </div>
     }
     @default {
-      <p class="versus">{{ stageTitle() }}</p>
-      <div class="team">
-        @for (p of players(); track $index) {
-          <div class="member" [class.p2]="$index === 1" [class.out]="p.out">
-            <div class="name">{{ $index === 0 ? 'P1' : p.cpu ? 'CPU' : 'P2' }} {{ p.name }} <span class="lives">{{ '♥'.repeat(p.lives) }}</span></div>
-            <div class="bar hp"><span [style.width.%]="(p.hp / p.maxHp) * 100"></span></div>
-            <div class="bar action" [class.ready]="p.meter >= meterMax"><span [style.width.%]="(p.meter / meterMax) * 100"></span></div>
-            <div class="action-label">{{ p.out ? 'Raus' : p.weapon ?? (p.meter >= meterMax ? 'ULTIMATE BEREIT!' : 'Action') }}</div>
-          </div>
-        }
-        @if (boss(); as b) {
-          <div class="member boss">
-            <div class="name">Boss {{ b.name }}</div>
-            <div class="bar hp"><span [style.width.%]="(b.hp / b.maxHp) * 100"></span></div>
-          </div>
-        }
-      </div>
-      <div class="screen">
-        <canvas #canvas [width]="width" [height]="height" aria-label="Stage"></canvas>
-        @if (bubble(); as b) {
-          <div class="bubble" aria-live="polite"><strong>{{ b.speaker }}:</strong> {{ b.text }}</div>
-        }
-        @if (banner(); as b) {
-          <div class="banner">{{ b }}</div>
-        }
-        @if (go()) {
-          <div class="go">GO →</div>
-        }
+      <app-stage-screen>
         @if (over()) {
           <div class="result">
             <p>Game Over</p>
@@ -57,11 +30,11 @@
             <a routerLink="/">Zur Startseite</a>
           </div>
         }
-      </div>
+      </app-stage-screen>
       <div class="controls">
         <dl>
           @for (k of keys; track $index) {
-            @if ($index === 0 || players().length > 1) {
+            @if ($index === 0 || teamSize() > 1) {
               <div>
                 <dt>Spieler {{ $index + 1 }}</dt>
                 <dd>

@@ -1,6 +1,35 @@
 <section class="fight online">
   @switch (phase()) {
     @case ('fight') {
+      @if (matchMode() === 'stage') {
+        <app-stage-screen [you]="you()">
+          @if (result(); as r) {
+            <div class="result">
+              <p>{{ r }}</p>
+              @if (rematchBy().includes(you())) {
+                <span>Warte auf deinen Mitspieler …</span>
+              } @else {
+                <button type="button" (click)="rematch()">
+                  {{ r === 'Game Over' ? 'Stage nochmal versuchen' : 'Von vorn spielen' }}{{ rematchBy().length ? ' (Mitspieler ist bereit)' : '' }}
+                </button>
+              }
+              <button type="button" (click)="leave()">Raum verlassen</button>
+            </div>
+          }
+        </app-stage-screen>
+        <div class="controls">
+          <dl>
+            <div>
+              <dt>Deine Tasten <a routerLink="/controls">ändern</a></dt>
+              <dd>
+                Laufen {{ keyName(keys.left) }}/{{ keyName(keys.right) }} · nach hinten {{ keyName(keys.up) }} · nach vorn {{ keyName(keys.down) }} · Leicht {{ keyName(keys.light) }} ·
+                Schwer {{ keyName(keys.heavy) }} · Tritt {{ keyName(keys.kick) }} · Spezial {{ keyName(keys.special) }} · <strong>Ultimate {{ keyName(keys.ultimate) }}</strong>
+              </dd>
+            </div>
+          </dl>
+          <p class="hint">Ihr spielt zusammen: besiegt alle Gegner, dann geht es mit „GO →“ nach rechts weiter. Am Ende jeder Stage wartet ein Boss.</p>
+        </div>
+      } @else {
       <p class="versus">Online · {{ arenaName() }} · Du spielst {{ you() === 0 ? 'links' : 'rechts' }}</p>
       @if (fighters(); as fs) {
         <div class="hud">
@@ -56,20 +85,21 @@
           </div>
         </dl>
       </div>
+      }
     }
     @case ('waiting') {
       <h1>Online-Kampf</h1>
       <div class="card">
-        <p>Deine Lobby <strong>{{ roomName() }}</strong> ist offen. Arena: {{ arenaName() }}</p>
-        <p>Sie steht jetzt in der Lobby-Tabelle. Dein Gegner tritt dort mit einem Klick bei, der Kampf startet dann automatisch.</p>
-        <p class="small">Oder er gibt den Raumcode ein: <span class="code-inline">{{ code() }}</span></p>
+        <p>Deine Lobby <strong>{{ roomName() }}</strong> ist offen. {{ modes[matchMode()] }} · {{ matchMode() === 'stage' ? arenaName() : 'Arena: ' + arenaName() }}</p>
+        <p>Sie steht jetzt in der Lobby-Tabelle. {{ matchMode() === 'stage' ? 'Dein Mitspieler' : 'Dein Gegner' }} tritt dort mit einem Klick bei, das Spiel startet dann automatisch.</p>
+        <p class="small">Oder gib den Raumcode weiter: <span class="code-inline">{{ code() }}</span></p>
         <button type="button" (click)="leave()">Lobby schließen</button>
       </div>
     }
     @case ('left') {
       <h1>Online-Kampf</h1>
       <div class="card">
-        <p>Dein Gegner hat den Raum verlassen.</p>
+        <p>{{ matchMode() === 'stage' ? 'Dein Mitspieler' : 'Dein Gegner' }} hat den Raum verlassen.</p>
         <button type="button" (click)="leave()">Zurück</button>
       </div>
     }
@@ -79,7 +109,7 @@
       } @else {
       <p><a routerLink="/">← Zurück</a></p>
       <h1>Online-Kampf</h1>
-      <p>Kämpfe in Echtzeit gegen jemanden an einem anderen PC. Beide brauchen nur einen Browser mit SouthBeat. Dein Gegner wählt seinen Kämpfer an seinem PC.</p>
+      <p>Spiel in Echtzeit mit jemandem an einem anderen PC: im Zweikampf gegeneinander oder im Stage-Modus zusammen gegen die Gegnerwellen. Beide brauchen nur einen Browser mit SouthBeat, und jeder wählt seinen Kämpfer an seinem PC. Den Modus legt der Host beim Erstellen der Lobby fest.</p>
       @if (chosen(); as c) {
         <div class="chosen">
           <app-fighter-portrait [look]="c.character.appearance" />
@@ -94,14 +124,15 @@
       @if (lobbies().length) {
         <table class="lobbies">
           <thead>
-            <tr><th>Lobby</th><th>Host</th><th>Arena</th><th></th></tr>
+            <tr><th>Lobby</th><th>Host</th><th>Modus</th><th>Arena</th><th></th></tr>
           </thead>
           <tbody>
             @for (l of lobbies(); track l.code) {
               <tr>
                 <td>{{ l.name }}</td>
                 <td>{{ l.host }}</td>
-                <td>{{ arenaLabel(l.arenaId) }}</td>
+                <td>{{ modes[l.mode] }}</td>
+                <td>{{ lobbyArena(l) }}</td>
                 <td><button type="button" (click)="joinLobby(l)">Beitreten</button></td>
               </tr>
             }
@@ -121,15 +152,22 @@
             Name der Lobby
             <input name="lobbyName" [ngModel]="lobbyName()" (ngModelChange)="lobbyName.set($event)" [maxlength]="nameMax" [placeholder]="'Lobby von ' + chosen()?.name" autocomplete="off" />
           </label>
-          <label>
-            Arena
-            <select name="arena" [(ngModel)]="arenaId">
-              <option value="">Zufällig</option>
-              @for (a of arenas; track a.id) {
-                <option [value]="a.id">{{ a.name }}</option>
-              }
-            </select>
-          </label>
+          <fieldset class="modes">
+            <legend>Spielmodus</legend>
+            <label><input type="radio" name="mode" value="duel" [ngModel]="mode()" (ngModelChange)="mode.set($event)" /> Zweikampf: gegeneinander</label>
+            <label><input type="radio" name="mode" value="stage" [ngModel]="mode()" (ngModelChange)="mode.set($event)" /> Stage-Modus: zusammen durch alle {{ stageCount }} Stages</label>
+          </fieldset>
+          @if (mode() === 'duel') {
+            <label>
+              Arena
+              <select name="arena" [(ngModel)]="arenaId">
+                <option value="">Zufällig</option>
+                @for (a of arenas; track a.id) {
+                  <option [value]="a.id">{{ a.name }}</option>
+                }
+              </select>
+            </label>
+          }
           <button type="submit">Lobby erstellen</button>
         </form>
         <details class="card">

@@ -14,7 +14,22 @@ import { Spark, renderFight } from '../fight/render';
 import { CharacterSelect, FighterPicks } from '../select/character-select';
 import { FighterPortrait } from '../select/fighter-portrait';
 import { RosterEntry, builtInFighter, resolvePick, roster } from '../select/roster';
-import { ClientMessage, FightSnapshot, LOBBY_NAME_MAX, LobbyInfo, ONLINE_PATH, ServerMessage, normalizeCode, stateFrom } from './protocol';
+import { StageScreen } from '../stage/stage-screen';
+import { STAGES } from '../stage/stages';
+import {
+  ClientMessage,
+  FightSnapshot,
+  GAME_MODES,
+  GameMode,
+  LOBBY_NAME_MAX,
+  LobbyInfo,
+  ONLINE_PATH,
+  ServerMessage,
+  StageSnapshot,
+  normalizeCode,
+  stageFrom,
+  stateFrom,
+} from './protocol';
 
 type Phase = 'menu' | 'connecting' | 'waiting' | 'fight' | 'left';
 
@@ -35,21 +50,28 @@ interface Bubble {
 const BUBBLE_FRAMES = 90;
 
 /**
- * Online fights between two PCs. One player opens a room and passes on the four-letter
- * code, the other joins with it. The server runs the fight; this page sends key presses
- * and draws what the server sends back.
+ * Online games between two PCs. The host opens a lobby for a one-on-one fight or for the
+ * co-op stage mode, the other player joins it from the lobby table (or with the code).
+ * The server runs the game; this page sends key presses and draws what comes back.
  */
 @Component({
   selector: 'app-online-page',
-  imports: [RouterLink, FormsModule, CharacterSelect, FighterPortrait],
+  imports: [RouterLink, FormsModule, CharacterSelect, FighterPortrait, StageScreen],
   templateUrl: './online-page.html',
   styleUrls: ['../fight/fight-page.scss', './online-page.scss'],
 })
 export class OnlinePage {
   private readonly store = inject(CharacterStore);
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
+  private readonly stageScreen = viewChild(StageScreen);
 
   protected readonly arenas = ARENAS;
+  protected readonly modes = GAME_MODES;
+  protected readonly stageCount = STAGES.length;
+  /** What the host's new lobby plays. */
+  protected readonly mode = signal<GameMode>('duel');
+  /** What the current room plays. */
+  protected readonly matchMode = signal<GameMode>('duel');
   private readonly bindings = inject(KeyBindings);
   /** Online you always play with your player 1 keys, as set up on this PC. */
   protected get keys(): KeyMap {
@@ -88,6 +110,10 @@ export class OnlinePage {
   private characters: [Character, Character] | null = null;
   private fighterIds: [string | null, string | null] = [null, null];
   private arena: Painter | null = null;
+  /** Stage mode: characters of everyone on the stage, sent once by the server. */
+  private cast = new Map<number, Character>();
+  private stageRun = 0;
+  private recordedRun = 0;
   private state: FightState | null = null;
   private matchArena = '';
   private sparks: Spark[] = [];
@@ -138,13 +164,13 @@ export class OnlinePage {
     void this.router.navigate(['/']);
   }
 
-  protected arenaLabel(id: string): string {
-    return findArena(id).name;
+  protected lobbyArena(l: LobbyInfo): string {
+    return l.mode === 'stage' ? `alle ${STAGES.length} Stages` : findArena(l.arenaId).name;
   }
 
   /** The host names the lobby and picks the arena; the guest only brings a fighter. */
   protected create(): void {
-    this.request({ type: 'create', name: this.lobbyName(), ...this.myFighter(), arenaId: this.arenaId });
+    this.request({ type: 'create', name: this.lobbyName(), mode: this.mode(), ...this.myFighter(), arenaId: this.arenaId });
   }
 
   protected joinLobby(lobby: LobbyInfo): void {
@@ -219,7 +245,8 @@ export class OnlinePage {
       case 'room':
         this.code.set(msg.code);
         this.roomName.set(msg.name);
-        this.arenaName.set(findArena(msg.arenaId).name);
+        this.matchMode.set(msg.mode);
+        this.arenaName.set(msg.mode === 'stage' ? `alle ${STAGES.length} Stages` : findArena(msg.arenaId).name);
         this.phase.set('waiting');
         break;
       case 'error':
@@ -229,6 +256,10 @@ export class OnlinePage {
         break;
       case 'start': {
         this.matchArena = msg.arenaId;
+        this.matchMode.set(msg.mode);
+        this.cast = new Map();
+        this.stageRun = 0;
+        this.recordedRun = 0;
         this.characters = msg.characters;
         this.fighterIds = msg.fighterIds;
         this.you.set(msg.you);
@@ -249,6 +280,9 @@ export class OnlinePage {
       }
       case 'state':
         this.apply(msg.snapshot);
+        break;
+      case 'stage':
+        this.applyStage(msg.snapshot);
         break;
       case 'rematch-wanted':
         this.rematchBy.update((by) => (by.includes(msg.by) ? by : [...by, msg.by]));
@@ -287,6 +321,25 @@ export class OnlinePage {
     this.fighters.set([hud(0), hud(1)]);
     this.seconds.set(Math.ceil((ROUND_FRAMES - state.frame) / FPS));
     if (state.winner !== null) this.finish(state);
+  }
+
+  private applyStage(snapshot: StageSnapshot): void {
+    if (snapshot.run !== this.stageRun) {
+      this.stageRun = snapshot.run;
+      this.cast.clear();
+    }
+    const state = stageFrom(snapshot, this.cast);
+    // Everyone records a beaten boss for their own fighter, as in the local stage mode.
+    if (state.phase === 'cleared' && this.recordedRun !== snapshot.run) {
+      this.recordedRun = snapshot.run;
+      void this.store.recordLadder(state.stage.boss.id, true);
+    }
+    if (snapshot.won) {
+      this.result.set(`Alle ${STAGES.length} Stages geschafft!`);
+      return;
+    }
+    this.stageScreen()?.show(state, snapshot.run);
+    this.result.set(state.phase === 'gameover' ? 'Game Over' : null);
   }
 
   private reactToHit(fighter: 0 | 1, slot: Parameters<typeof saysSomething>[0]): void {
@@ -328,6 +381,7 @@ export class OnlinePage {
   /** On your own PC you always play with the player 1 keys, whichever side you are on. */
   private key(e: KeyboardEvent, down: boolean): void {
     if (this.phase() !== 'fight') return;
+    if (this.result() && this.matchMode() === 'stage') return;
     const k = this.keys;
     const codes = Object.values(k);
     if (!codes.includes(e.code)) return;

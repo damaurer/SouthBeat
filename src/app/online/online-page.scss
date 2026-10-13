@@ -61,3 +61,14 @@ a { color: inherit; }
 .empty { opacity: 0.8; }
 .small { font-size: 0.85rem; opacity: 0.85; }
 .code-inline { font-weight: bold; letter-spacing: 0.2em; color: #f1c40f; }
+
+.modes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #f0f0f0;
+
+  label { display: flex; gap: 8px; align-items: center; }
+  input { width: auto; }
+}
