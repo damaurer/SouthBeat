@@ -1,6 +1,6 @@
 import { Component, DestroyRef, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CharacterStore } from '../character/character-store';
 import { Character } from '../character/character.model';
 import { ARENAS, findArena, paintArena } from '../arena/arenas';
@@ -10,6 +10,9 @@ import { FightState, METER_MAX, ROUND_FRAMES, FPS } from '../fight/combat';
 import { ATTACK_SLOTS, KEYS, keyName } from '../fight/controls';
 import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from '../fight/hit-lines';
 import { Spark, renderFight } from '../fight/render';
+import { CharacterSelect, FighterPicks } from '../select/character-select';
+import { FighterPortrait } from '../select/fighter-portrait';
+import { RosterEntry, builtInFighter, resolvePick, roster } from '../select/roster';
 import { ClientMessage, FightSnapshot, ONLINE_PATH, ServerMessage, normalizeCode, stateFrom } from './protocol';
 
 type Phase = 'menu' | 'connecting' | 'waiting' | 'fight' | 'left';
@@ -37,7 +40,7 @@ const BUBBLE_FRAMES = 90;
  */
 @Component({
   selector: 'app-online-page',
-  imports: [RouterLink, FormsModule],
+  imports: [RouterLink, FormsModule, CharacterSelect, FighterPortrait],
   templateUrl: './online-page.html',
   styleUrls: ['../fight/fight-page.scss', './online-page.scss'],
 })
@@ -64,7 +67,9 @@ export class OnlinePage {
   protected readonly result = signal<string | null>(null);
   protected readonly rematchBy = signal<(0 | 1)[]>([]);
 
-  protected readonly fighterName = (): string => this.store.saved().name;
+  /** The fighter picked on the select screen; null until one is picked. */
+  protected readonly chosen = signal<RosterEntry | null>(null);
+  private readonly router = inject(Router);
   protected joinCode = '';
   protected arenaId = '';
 
@@ -110,8 +115,22 @@ export class OnlinePage {
     });
   }
 
+  protected choose(picks: FighterPicks): void {
+    const entries = roster(this.store.saved(), this.store.ladderBeaten());
+    this.chosen.set(resolvePick(picks.p1, entries, seeded(Date.now())));
+  }
+
+  protected home(): void {
+    void this.router.navigate(['/']);
+  }
+
   protected create(): void {
-    this.connect({ type: 'create', fighter: this.store.saved(), fighterId: this.store.fighterId(), arenaId: this.arenaId });
+    this.connect({ type: 'create', ...this.myFighter(), arenaId: this.arenaId });
+  }
+
+  private myFighter(): { rosterId: string; fighter: Character; fighterId: string | null } {
+    const c = this.chosen()!;
+    return { rosterId: c.id, fighter: c.character, fighterId: this.store.fighterId() };
   }
 
   protected join(): void {
@@ -120,7 +139,7 @@ export class OnlinePage {
       this.error.set('Der Raumcode hat vier Buchstaben.');
       return;
     }
-    this.connect({ type: 'join', code, fighter: this.store.saved(), fighterId: this.store.fighterId() });
+    this.connect({ type: 'join', code, ...this.myFighter() });
   }
 
   protected rematch(): void {
@@ -176,7 +195,7 @@ export class OnlinePage {
         this.state = null;
         this.sparks = [];
         this.recorded = false;
-        this.hitDecks = [new LineDeck(HIT_LINES), new LineDeck(HIT_LINES)];
+        this.hitDecks = msg.rosterIds.map((id) => new LineDeck(builtInFighter(id)?.hitLines ?? HIT_LINES)) as [LineDeck, LineDeck];
         this.lastHitLine = [-Infinity, -Infinity];
         this.bubbles.set([null, null]);
         this.banner.set(null);

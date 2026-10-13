@@ -15,15 +15,15 @@ export interface FightSnapshot {
 }
 
 export type ClientMessage =
-  | { type: 'create'; fighter: Character; fighterId: string | null; arenaId: string }
-  | { type: 'join'; code: string; fighter: Character; fighterId: string | null }
+  | { type: 'create'; rosterId: string; fighter: Character; fighterId: string | null; arenaId: string }
+  | { type: 'join'; code: string; rosterId: string; fighter: Character; fighterId: string | null }
   /** Sent whenever a key changes: which way the player walks, and an attack button if one was just pressed. */
   | { type: 'input'; left: boolean; right: boolean; press: MoveSlot | null }
   | { type: 'rematch' };
 
 export type ServerMessage =
   | { type: 'room'; code: string }
-  | { type: 'start'; you: 0 | 1; arenaId: string; characters: [Character, Character]; fighterIds: [string | null, string | null] }
+  | { type: 'start'; you: 0 | 1; arenaId: string; characters: [Character, Character]; rosterIds: [string, string]; fighterIds: [string | null, string | null] }
   | { type: 'state'; snapshot: FightSnapshot }
   | { type: 'rematch-wanted'; by: 0 | 1 }
   | { type: 'opponent-left' }

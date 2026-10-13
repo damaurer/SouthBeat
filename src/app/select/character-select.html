@@ -1,0 +1,96 @@
+<section class="select">
+  <header>
+    <a routerLink="/">← Zurück</a>
+    <h1>Kämpferauswahl</h1>
+  </header>
+
+  <ul class="grid" role="listbox" aria-label="Kämpfer">
+    @for (tile of tiles(); track tile.id; let i = $index) {
+      <li>
+        <button
+          type="button"
+          class="tile"
+          [class.locked]="tile.entry?.locked"
+          [class.picked]="pickedBy(tile.id).length > 0"
+          [attr.aria-label]="tile.entry ? (tile.entry.locked ? 'Gesperrt' : tile.entry.name) : 'Zufall'"
+          (click)="click(i)"
+        >
+          @if (tile.entry; as e) {
+            <app-fighter-portrait [look]="e.character.appearance" [silhouette]="e.locked" />
+            <span class="tile-name">{{ e.locked ? '???' : e.name }}</span>
+          } @else {
+            <span class="mystery">?</span>
+            <span class="tile-name">Zufall</span>
+          }
+          @for (t of tokensOn(i); track t) {
+            <span class="token" [class]="'token ' + t.toLowerCase()">{{ t }}</span>
+          }
+          @for (t of pickedBy(tile.id); track t) {
+            <span class="chip" [class]="'chip ' + t.toLowerCase()">{{ t }}</span>
+          }
+        </button>
+      </li>
+    }
+  </ul>
+
+  @if (ready()) {
+    <button type="button" class="ready" (click)="go()">
+      Bereit zum Kampf! <small>{{ keyName(keys[0].light) }} oder klicken</small>
+    </button>
+  }
+
+  <div class="panels" [class.solo]="solo()">
+    @for (p of players(); track p) {
+      @let entry = entryAt(p);
+      <div class="panel" [class]="'panel ' + (p === 0 ? 'p1' : mode() === 'cpu' ? 'cpu' : 'p2')" [class.done]="picks()[p] !== null">
+        <div class="tag">
+          {{ p === 0 ? 'P1' : mode() === 'cpu' ? 'CPU' : 'P2' }}
+          @if (p === 1) {
+            <button type="button" class="mode" (click)="toggleMode()">{{ mode() === 'cpu' ? 'zu Spieler 2 wechseln' : 'zu CPU wechseln' }}</button>
+          }
+        </div>
+        <div class="figure">
+          @if (isRandom(p)) {
+            <span class="mystery big">?</span>
+          } @else if (entry && !entry.locked) {
+            <app-fighter-portrait [look]="entry.character.appearance" crop="full" />
+          }
+        </div>
+        <div class="details">
+          @if (isRandom(p)) {
+            <h2>Zufall</h2>
+            <p class="title">Lass dich überraschen</p>
+          } @else if (entry && !entry.locked) {
+            <h2>{{ entry.name }}</h2>
+            <p class="title">{{ entry.title }}</p>
+            <dl class="stats">
+              @for (key of statKeys; track key) {
+                <div>
+                  <dt>{{ statLabels[key] }}</dt>
+                  <dd><span [style.width.%]="entry.character.stats[key] * 10"></span></dd>
+                </div>
+              }
+            </dl>
+          } @else if (entry?.locked) {
+            <h2>???</h2>
+            <p class="title">Besiege den Endboss im Einzelspieler.</p>
+          }
+          @if (picks()[p] !== null) {
+            <p class="state">Gewählt <button type="button" (click)="unpick(p)">ändern</button></p>
+          } @else if (p === 1 && !cursorActive(1)) {
+            <p class="state">Erst wählt P1</p>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <p class="help">
+    P1: {{ keyName(keys[0].up) }}{{ keyName(keys[0].left) }}{{ keyName(keys[0].down) }}{{ keyName(keys[0].right) }} bewegen, {{ keyName(keys[0].light) }} wählen,
+    {{ keyName(keys[0].heavy) }} zurück
+    @if (!solo()) {
+      · P2: Pfeiltasten bewegen, {{ keyName(keys[1].light) }} wählen, {{ keyName(keys[1].heavy) }} zurück
+    }
+    · oder mit der Maus
+  </p>
+</section>

@@ -1,27 +1,37 @@
 <section class="arena-select">
   <header>
-    <a routerLink="/">← Zurück</a>
+    <button type="button" class="link" (click)="back()">← Kämpferauswahl</button>
     <h1>Arena wählen</h1>
   </header>
 
   <div class="stage">
-    <app-arena-canvas [arena]="selected()" [fighters]="fighters()" />
-    <div class="info">
-      <h2>{{ selected().name }}</h2>
-      <p>{{ selected().description }}</p>
-      <p class="matchup">{{ playerName() }} gegen Sparringspartner</p>
-      <a class="start" routerLink="/fight" [queryParams]="{ arena: selected().id }">Kampf starten</a>
+    <app-arena-canvas [arena]="preview()" [fighters]="looks()" />
+    <div class="banner">
+      <span class="name">{{ selected()?.name ?? 'Zufällige Arena' }}</span>
+      <span class="matchup"><b class="p1">P1</b> {{ fighters()[0].name }} <i>gegen</i> {{ fighters()[1].name }} <b [class]="modeLabel.toLowerCase()">{{ modeLabel }}</b></span>
     </div>
   </div>
+  <p class="description">{{ selected()?.description ?? 'Lass das Los entscheiden, wo gekämpft wird.' }}</p>
 
   <ul class="arena-list">
-    @for (arena of arenas; track arena.id) {
+    @for (arena of arenas; track arena.id; let i = $index) {
       <li>
-        <button type="button" (click)="selected.set(arena)" [class.active]="arena.id === selected().id" [attr.aria-pressed]="arena.id === selected().id">
+        <button type="button" class="tile" (click)="choose(i)" (mouseenter)="cursor.set(i)" [class.active]="cursor() === i" [attr.aria-pressed]="cursor() === i">
           <app-arena-canvas [arena]="arena" />
           <span>{{ arena.name }}</span>
         </button>
       </li>
     }
+    <li>
+      <button type="button" class="tile random" (click)="choose(arenas.length)" (mouseenter)="cursor.set(arenas.length)" [class.active]="cursor() === arenas.length">
+        <span class="mystery">?</span>
+        <span>Zufall</span>
+      </button>
+    </li>
   </ul>
+
+  <p class="help">
+    {{ keyName(keys[0].up) }}{{ keyName(keys[0].left) }}{{ keyName(keys[0].down) }}{{ keyName(keys[0].right) }} oder Pfeiltasten wählen, {{ keyName(keys[0].light) }} los,
+    {{ keyName(keys[0].heavy) }} zurück · oder klicken
+  </p>
 </section>

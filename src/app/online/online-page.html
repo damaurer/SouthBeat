@@ -74,9 +74,19 @@
       </div>
     }
     @default {
+      @if (!chosen()) {
+        <app-character-select [solo]="true" (confirmed)="choose($event)" (back)="home()" />
+      } @else {
       <p><a routerLink="/">← Zurück</a></p>
       <h1>Online-Kampf</h1>
-      <p>Kämpfe in Echtzeit gegen jemanden an einem anderen PC. Beide brauchen nur einen Browser mit SouthBeat. Du kämpfst mit deinem gespeicherten Kämpfer <strong>{{ fighterName() }}</strong>.</p>
+      <p>Kämpfe in Echtzeit gegen jemanden an einem anderen PC. Beide brauchen nur einen Browser mit SouthBeat. Dein Gegner wählt seinen Kämpfer an seinem PC.</p>
+      @if (chosen(); as c) {
+        <div class="chosen">
+          <app-fighter-portrait [look]="c.character.appearance" />
+          <span><strong>{{ c.name }}</strong> {{ c.title }}</span>
+          <button type="button" (click)="chosen.set(null)">Anderen Kämpfer wählen</button>
+        </div>
+      }
       @if (error(); as e) {
         <p class="error" role="alert">{{ e }}</p>
       }
@@ -103,6 +113,7 @@
           <button type="submit" [disabled]="phase() === 'connecting'">Beitreten</button>
         </form>
       </div>
+      }
     }
   }
 </section>

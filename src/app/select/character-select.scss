@@ -1,0 +1,189 @@
+$p1: #e74c3c;
+$p2: #3498db;
+$cpu: #95a5a6;
+
+.select {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+header {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  a { color: inherit; }
+  h1 { text-transform: uppercase; letter-spacing: 0.1em; }
+}
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  background: repeating-linear-gradient(135deg, #1b1b2b 0 12px, #20203a 12px 24px);
+  border: 3px solid #f0f0f0;
+}
+
+.tile {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  background: linear-gradient(#3d4466, #262a40);
+  border: 3px solid #0b0b12;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%);
+
+  app-fighter-portrait { height: 100%; min-height: 0; }
+  &:hover { border-color: #f1c40f; }
+  &.locked { background: linear-gradient(#22222e, #15151d); cursor: not-allowed; }
+  &.picked { filter: brightness(1.25); }
+}
+
+.tile-name {
+  background: #0b0b12;
+  padding: 2px 4px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mystery {
+  display: grid;
+  place-content: center;
+  font-size: 3rem;
+  font-weight: bold;
+  color: #f1c40f;
+  &.big { font-size: 6rem; height: 100%; }
+}
+
+.token, .chip {
+  position: absolute;
+  padding: 2px 6px;
+  font-weight: bold;
+  font-size: 0.8rem;
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: 2px 2px 0 #0b0b12;
+  &.p1 { background: $p1; }
+  &.p2 { background: $p2; }
+  &.cpu { background: $cpu; }
+}
+
+.token {
+  bottom: 22px;
+  animation: bob 0.6s steps(2) infinite;
+  &.p1 { left: 10%; }
+  &.p2, &.cpu { right: 10%; }
+}
+
+.chip {
+  top: 4px;
+  &.p1 { left: 8%; }
+  &.p2, &.cpu { right: 8%; }
+}
+
+.ready {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+  padding: 10px;
+  font: inherit;
+  font-size: clamp(1.25rem, 4vw, 2rem);
+  font-weight: bold;
+  font-style: italic;
+  text-transform: uppercase;
+  color: #14141f;
+  background: linear-gradient(90deg, #f39c12, #f1c40f, #f39c12);
+  border: 3px solid #0b0b12;
+  cursor: pointer;
+  animation: flash 0.8s steps(2) infinite;
+
+  small { font-size: 0.8rem; font-style: normal; text-transform: none; }
+}
+
+.panels {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+
+  &.solo { grid-template-columns: minmax(0, 1fr); max-width: 520px; }
+  @media (max-width: 640px) { grid-template-columns: 1fr; }
+}
+
+.panel {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 4px 12px;
+  padding: 8px;
+  border: 3px solid #0b0b12;
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 94% 100%, 0 100%);
+
+  &.p1 { background: linear-gradient(160deg, rgba($p1, 0.85), rgba($p1, 0.35)); }
+  &.p2 { background: linear-gradient(160deg, rgba($p2, 0.85), rgba($p2, 0.35)); }
+  &.cpu { background: linear-gradient(160deg, rgba($cpu, 0.75), rgba($cpu, 0.25)); }
+  &.done .figure { filter: drop-shadow(0 0 6px #fff); }
+}
+
+.tag {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  font-style: italic;
+}
+
+.mode {
+  font: inherit;
+  font-size: 0.75rem;
+  font-style: normal;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.figure {
+  aspect-ratio: 2 / 3;
+  app-fighter-portrait { height: 100%; }
+}
+
+.details {
+  h2 { margin: 0; text-transform: uppercase; font-size: 1.25rem; }
+  .title { margin: 0 0 8px; opacity: 0.9; }
+  .state { margin: 8px 0 0; font-weight: bold; button { font: inherit; font-size: 0.75rem; margin-left: 6px; cursor: pointer; } }
+}
+
+.stats {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 0.75rem;
+
+  div { display: grid; grid-template-columns: 13ch 1fr; align-items: center; gap: 6px; }
+  dt { opacity: 0.9; }
+  dd { margin: 0; height: 8px; background: rgb(0 0 0 / 40%); }
+  dd span { display: block; height: 100%; background: #f1c40f; }
+}
+
+.help { opacity: 0.8; font-size: 0.85rem; }
+
+@keyframes bob {
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes flash {
+  50% { filter: brightness(1.15); }
+}

@@ -4,11 +4,13 @@ import { characterErrors, defaultCharacter } from '../app/character/balance';
 import { Character, MOVE_SLOTS, MoveSlot } from '../app/character/character.model';
 import { ARENAS, findArena } from '../app/arena/arenas';
 import { Controls, FPS, FightState, createFight, step } from '../app/fight/combat';
+import { OWN_FIGHTER, builtInFighter } from '../app/select/roster';
 import { ClientMessage, ONLINE_PATH, ServerMessage, newRoomCode, normalizeCode, snapshotOf } from '../app/online/protocol';
 
 interface Player {
   socket: WebSocket;
   character: Character;
+  rosterId: string;
   fighterId: string | null;
   left: boolean;
   right: boolean;
@@ -52,13 +54,13 @@ export class OnlineServer {
         return;
       }
       if (msg.type === 'create' && !room) {
-        player = this.player(socket, msg.fighter, msg.fighterId);
+        player = this.player(socket, msg.rosterId, msg.fighter, msg.fighterId);
         room = this.create(player, msg.arenaId);
       } else if (msg.type === 'join' && !room) {
         const found = this.rooms.get(normalizeCode(String(msg.code ?? '')));
         if (!found) return send(socket, { type: 'error', message: 'Diesen Raum gibt es nicht.' });
         if (found.players.length >= 2) return send(socket, { type: 'error', message: 'Der Raum ist schon voll.' });
-        player = this.player(socket, msg.fighter, msg.fighterId);
+        player = this.player(socket, msg.rosterId, msg.fighter, msg.fighterId);
         room = found;
         room.players.push(player);
         this.start(room);
@@ -85,13 +87,17 @@ export class OnlineServer {
     return this.rooms.size;
   }
 
-  private player(socket: WebSocket, fighter: unknown, fighterId: unknown): Player {
-    // Fighters are checked like saved ones, so nobody brings an overpowered fighter online.
+  private player(socket: WebSocket, rosterId: unknown, fighter: unknown, fighterId: unknown): Player {
+    // Built-in fighters come from the server's own list; the player's own fighter is checked
+    // like a saved one, so nobody brings an overpowered fighter online.
+    const builtIn = typeof rosterId === 'string' && rosterId !== OWN_FIGHTER ? builtInFighter(rosterId) : undefined;
     const valid = fighter && typeof fighter === 'object' && characterErrors(fighter as Character).length === 0;
     return {
       socket,
-      character: valid ? (fighter as Character) : defaultCharacter(),
-      fighterId: typeof fighterId === 'string' ? fighterId : null,
+      character: builtIn ? builtIn.character : valid ? (fighter as Character) : defaultCharacter(),
+      rosterId: builtIn ? builtIn.id : OWN_FIGHTER,
+      // Only the player's own fighter counts in the statistics.
+      fighterId: !builtIn && typeof fighterId === 'string' ? fighterId : null,
       left: false,
       right: false,
       pressed: new Set(),
@@ -121,6 +127,7 @@ export class OnlineServer {
         you: i as 0 | 1,
         arenaId: room.arenaId,
         characters: [a.character, b.character],
+        rosterIds: [a.rosterId, b.rosterId],
         fighterIds: [a.fighterId, b.fighterId],
       });
     });

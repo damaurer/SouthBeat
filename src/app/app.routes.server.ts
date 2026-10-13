@@ -5,6 +5,9 @@ export const serverRoutes: ServerRoute[] = [
   { path: 'fight', renderMode: RenderMode.Client },
   // Online fights need a live connection, so there is nothing to prerender.
   { path: 'online', renderMode: RenderMode.Client },
+  // Both select screens read the picks from the query string.
+  { path: 'select', renderMode: RenderMode.Client },
+  { path: 'arena', renderMode: RenderMode.Client },
   {
     path: '**',
     renderMode: RenderMode.Prerender

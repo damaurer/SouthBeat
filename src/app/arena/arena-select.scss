@@ -8,56 +8,90 @@ header {
   display: flex;
   gap: 16px;
   align-items: baseline;
+  h1 { text-transform: uppercase; letter-spacing: 0.1em; }
+}
 
-  a { color: inherit; }
+.link {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
 }
 
 .stage {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
+  position: relative;
+  border: 3px solid #f0f0f0;
+}
 
-  app-arena-canvas { border: 2px solid #f0f0f0; }
+.banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  background: linear-gradient(90deg, rgb(11 11 18 / 90%), rgb(11 11 18 / 60%));
 
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
+  .name {
+    font-size: clamp(1.1rem, 3.5vw, 2rem);
+    font-weight: bold;
+    font-style: italic;
+    text-transform: uppercase;
+    color: #f1c40f;
   }
+
+  b { padding: 0 6px; color: #fff; }
+  .p1 { background: #e74c3c; }
+  .p2 { background: #3498db; }
+  .cpu { background: #95a5a6; }
+  i { opacity: 0.7; }
 }
 
-.info h2 { margin-top: 0; }
-.matchup { color: #f1c40f; }
-
-.start {
-  display: inline-block;
-  padding: 8px 20px;
-  background: #f1c40f;
-  color: #14141f;
-  font-weight: bold;
-  text-decoration: none;
-}
+.description { opacity: 0.85; }
 
 .arena-list {
   list-style: none;
   padding: 0;
-  margin: 24px 0 0;
+  margin: 12px 0 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+
+  @media (max-width: 640px) { grid-template-columns: repeat(2, 1fr); }
 }
 
-button {
+.tile {
   width: 100%;
-  padding: 4px;
+  padding: 3px;
   background: #1f1f2e;
   color: inherit;
   font: inherit;
-  border: 2px solid transparent;
+  font-size: 0.8rem;
+  border: 3px solid #0b0b12;
   cursor: pointer;
   display: grid;
-  gap: 4px;
+  gap: 2px;
   text-align: left;
+  text-transform: uppercase;
 
-  &:hover { border-color: #666; }
-  &.active { border-color: #f1c40f; }
+  &.active { border-color: #f1c40f; box-shadow: 0 0 0 2px #e74c3c; }
 }
+
+.random .mystery {
+  display: grid;
+  place-content: center;
+  aspect-ratio: 16 / 9;
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #f1c40f;
+  background: repeating-linear-gradient(135deg, #1b1b2b 0 10px, #26264a 10px 20px);
+}
+
+.help { opacity: 0.8; font-size: 0.85rem; }

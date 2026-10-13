@@ -28,3 +28,16 @@
 .error { color: #ff7675; }
 
 a { color: inherit; }
+
+.chosen {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 8px;
+  border: 2px solid #e74c3c;
+  background: rgb(231 76 60 / 25%);
+
+  app-fighter-portrait { width: 48px; height: 36px; }
+  button { font: inherit; margin-left: auto; cursor: pointer; }
+}

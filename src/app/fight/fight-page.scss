@@ -131,7 +131,9 @@ button {
   flex-wrap: wrap;
 
   button.active { background: #f1c40f; }
-  a { color: inherit; margin-left: auto; }
+  a { color: inherit; }
+  a:first-of-type { margin-left: auto; }
+  .mode-label { color: #f1c40f; font-weight: bold; }
 }
 
 dl div { margin-bottom: 6px; }

@@ -45,7 +45,8 @@
           <a routerLink="/singleplayer">Zur Gegnerliste</a>
         } @else {
           <button type="button" (click)="reset()">Nochmal</button>
-          <a routerLink="/arena">Andere Arena</a>
+          <a routerLink="/arena" [queryParams]="picks">Andere Arena</a>
+          <a routerLink="/select" [queryParams]="picks">Andere Kämpfer</a>
         }
       </div>
     }
@@ -56,9 +57,9 @@
       @if (opponent) {
         <a routerLink="/singleplayer">← Gegnerliste</a>
       } @else {
-        <button type="button" [class.active]="mode() === 'cpu'" (click)="setMode('cpu')">Gegen CPU</button>
-        <button type="button" [class.active]="mode() === 'local'" (click)="setMode('local')">2 Spieler</button>
-        <a routerLink="/arena">← Arena wählen</a>
+        <span class="mode-label">{{ mode() === 'cpu' ? 'Gegen CPU' : '2 Spieler' }}</span>
+        <a routerLink="/select" [queryParams]="picks">← Kämpferauswahl</a>
+        <a routerLink="/arena" [queryParams]="picks">Arena wählen</a>
       }
     </div>
     <dl>

@@ -1,7 +1,6 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CharacterStore } from '../character/character-store';
-import { SPARRING_PARTNER } from '../character/sparring';
 import { findArena, paintArena } from '../arena/arenas';
 import { ARENA_HEIGHT, ARENA_WIDTH, GROUND_Y } from '../arena/props';
 import { seeded } from '../arena/painter';
@@ -10,6 +9,8 @@ import { Controls, DEFAULT_CPU, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, F
 import { OPPONENTS, findOpponent } from '../singleplayer/opponents';
 import { Spark, renderFight } from './render';
 import { GAME_KEYS, KEYS, KeyMap, keyName } from './controls';
+import { picksFromQuery } from '../select/select-page';
+import { OWN_FIGHTER, RosterEntry, resolvePick, roster } from '../select/roster';
 import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from './hit-lines';
 
 type Mode = 'cpu' | 'local';
@@ -60,10 +61,13 @@ export class FightPage {
   protected readonly height = ARENA_HEIGHT;
   protected readonly meterMax = METER_MAX;
   protected readonly keys = KEYS;
-  protected readonly mode = signal<Mode>('cpu');
+  /** Free fights get their fighters and mode from the select screens. */
+  protected readonly picks = picksFromQuery(this.query) ?? { p1: OWN_FIGHTER, p2: 'sparring', mode: 'cpu' as Mode };
+  protected readonly mode = signal<Mode>(this.opponent ? 'cpu' : this.picks.mode);
   protected readonly hud = signal<Hud | null>(null);
 
   private state!: FightState;
+  private cpu = DEFAULT_CPU;
   private sparks: Spark[] = [];
   private banner: { text: string; frames: number } | null = null;
   private bubbles: [{ text: string; until: number } | null, { text: string; until: number } | null] = [null, null];
@@ -125,19 +129,28 @@ export class FightPage {
     });
   }
 
-  protected setMode(mode: Mode): void {
-    this.mode.set(mode);
-    this.reset();
+  /** The two fighters: in single player the ladder opponent, otherwise whoever was picked. */
+  private lineup(): [RosterEntry, RosterEntry] {
+    const entries = roster(this.store.saved(), this.store.ladderBeaten());
+    const random = seeded(1);
+    const me = resolvePick(this.opponent ? OWN_FIGHTER : this.picks.p1, entries, random);
+    if (this.opponent) {
+      const o = this.opponent;
+      return [me, { id: o.id, name: o.character.name, title: o.title, character: o.character, hitLines: o.hitLines, cpu: o.cpu, locked: false }];
+    }
+    return [me, resolvePick(this.picks.p2 ?? 'sparring', entries, random)];
   }
 
   protected reset(): void {
-    this.state = createFight(this.store.saved(), this.opponent?.character ?? SPARRING_PARTNER, this.arena.id);
+    const [a, b] = this.lineup();
+    this.cpu = b.cpu;
+    this.state = createFight(a.character, b.character, this.arena.id);
     this.sparks = [];
     this.banner = null;
     this.bubbles = [null, null];
     this.nextBubbleAt = FPS / 2;
     this.chatter = new LineDeck(this.opponent?.lines ?? []);
-    this.hitDecks = [new LineDeck(HIT_LINES), new LineDeck(this.opponent?.hitLines ?? HIT_LINES)];
+    this.hitDecks = [new LineDeck(a.hitLines), new LineDeck(b.hitLines)];
     this.lastHitLine = [-Infinity, -Infinity];
     this.resultRecorded = false;
     this.random = seeded(Date.now());
@@ -148,7 +161,7 @@ export class FightPage {
     const controls: [Controls, Controls] = [
       this.read(KEYS[0]),
       this.opponent || this.mode() === 'cpu'
-        ? cpuControls(this.state, 1, this.random, this.opponent?.cpu ?? DEFAULT_CPU)
+        ? cpuControls(this.state, 1, this.random, this.cpu)
         : this.read(KEYS[1]),
     ];
     this.pressed.clear();
