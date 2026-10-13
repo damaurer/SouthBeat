@@ -1,12 +1,14 @@
 import { defaultCharacter } from '../app/character/balance';
-import { GameDataError, GameDataRules, emptyGameData } from './game-data';
+import { GameData, GameDataError, GameDataRules, emptyGameData } from './game-data';
 
 describe('GameDataRules', () => {
   let n: number;
   let rules: GameDataRules;
+  let data: GameData;
   beforeEach(() => {
     n = 0;
-    rules = new GameDataRules(emptyGameData(), () => `id${++n}`, () => new Date('2026-10-13T08:00:00Z'));
+    data = emptyGameData();
+    rules = new GameDataRules(data, () => `id${++n}`, () => new Date('2026-10-13T08:00:00Z'), (t) => `hash:${t}`);
   });
 
   it('creates fighters and strips unknown fields', () => {
@@ -23,9 +25,40 @@ describe('GameDataRules', () => {
 
   it('updates an existing fighter and 404s for unknown ids', () => {
     const f = rules.createFighter(defaultCharacter());
-    rules.updateFighter(f.id, { ...defaultCharacter(), name: 'Neo' });
+    rules.updateFighter(f.id, { ...defaultCharacter(), name: 'Neo' }, f.editToken);
     expect(rules.getFighter(f.id).fighter.name).toBe('Neo');
-    expect(() => rules.updateFighter('nope', defaultCharacter())).toThrowMatching((e) => (e as GameDataError).status === 404);
+    expect(() => rules.updateFighter('nope', defaultCharacter(), f.editToken)).toThrowMatching((e) => (e as GameDataError).status === 404);
+  });
+
+  it('only lets the owner change a fighter and never shows the token', () => {
+    const f = rules.createFighter(defaultCharacter());
+    expect(f.editToken.length).toBeGreaterThan(5);
+    expect(data.fighters[0].tokenHash).toBe(`hash:${f.editToken}`);
+    for (const wrong of [undefined, '', 'guess', 123]) {
+      expect(() => rules.updateFighter(f.id, { ...defaultCharacter(), name: 'Hijack' }, wrong)).toThrowMatching((e) => (e as GameDataError).status === 403);
+      expect(() => rules.recordLadder(f.id, { opponentId: 'bernd-brummer', won: true }, wrong)).toThrowMatching((e) => (e as GameDataError).status === 403);
+    }
+    expect(rules.getFighter(f.id).fighter.name).not.toBe('Hijack');
+    expect(JSON.stringify(rules.listFighters())).not.toContain('hash:');
+    expect(JSON.stringify(rules.getFighter(f.id))).not.toContain('hash:');
+    expect(rules.owns(f.id, f.editToken)).toBeTrue();
+    expect(rules.owns(f.id, 'guess')).toBeFalse();
+  });
+
+  it('hands a token to the first save of a fighter from before tokens existed', () => {
+    const f = rules.createFighter(defaultCharacter());
+    delete data.fighters[0].tokenHash;
+    expect(() => rules.recordLadder(f.id, { opponentId: 'bernd-brummer', won: true }, undefined)).toThrowError(GameDataError);
+    const claimed = rules.updateFighter(f.id, defaultCharacter(), undefined);
+    expect('editToken' in claimed).toBeTrue();
+    expect(() => rules.updateFighter(f.id, defaultCharacter(), undefined)).toThrowMatching((e) => (e as GameDataError).status === 403);
+  });
+
+  it('refuses ladder opponents that are still locked', () => {
+    const f = rules.createFighter(defaultCharacter());
+    expect(() => rules.recordLadder(f.id, { opponentId: 'gustav-grossmaul', won: true }, f.editToken)).toThrowMatching((e) => (e as GameDataError).status === 403);
+    rules.recordLadder(f.id, { opponentId: 'bernd-brummer', won: true }, f.editToken);
+    expect(() => rules.recordLadder(f.id, { opponentId: 'konrad-kettner', won: false }, f.editToken)).not.toThrow();
   });
 
   it('records matches and builds statistics', () => {
@@ -44,12 +77,13 @@ describe('GameDataRules', () => {
 
   it('tracks beaten single-player opponents', () => {
     const a = rules.createFighter(defaultCharacter());
-    rules.recordLadder(a.id, { opponentId: 'bernd-brummer', won: false });
+    const t = a.editToken;
+    rules.recordLadder(a.id, { opponentId: 'bernd-brummer', won: false }, t);
     expect(rules.getFighter(a.id).ladderBeaten).toEqual([]);
-    rules.recordLadder(a.id, { opponentId: 'bernd-brummer', won: true });
-    rules.recordLadder(a.id, { opponentId: 'bernd-brummer', won: true });
+    rules.recordLadder(a.id, { opponentId: 'bernd-brummer', won: true }, t);
+    rules.recordLadder(a.id, { opponentId: 'bernd-brummer', won: true }, t);
     expect(rules.getFighter(a.id).ladderBeaten).toEqual(['bernd-brummer']);
-    expect(() => rules.recordLadder(a.id, { opponentId: 'chef', won: true })).toThrowError(GameDataError);
+    expect(() => rules.recordLadder(a.id, { opponentId: 'chef', won: true }, t)).toThrowError(GameDataError);
   });
 
   it('stores the drawn projectile and rejects broken drawings', () => {

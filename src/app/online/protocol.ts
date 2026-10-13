@@ -31,8 +31,8 @@ export const GAME_MODES: Record<GameMode, string> = {
 };
 
 export type ClientMessage =
-  | { type: 'create'; name: string; mode: GameMode; rosterId: string; fighter: Character; fighterId: string | null; arenaId: string }
-  | { type: 'join'; code: string; rosterId: string; fighter: Character; fighterId: string | null }
+  | { type: 'create'; name: string; mode: GameMode; rosterId: string; fighter: Character; fighterId: string | null; editToken: string | null; arenaId: string }
+  | { type: 'join'; code: string; rosterId: string; fighter: Character; fighterId: string | null; editToken: string | null }
   /** Sent whenever a key changes: which way the player walks, and an attack button if one was just pressed. */
   | { type: 'input'; left: boolean; right: boolean; up: boolean; down: boolean; press: MoveSlot | null }
   /** After a fight: rematch. In the stage mode: try the stage again, or start over after the last one. */

@@ -1,13 +1,24 @@
 import { characterErrors } from '../app/character/balance';
 import { Character, MOVE_SLOTS, STAT_KEYS } from '../app/character/character.model';
 import { findArena } from '../app/arena/arenas';
-import { FighterStats, FighterWithStats, LadderResult, MatchRecord, NewMatch, StatsSummary, StoredFighter } from '../app/shared/api';
-import { findOpponent } from '../app/singleplayer/opponents';
+import { FighterStats, FighterWithStats, LadderResult, MatchRecord, NewMatch, OwnedFighter, StatsSummary, StoredFighter } from '../app/shared/api';
+import { OPPONENTS, findOpponent } from '../app/singleplayer/opponents';
+
+/**
+ * A fighter as kept in the data file. Only the hash of its edit token is stored; the token
+ * itself lives in the creator's browser. Fighters saved before tokens existed have none.
+ */
+export interface ServerFighter extends StoredFighter {
+  tokenHash?: string;
+}
+
+/** More fighters than this and the server refuses new ones, so the file cannot be flooded. */
+export const MAX_FIGHTERS = 5000;
 
 /** Everything the game persists. This object is written to the data file as JSON. */
 export interface GameData {
   version: 1;
-  fighters: StoredFighter[];
+  fighters: ServerFighter[];
   matches: MatchRecord[];
   /** Added later; files written before it existed don't have it. */
   ladder?: LadderResult[];
@@ -35,6 +46,8 @@ export class GameDataRules {
     private readonly data: GameData,
     private readonly newId: () => string,
     private readonly now: () => Date = () => new Date(),
+    /** Turns an edit token into what is stored; the server passes SHA-256. */
+    private readonly hash: (token: string) => string = (t) => t,
   ) {}
 
   snapshot(): GameData {
@@ -42,19 +55,23 @@ export class GameDataRules {
   }
 
   listFighters(): StoredFighter[] {
-    return this.data.fighters;
+    return this.data.fighters.map(publicFighter);
   }
 
   getFighter(id: string): FighterWithStats {
-    const fighter = this.find(id);
+    const fighter = publicFighter(this.find(id));
     return { fighter, stats: this.statsFor(id), ladderBeaten: this.ladderBeaten(id) };
   }
 
-  recordLadder(fighterId: string, input: { opponentId?: unknown; won?: unknown }): LadderResult {
-    this.find(fighterId);
+  /** A ladder fight of the fighter's owner; an opponent counts only once everyone before them is beaten. */
+  recordLadder(fighterId: string, input: { opponentId?: unknown; won?: unknown }, token: unknown): LadderResult {
+    this.authorize(fighterId, token, false);
     const { opponentId, won } = input ?? {};
     if (typeof opponentId !== 'string' || !findOpponent(opponentId)) throw new GameDataError(400, 'Unbekannter Gegner.');
     if (typeof won !== 'boolean') throw new GameDataError(400, 'won muss true oder false sein.');
+    const beaten = this.ladderBeaten(fighterId);
+    const before = OPPONENTS.slice(0, OPPONENTS.findIndex((o) => o.id === opponentId));
+    if (!before.every((o) => beaten.includes(o.id))) throw new GameDataError(403, 'Dieser Gegner ist noch nicht freigeschaltet.');
     const result: LadderResult = { fighterId, opponentId, won, playedAt: this.now().toISOString() };
     (this.data.ladder ??= []).push(result);
     return result;
@@ -65,19 +82,31 @@ export class GameDataRules {
     return [...beaten];
   }
 
-  createFighter(input: unknown): StoredFighter {
+  /** A new fighter and its edit token; the token is only ever shown here. */
+  createFighter(input: unknown): OwnedFighter {
     const character = cleanCharacter(input);
+    if (this.data.fighters.length >= MAX_FIGHTERS) throw new GameDataError(503, 'Der Server hat keinen Platz für weitere Kämpfer.');
     const at = this.now().toISOString();
-    const fighter: StoredFighter = { ...character, id: this.newId(), createdAt: at, updatedAt: at };
+    const id = this.newId();
+    const editToken = this.newToken();
+    const fighter: ServerFighter = { ...character, id, createdAt: at, updatedAt: at, tokenHash: this.hash(editToken) };
     this.data.fighters.push(fighter);
-    return fighter;
+    return { ...publicFighter(fighter), editToken };
   }
 
-  updateFighter(id: string, input: unknown): StoredFighter {
+  /** Only with the fighter's edit token. A fighter from before tokens gets one now, for whoever saves it first. */
+  updateFighter(id: string, input: unknown, token: unknown): StoredFighter | OwnedFighter {
+    const claimed = this.authorize(id, token);
     const existing = this.find(id);
     const character = cleanCharacter(input);
     Object.assign(existing, character, { updatedAt: this.now().toISOString() });
-    return existing;
+    return claimed ? { ...publicFighter(existing), editToken: claimed } : publicFighter(existing);
+  }
+
+  /** True if the token belongs to the fighter. Online results only count for proven owners. */
+  owns(id: unknown, token: unknown): boolean {
+    const fighter = typeof id === 'string' ? this.data.fighters.find((f) => f.id === id) : undefined;
+    return !!fighter?.tokenHash && typeof token === 'string' && this.hash(token) === fighter.tokenHash;
   }
 
   recordMatch(input: Partial<NewMatch>): MatchRecord {
@@ -116,11 +145,35 @@ export class GameDataRules {
     return { fighters: this.data.fighters.length, matches: this.data.matches.length, byArena, leaderboard };
   }
 
-  private find(id: string): StoredFighter {
+  /**
+   * Throws unless the token fits. A fighter without a token (saved by an older version) is
+   * claimed when it is saved: it gets a new token, which is returned so the caller can hand it out.
+   */
+  private authorize(id: string, token: unknown, claim = true): string | null {
+    const fighter = this.find(id);
+    if (!fighter.tokenHash && claim) {
+      const fresh = this.newToken();
+      fighter.tokenHash = this.hash(fresh);
+      return fresh;
+    }
+    if (!this.owns(id, token)) throw new GameDataError(403, 'Dieser Kämpfer gehört jemand anderem.');
+    return null;
+  }
+
+  private newToken(): string {
+    return `${this.newId()}${this.newId()}`.replace(/-/g, '');
+  }
+
+  private find(id: string): ServerFighter {
     const fighter = this.data.fighters.find((f) => f.id === id);
     if (!fighter) throw new GameDataError(404, 'Kämpfer nicht gefunden.');
     return fighter;
   }
+}
+
+/** A fighter without anything secret, as everyone may see it. */
+function publicFighter({ tokenHash: _, ...fighter }: ServerFighter): StoredFighter {
+  return fighter;
 }
 
 /** Copies only known fields, so a client cannot smuggle extra data into the file. */

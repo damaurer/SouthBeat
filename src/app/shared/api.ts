@@ -8,6 +8,14 @@ export interface StoredFighter extends Character {
   updatedAt: string;
 }
 
+/** What the creator of a fighter gets back: the fighter and the token that allows editing it. */
+export interface OwnedFighter extends StoredFighter {
+  editToken: string;
+}
+
+/** Header that carries a fighter's edit token on changes. */
+export const EDIT_TOKEN_HEADER = 'X-Edit-Token';
+
 export interface FighterStats {
   matches: number;
   wins: number;

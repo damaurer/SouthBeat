@@ -1,13 +1,23 @@
 import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { Character } from './character.model';
 import { characterErrors, defaultCharacter } from './balance';
-import { FighterStats, FighterWithStats, StoredFighter } from '../shared/api';
+import { EDIT_TOKEN_HEADER, FighterStats, FighterWithStats, OwnedFighter, StoredFighter } from '../shared/api';
 
-/** The browser only remembers which fighter is the player's; the fighter itself lives in the server's data file. */
+/**
+ * The browser remembers which fighters it created, with the edit token for each, and which
+ * one is played right now. The fighters themselves live in the server's data file.
+ */
 const FIGHTER_ID_KEY = 'southbeat.fighterId';
+const OWNED_KEY = 'southbeat.fighters';
+
+/** A fighter this browser created: only with its token can it be changed. */
+export interface OwnedEntry {
+  id: string;
+  token: string | null;
+}
 
 @Injectable({ providedIn: 'root' })
 export class CharacterStore {
@@ -22,10 +32,41 @@ export class CharacterStore {
   /** True once the saved fighter has been fetched, or there is none to fetch. */
   readonly loaded = signal(false);
 
+  /** All fighters made in this browser. */
+  readonly owned = signal<OwnedEntry[]>([]);
+
   constructor() {
+    this.owned.set(this.readOwned());
     const id = this.fighterId();
     if (id) void this.load(id).finally(() => this.loaded.set(true));
     else this.loaded.set(this.browser);
+  }
+
+  /** Plays another of this browser's fighters. */
+  async select(id: string): Promise<void> {
+    this.writeKey(FIGHTER_ID_KEY, id);
+    this.loaded.set(false);
+    await this.load(id);
+    this.loaded.set(true);
+  }
+
+  /** Starts a fresh fighter; the current ones stay in the list. */
+  startNew(): void {
+    try {
+      localStorage.removeItem(FIGHTER_ID_KEY);
+    } catch {
+      // Nothing stored, nothing to forget.
+    }
+    this.saved.set(defaultCharacter());
+    this.stats.set(null);
+    this.ladderBeaten.set([]);
+    this.isSaved.set(false);
+  }
+
+  /** The edit token of the current fighter, for the online server to count results. */
+  editToken(): string | null {
+    const id = this.fighterId();
+    return this.owned().find((o) => o.id === id)?.token ?? null;
   }
 
   /** A ladder opponent can be fought once everyone before them is beaten. */
@@ -40,10 +81,10 @@ export class CharacterStore {
     try {
       const stored = await firstValueFrom(
         id
-          ? this.http.put<StoredFighter>(`/api/fighters/${encodeURIComponent(id)}`, character)
-          : this.http.post<StoredFighter>('/api/fighters', character),
+          ? this.http.put<StoredFighter | OwnedFighter>(`/api/fighters/${encodeURIComponent(id)}`, character, { headers: this.headers() })
+          : this.http.post<OwnedFighter>('/api/fighters', character),
       );
-      this.remember(stored.id);
+      this.remember(stored.id, 'editToken' in stored ? stored.editToken : undefined);
       this.isSaved.set(true);
       this.saved.set(toCharacter(stored));
       this.stats.update((s) => s ?? { matches: 0, wins: 0, losses: 0 });
@@ -59,7 +100,7 @@ export class CharacterStore {
     const id = this.fighterId();
     if (!id) return;
     try {
-      await firstValueFrom(this.http.post(`/api/fighters/${encodeURIComponent(id)}/ladder`, { opponentId, won }));
+      await firstValueFrom(this.http.post(`/api/fighters/${encodeURIComponent(id)}/ladder`, { opponentId, won }, { headers: this.headers() }));
     } catch {
       // Progress stays in memory for this session.
     }
@@ -74,6 +115,8 @@ export class CharacterStore {
       this.stats.set(stats);
       this.ladderBeaten.set(ladderBeaten ?? []);
       this.isSaved.set(true);
+      // Saved by an older version without a token: saving once claims it for this browser.
+      if (!this.owned().some((o) => o.id === id && o.token)) await this.save(toCharacter(fighter));
     } catch {
       // Unknown or unreachable: the editor starts from the default character.
     }
@@ -89,9 +132,38 @@ export class CharacterStore {
     }
   }
 
-  private remember(id: string): void {
+  private headers(): HttpHeaders {
+    const token = this.editToken();
+    return token ? new HttpHeaders({ [EDIT_TOKEN_HEADER]: token }) : new HttpHeaders();
+  }
+
+  private remember(id: string, token?: string): void {
+    this.writeKey(FIGHTER_ID_KEY, id);
+    this.owned.update((list) => {
+      const known = list.find((o) => o.id === id);
+      if (known) return token ? list.map((o) => (o.id === id ? { id, token } : o)) : list;
+      return [...list, { id, token: token ?? null }];
+    });
+    this.writeKey(OWNED_KEY, JSON.stringify(this.owned()));
+  }
+
+  private readOwned(): OwnedEntry[] {
+    if (!this.browser) return [];
     try {
-      localStorage.setItem(FIGHTER_ID_KEY, id);
+      const list = JSON.parse(localStorage.getItem(OWNED_KEY) ?? '[]') as OwnedEntry[];
+      const clean = Array.isArray(list) ? list.filter((o) => typeof o?.id === 'string').map((o) => ({ id: o.id, token: typeof o.token === 'string' ? o.token : null })) : [];
+      // The fighter of an older version, saved before this list existed.
+      const current = localStorage.getItem(FIGHTER_ID_KEY);
+      if (current && !clean.some((o) => o.id === current)) clean.push({ id: current, token: null });
+      return clean;
+    } catch {
+      return [];
+    }
+  }
+
+  private writeKey(key: string, value: string): void {
+    try {
+      localStorage.setItem(key, value);
     } catch {
       // Without storage the fighter is still saved, it just gets a new id next time.
     }

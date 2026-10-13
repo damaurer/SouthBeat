@@ -1,4 +1,4 @@
-import type { Server } from 'node:http';
+import type { IncomingMessage, Server } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
 import { defaultCharacter } from '../app/character/balance';
 import { Character, MOVE_SLOTS, MoveSlot } from '../app/character/character.model';
@@ -9,15 +9,29 @@ import { ClientMessage, GameMode, LOBBY_NAME_MAX, LobbyInfo, ONLINE_PATH, Server
 import { Campaign, createCampaign, startStage, stepCampaign } from '../app/stage/campaign';
 import { STAGES } from '../app/stage/stages';
 import { cleanCharacter } from './game-data';
+import type { OnlineResult } from './api';
 
 /** How often the server checks that a connection is still alive. */
 export const HEARTBEAT_MS = 15_000;
+
+export interface OnlineLimits {
+  /** Open rooms at once; more and new lobbies are refused. */
+  maxRooms: number;
+  /** Connections from one address at once. */
+  maxPerAddress: number;
+  /** Messages one connection may send per second; a flood closes the connection. */
+  maxMessagesPerSecond: number;
+}
+
+export const DEFAULT_LIMITS: OnlineLimits = { maxRooms: 200, maxPerAddress: 8, maxMessagesPerSecond: 120 };
 
 interface Player {
   socket: WebSocket;
   character: Character;
   rosterId: string;
   fighterId: string | null;
+  /** The fighter's edit token, so the server can count the result for its real owner. */
+  editToken: string | null;
   left: boolean;
   right: boolean;
   up: boolean;
@@ -54,11 +68,31 @@ export class OnlineServer {
   /** Connections not in a room yet; they get the lobby table whenever it changes. */
   private readonly browsing = new Set<WebSocket>();
 
-  constructor(private readonly random: () => number = Math.random) {}
+  constructor(
+    private readonly random: () => number = Math.random,
+    /** Called when a duel between two saved fighters ends with a winner. */
+    private readonly onResult: (result: OnlineResult) => void = () => undefined,
+    private readonly limits: OnlineLimits = DEFAULT_LIMITS,
+  ) {}
 
   attach(server: Server): WebSocketServer {
-    const wss = new WebSocketServer({ server, path: ONLINE_PATH, maxPayload: 16 * 1024 });
-    wss.on('connection', (socket) => this.connect(socket));
+    const perAddress = new Map<string, number>();
+    const wss = new WebSocketServer({
+      server,
+      path: ONLINE_PATH,
+      maxPayload: 16 * 1024,
+      verifyClient: ({ req }, done) => done((perAddress.get(addressOf(req)) ?? 0) < this.limits.maxPerAddress, 429),
+    });
+    wss.on('connection', (socket, req) => {
+      const address = addressOf(req);
+      perAddress.set(address, (perAddress.get(address) ?? 0) + 1);
+      socket.on('close', () => {
+        const left = (perAddress.get(address) ?? 1) - 1;
+        if (left > 0) perAddress.set(address, left);
+        else perAddress.delete(address);
+      });
+      this.connect(socket);
+    });
     // Connections that vanish without closing (Wi-Fi gone, laptop shut) answer no ping; they
     // are dropped, so their lobby leaves the list and the other player is told.
     const alive = new WeakSet<WebSocket>();
@@ -85,7 +119,12 @@ export class OnlineServer {
     let player: Player | null = null;
     this.browsing.add(socket);
     send(socket, { type: 'lobbies', lobbies: this.lobbies() });
+    let second = 0;
+    let messages = 0;
     socket.on('message', (data) => {
+      const now = Math.floor(Date.now() / 1000);
+      if (now !== second) [second, messages] = [now, 0];
+      if (++messages > this.limits.maxMessagesPerSecond) return socket.close(1008, 'Zu viele Nachrichten');
       let msg: ClientMessage;
       try {
         msg = JSON.parse(String(data));
@@ -102,7 +141,8 @@ export class OnlineServer {
     });
     const handle = (msg: ClientMessage): void => {
       if (msg.type === 'create' && !room) {
-        player = this.player(socket, msg.rosterId, msg.fighter, msg.fighterId);
+        if (this.rooms.size >= this.limits.maxRooms) return send(socket, { type: 'error', message: 'Der Server ist gerade voll. Versuch es gleich noch mal.' });
+        player = this.player(socket, msg.rosterId, msg.fighter, msg.fighterId, msg.editToken);
         room = this.create(player, msg.name, msg.mode, msg.arenaId);
         this.browsing.delete(socket);
         this.announce();
@@ -110,7 +150,7 @@ export class OnlineServer {
         const found = this.rooms.get(normalizeCode(String(msg.code ?? '')));
         if (!found) return send(socket, { type: 'error', message: 'Diesen Raum gibt es nicht.' });
         if (found.players.length >= 2) return send(socket, { type: 'error', message: 'Der Raum ist schon voll.' });
-        player = this.player(socket, msg.rosterId, msg.fighter, msg.fighterId);
+        player = this.player(socket, msg.rosterId, msg.fighter, msg.fighterId, msg.editToken);
         room = found;
         room.players.push(player);
         this.browsing.delete(socket);
@@ -157,7 +197,7 @@ export class OnlineServer {
     this.browsing.forEach((s) => send(s, msg));
   }
 
-  private player(socket: WebSocket, rosterId: unknown, fighter: unknown, fighterId: unknown): Player {
+  private player(socket: WebSocket, rosterId: unknown, fighter: unknown, fighterId: unknown, editToken: unknown): Player {
     // Built-in fighters come from the server's own list; the player's own fighter is checked
     // like a saved one, so nobody brings an overpowered fighter online.
     const builtIn = typeof rosterId === 'string' && rosterId !== OWN_FIGHTER ? builtInFighter(rosterId) : undefined;
@@ -175,6 +215,7 @@ export class OnlineServer {
       rosterId: builtIn ? builtIn.id : OWN_FIGHTER,
       // Only the player's own fighter counts in the statistics.
       fighterId: !builtIn && typeof fighterId === 'string' ? fighterId : null,
+      editToken: !builtIn && typeof editToken === 'string' ? editToken.slice(0, 200) : null,
       left: false,
       right: false,
       up: false,
@@ -260,8 +301,24 @@ export class OnlineServer {
       state.events = events;
       const snapshot = JSON.stringify({ type: 'state', snapshot: snapshotOf(state) } satisfies ServerMessage);
       room.players.forEach((p) => p.socket.readyState === WebSocket.OPEN && p.socket.send(snapshot));
-      if (state.winner !== null) this.stop(room);
+      if (state.winner !== null) {
+        this.stop(room);
+        this.report(room, state);
+      }
     }, 1000 / FPS);
+  }
+
+  /** Hands a decided duel to the statistics; they check that both players own their fighters. */
+  private report(room: Room, state: FightState): void {
+    if (state.winner === null || state.winner === 'draw') return;
+    const winner = room.players[state.winner];
+    const loser = room.players[1 - state.winner];
+    if (!winner?.fighterId || !winner.editToken || !loser?.fighterId || !loser.editToken) return;
+    this.onResult({
+      winner: { id: winner.fighterId, token: winner.editToken },
+      loser: { id: loser.fighterId, token: loser.editToken },
+      arenaId: state.arenaId,
+    });
   }
 
   private runStage(room: Room): void {
@@ -311,6 +368,10 @@ export class OnlineServer {
     if (room.timer) clearInterval(room.timer);
     room.timer = null;
   }
+}
+
+function addressOf(req: IncomingMessage): string {
+  return req.socket.remoteAddress ?? 'unknown';
 }
 
 function send(socket: WebSocket, msg: ServerMessage): void {

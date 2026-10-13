@@ -119,7 +119,6 @@ export class OnlinePage {
 
   private socket: WebSocket | null = null;
   private characters: [Character, Character] | null = null;
-  private fighterIds: [string | null, string | null] = [null, null];
   private arena: Painter | null = null;
   /** Stage mode: characters of everyone on the stage, sent once by the server. */
   private cast = new Map<number, Character>();
@@ -129,7 +128,6 @@ export class OnlinePage {
   private matchArena = '';
   private readonly fx = new Effects();
   private bannerUntil = 0;
-  private recorded = false;
   private random = seeded(Date.now());
   private hitDecks: [LineDeck, LineDeck] = [new LineDeck(HIT_LINES), new LineDeck(HIT_LINES)];
   private lastHitLine: [number, number] = [-Infinity, -Infinity];
@@ -189,9 +187,9 @@ export class OnlinePage {
     this.request({ type: 'join', code: lobby.code, ...this.myFighter() });
   }
 
-  private myFighter(): { rosterId: string; fighter: Character; fighterId: string | null } {
+  private myFighter(): { rosterId: string; fighter: Character; fighterId: string | null; editToken: string | null } {
     const c = this.chosen()!;
-    return { rosterId: c.id, fighter: c.character, fighterId: this.store.fighterId() };
+    return { rosterId: c.id, fighter: c.character, fighterId: this.store.fighterId(), editToken: this.store.editToken() };
   }
 
   protected join(): void {
@@ -273,14 +271,12 @@ export class OnlinePage {
         this.stageRun = 0;
         this.recordedRun = 0;
         this.characters = msg.characters;
-        this.fighterIds = msg.fighterIds;
         this.you.set(msg.you);
         const arena = findArena(msg.arenaId);
         this.arena = paintArena(arena);
         this.arenaName.set(arena.name);
         this.state = null;
         this.fx.clear();
-        this.recorded = false;
         this.hitDecks = msg.rosterIds.map((id) => new LineDeck(builtInFighter(id)?.hitLines ?? HIT_LINES)) as [LineDeck, LineDeck];
         this.lastHitLine = [-Infinity, -Infinity];
         this.bubbles.set([null, null]);
@@ -378,16 +374,7 @@ export class OnlinePage {
     this.bubbles.set([null, null]);
     const w = state.winner;
     this.result.set(w === 'draw' ? 'Unentschieden!' : w === this.you() ? 'Du gewinnst!' : `${state.fighters[w as 0 | 1].character.name} gewinnt!`);
-    // The host records the match so it counts once; both fighters must be saved for it to count.
-    const [a, b] = this.fighterIds;
-    if (this.recorded || this.you() !== 0 || w === 'draw' || w === null || !a || !b || a === b) return;
-    this.recorded = true;
-    const [winnerId, loserId] = w === 0 ? [a, b] : [b, a];
-    void fetch('/api/matches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ winnerId, loserId, arenaId: state.arenaId }),
-    }).catch(() => undefined);
+    // The server itself counts the result for the statistics.
   }
 
   private draw(): void {

@@ -5,7 +5,8 @@ import type { WebSocket } from 'ws';
 import { defaultCharacter } from '../app/character/balance';
 import { ClientMessage, ServerMessage } from '../app/online/protocol';
 import { OWN_FIGHTER } from '../app/select/roster';
-import { OnlineServer } from './online';
+import type { OnlineResult } from './api';
+import { DEFAULT_LIMITS, OnlineServer } from './online';
 
 /** Stands in for a browser connection: records what the server sends and lets the test talk. */
 class FakeSocket extends EventEmitter {
@@ -37,6 +38,7 @@ const create = (extra: Partial<Extract<ClientMessage, { type: 'create' }>> = {})
   rosterId: OWN_FIGHTER,
   fighter: defaultCharacter(),
   fighterId: null,
+  editToken: null,
   arenaId: 'bunker',
   ...extra,
 });
@@ -51,10 +53,12 @@ describe('OnlineServer', () => {
     return s;
   };
 
+  let results: OnlineResult[];
   beforeEach(() => {
     // A fixed but changing sequence, so room codes differ.
     let n = 0;
-    server = new OnlineServer(() => ((n = (n * 9301 + 49297) % 233280) / 233280));
+    results = [];
+    server = new OnlineServer(() => ((n = (n * 9301 + 49297) % 233280) / 233280), (r) => results.push(r), { ...DEFAULT_LIMITS, maxRooms: 3 });
   });
   afterEach(() => {
     // Closing stops the room timers.
@@ -85,7 +89,7 @@ describe('OnlineServer', () => {
     assert.ok(room && room.type === 'room');
     const guest = connect();
     assert.equal(guest.last('lobbies')?.type, 'lobbies');
-    guest.say({ type: 'join', code: room.code, rosterId: 'bernd-brummer', fighter: defaultCharacter(), fighterId: null });
+    guest.say({ type: 'join', code: room.code, rosterId: 'bernd-brummer', fighter: defaultCharacter(), fighterId: null, editToken: null });
     assert.equal(host.last('start')?.type, 'start');
     assert.equal(guest.last('start')?.type, 'start');
     assert.deepEqual(server.lobbies(), []);
@@ -96,7 +100,7 @@ describe('OnlineServer', () => {
     host.say(create());
     const room = host.last('room') as Extract<ServerMessage, { type: 'room' }>;
     const guest = connect();
-    guest.say({ type: 'join', code: room.code, rosterId: OWN_FIGHTER, fighter: defaultCharacter(), fighterId: null });
+    guest.say({ type: 'join', code: room.code, rosterId: OWN_FIGHTER, fighter: defaultCharacter(), fighterId: null, editToken: null });
     guest.close();
     assert.equal(host.last('opponent-left')?.type, 'opponent-left');
     assert.equal(server.roomCount(), 0);
@@ -104,7 +108,44 @@ describe('OnlineServer', () => {
 
   it('refuses unknown and full rooms', () => {
     const s = connect();
-    s.say({ type: 'join', code: 'ZZZZ', rosterId: OWN_FIGHTER, fighter: defaultCharacter(), fighterId: null });
+    s.say({ type: 'join', code: 'ZZZZ', rosterId: OWN_FIGHTER, fighter: defaultCharacter(), fighterId: null, editToken: null });
     assert.equal(s.last('error')?.type, 'error');
+  });
+
+  it('refuses new lobbies once the server is full', () => {
+    for (let i = 0; i < 3; i++) connect().say(create());
+    const late = connect();
+    late.say(create());
+    assert.equal(server.roomCount(), 3);
+    assert.equal(late.last('error')?.type, 'error');
+  });
+
+  it('closes a connection that floods the server with messages', () => {
+    const s = connect();
+    s.say(create());
+    for (let i = 0; i < DEFAULT_LIMITS.maxMessagesPerSecond + 5; i++) s.say({ type: 'input', left: true, right: false, up: false, down: false, press: null });
+    assert.equal(s.readyState, 3);
+    assert.equal(server.roomCount(), 0);
+  });
+
+  it('reports a decided duel with both owners, never a built-in fighter', () => {
+    const host = connect();
+    host.say(create({ fighterId: 'a', editToken: 'ta' }));
+    const room = host.last('room') as Extract<ServerMessage, { type: 'room' }>;
+    connect().say({ type: 'join', code: room.code, rosterId: OWN_FIGHTER, fighter: defaultCharacter(), fighterId: 'b', editToken: 'tb' });
+    const internals = server as unknown as { rooms: Map<string, { state: { winner: unknown } }>; report: (room: unknown, state: unknown) => void };
+    const live = internals.rooms.get(room.code)!;
+    live.state.winner = 1;
+    internals.report(live, live.state);
+    assert.deepEqual(results, [{ winner: { id: 'b', token: 'tb' }, loser: { id: 'a', token: 'ta' }, arenaId: 'bunker' }]);
+
+    const other = connect();
+    other.say(create({ fighterId: 'a', editToken: 'ta' }));
+    const code = (other.last('room') as Extract<ServerMessage, { type: 'room' }>).code;
+    connect().say({ type: 'join', code, rosterId: 'bernd-brummer', fighter: defaultCharacter(), fighterId: 'b', editToken: 'tb' });
+    const second = internals.rooms.get(code)!;
+    second.state.winner = 0;
+    internals.report(second, second.state);
+    assert.equal(results.length, 1);
   });
 });

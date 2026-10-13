@@ -98,18 +98,24 @@ Beide öffnen dann `http://192.168.1.20:4000/online`. Für Spiele übers Interne
 
 ## Speicherung
 
-Erstellte Kämpfer und Spielstatistiken (Matches, Siege, Niederlagen, Arenen) speichert der SSR-Server in einer JSON-Datei, standardmäßig `data/southbeat.json` (per `SOUTHBEAT_DATA_FILE` änderbar, von Git ignoriert). Der Browser merkt sich nur die ID des eigenen Kämpfers.
+Erstellte Kämpfer und Spielstatistiken (Matches, Siege, Niederlagen, Arenen) speichert der SSR-Server in einer JSON-Datei, standardmäßig `data/southbeat.json` (per `SOUTHBEAT_DATA_FILE` änderbar, von Git ignoriert). Der Browser merkt sich die IDs seiner Kämpfer und zu jedem einen Bearbeitungsschlüssel.
 
 | Methode | Pfad | Zweck |
 | --- | --- | --- |
-| GET | `/api/fighters` | alle Kämpfer |
-| GET | `/api/fighters/:id` | ein Kämpfer mit Bilanz |
-| POST | `/api/fighters` | Kämpfer anlegen |
-| PUT | `/api/fighters/:id` | Kämpfer ändern |
+| GET | `/api/fighters` | alle Kämpfer (ohne Schlüssel) |
+| GET | `/api/fighters/:id` | ein Kämpfer mit Bilanz und Ladder-Fortschritt |
+| POST | `/api/fighters` | Kämpfer anlegen, Antwort enthält einmalig `editToken` |
+| PUT | `/api/fighters/:id` | Kämpfer ändern, nur mit Header `X-Edit-Token` |
+| POST | `/api/fighters/:id/ladder` | Ladder-Kampf speichern, nur mit `X-Edit-Token` und in Ladder-Reihenfolge |
 | GET | `/api/stats` | Gesamtstatistik und Rangliste |
-| POST | `/api/matches` | Matchergebnis speichern (`winnerId`, `loserId`, `arenaId`) |
 
-Der Server prüft jeden Kämpfer gegen die Balance-Regeln, manipulierte Werte werden abgelehnt.
+Schutz vor Manipulation, ohne Login:
+
+- Jeder Kämpfer hat einen Bearbeitungsschlüssel. Der Server speichert nur dessen SHA-256-Hash; ändern kann ihn nur der Browser, der ihn angelegt hat. Kämpfer aus älteren Versionen ohne Schlüssel bekommen ihn beim ersten Speichern.
+- Online-Ergebnisse zählt der Server selbst, und nur wenn beide Spieler ihren Schlüssel mitgeschickt haben. Browser können keine Ergebnisse mehr einreichen.
+- Der Server prüft jeden Kämpfer gegen die Balance-Regeln und die Ladder-Reihenfolge.
+- Grenzen: 600 Anfragen pro Minute, 60 Änderungen pro Minute und 20 neue Kämpfer pro Stunde je IP; höchstens 5000 Kämpfer, 200 offene Online-Räume, 8 Online-Verbindungen je IP und 120 Nachrichten pro Sekunde je Verbindung.
+- Sicherheits-Header (Content-Security-Policy, `X-Frame-Options`, `nosniff`, kein `X-Powered-By`) und gzip-Kompression.
 
 ## Docker
 
@@ -135,6 +141,7 @@ Für Spiele im lokalen Netz muss der Server die Adresse kennen, unter der die an
 | `PORT` | `4000` | Port im Container |
 | `SOUTHBEAT_DATA_FILE` | `/app/data/southbeat.json` | Speicherdatei |
 | `NG_ALLOWED_HOSTS` | – | zusätzliche Hostnamen/IPs, kommagetrennt |
+| `TRUST_PROXY` | – | hinter einem Reverse Proxy `1`, damit die Limits die echte IP sehen |
 
 Falls Docker Hub das Herunterladen des Node-Basisimages begrenzt („429 Too Many Requests“), geht ein Spiegel: `docker build --build-arg NODE_IMAGE=mirror.gcr.io/library/node:22-alpine -t southbeat .`
 
