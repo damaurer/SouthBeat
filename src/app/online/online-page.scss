@@ -72,3 +72,18 @@ a { color: inherit; }
   label { display: flex; gap: 8px; align-items: center; }
   input { width: auto; }
 }
+
+.notice {
+  position: absolute;
+  bottom: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 90%;
+  padding: 8px 14px;
+  border: 2px solid #f1c40f;
+  border-radius: 6px;
+  background: rgb(20 20 31 / 85%);
+  color: #f1c40f;
+  text-align: center;
+  font-weight: bold;
+}

@@ -1,4 +1,4 @@
-import { Character, MoveSlot } from '../character/character.model';
+import { Character, MOVES, MoveSlot, findMove } from '../character/character.model';
 import { BEST_OF_THREE, FightEvent, FightState, FighterState } from '../fight/combat';
 import { Brawler, Projectile, StageState } from '../stage/brawl';
 import { Campaign } from '../stage/campaign';
@@ -6,6 +6,8 @@ import { STAGES } from '../stage/stages';
 
 /** WebSocket path of the online fight server. */
 export const ONLINE_PATH = '/online';
+/** How long a started game waits for a player whose connection dropped. */
+export const RECONNECT_MS = 15_000;
 
 /** A fighter as sent every frame; the character itself is sent once at the start. */
 export type FighterSnapshot = Omit<FighterState, 'character'>;
@@ -36,7 +38,11 @@ export type ClientMessage =
   /** Sent whenever a key changes: which way the player walks, and an attack button if one was just pressed. */
   | { type: 'input'; left: boolean; right: boolean; up: boolean; down: boolean; press: MoveSlot | null }
   /** After a fight: rematch. In the stage mode: try the stage again, or start over after the last one. */
-  | { type: 'rematch' };
+  | { type: 'rematch' }
+  /** After a dropped connection: take the old seat again with the secret from 'room' or 'start'. */
+  | { type: 'resume'; code: string; token: string }
+  /** Leaves the game on purpose, so the other player does not wait for a comeback. */
+  | { type: 'leave' };
 
 /** An open lobby waiting for a second player, as shown in the lobby table. */
 export interface LobbyInfo {
@@ -51,12 +57,15 @@ export const LOBBY_NAME_MAX = 30;
 
 export type ServerMessage =
   | { type: 'lobbies'; lobbies: LobbyInfo[] }
-  | { type: 'room'; code: string; name: string; mode: GameMode; arenaId: string }
-  | { type: 'start'; mode: GameMode; you: 0 | 1; arenaId: string; characters: [Character, Character]; rosterIds: [string, string]; fighterIds: [string | null, string | null] }
+  | { type: 'room'; code: string; name: string; mode: GameMode; arenaId: string; resume: string }
+  | { type: 'start'; mode: GameMode; you: 0 | 1; arenaId: string; characters: [Character, Character]; rosterIds: [string, string]; fighterIds: [string | null, string | null]; code: string; resume: string }
   | { type: 'state'; snapshot: FightSnapshot }
   | { type: 'stage'; snapshot: StageSnapshot }
   | { type: 'rematch-wanted'; by: 0 | 1 }
   | { type: 'opponent-left' }
+  /** The other player's connection dropped; the game is paused for up to this many seconds. */
+  | { type: 'opponent-away'; seconds: number }
+  | { type: 'opponent-back' }
   | { type: 'error'; message: string };
 
 export function snapshotOf(state: FightState): FightSnapshot {
@@ -93,6 +102,22 @@ export function stateFrom(snapshot: FightSnapshot, characters: [Character, Chara
       { ...snapshot.fighters[1], character: characters[1] },
     ],
   };
+}
+
+/**
+ * What goes over the wire, many times per second: moves travel as their id (both sides know
+ * every move, content packs included), and fractions are rounded to two places.
+ */
+export function encodeMessage(msg: ServerMessage): string {
+  return JSON.stringify(msg, (key, value) => {
+    if (typeof value === 'number' && !Number.isInteger(value)) return Math.round(value * 100) / 100;
+    if (key === 'move' && value && typeof value === 'object' && typeof value.id === 'string') return value.id;
+    return value;
+  });
+}
+
+export function decodeMessage(text: string): ServerMessage {
+  return JSON.parse(text, (key, value) => (key === 'move' && typeof value === 'string' ? (findMove(value) ?? MOVES[0]) : value));
 }
 
 /** Room codes avoid letters that are easy to mix up, like O and 0 or I and 1. */

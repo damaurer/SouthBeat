@@ -29,8 +29,10 @@ import {
   LOBBY_NAME_MAX,
   LobbyInfo,
   ONLINE_PATH,
+  RECONNECT_MS,
   ServerMessage,
   StageSnapshot,
+  decodeMessage,
   normalizeCode,
   stageFrom,
   stateFrom,
@@ -105,6 +107,13 @@ export class OnlinePage {
   protected readonly banner = signal<string | null>(null);
   protected readonly result = signal<string | null>(null);
   protected readonly rematchBy = signal<(0 | 1)[]>([]);
+  /** A dropped connection, ours or the opponent's, while the game waits. */
+  protected readonly notice = signal<string | null>(null);
+  /** Lets this page take its seat again after a dropped connection. */
+  private resume: { code: string; token: string } | null = null;
+  private retry: ReturnType<typeof setTimeout> | null = null;
+  private giveUpAt = 0;
+  private gone = false;
 
   /** The fighter picked on the select screen; null until one is picked. */
   protected readonly chosen = signal<RosterEntry | null>(null);
@@ -140,6 +149,8 @@ export class OnlinePage {
     const destroyRef = inject(DestroyRef);
     const onDown = (e: KeyboardEvent): void => this.key(e, true);
     const onUp = (e: KeyboardEvent): void => this.key(e, false);
+    // Closing the tab is leaving on purpose; only a dropped connection gets the wait.
+    const onHide = (): void => this.send({ type: 'leave' });
     let raf = 0;
     const loop = (): void => {
       this.readPads();
@@ -149,14 +160,19 @@ export class OnlinePage {
     if (typeof window !== 'undefined') {
       window.addEventListener('keydown', onDown);
       window.addEventListener('keyup', onUp);
+      window.addEventListener('pagehide', onHide);
       inject(NgZone).runOutsideAngular(() => (raf = requestAnimationFrame(loop)));
     }
     destroyRef.onDestroy(() => {
+      this.gone = true;
+      if (this.retry) clearTimeout(this.retry);
+      this.send({ type: 'leave' });
       this.socket?.close();
       if (typeof window === 'undefined') return;
       cancelAnimationFrame(raf);
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
+      window.removeEventListener('pagehide', onHide);
     });
     // The canvas only exists during the fight, so the arena is painted once it appears.
     effect(() => {
@@ -206,6 +222,10 @@ export class OnlinePage {
   }
 
   protected leave(): void {
+    this.resume = null;
+    this.notice.set(null);
+    if (this.retry) clearTimeout(this.retry);
+    this.send({ type: 'leave' });
     this.socket?.close();
     this.socket = null;
     this.state = null;
@@ -235,16 +255,38 @@ export class OnlinePage {
       if (this.pending) socket.send(JSON.stringify(this.pending));
       this.pending = null;
     };
-    socket.onmessage = (e) => this.receive(JSON.parse(String(e.data)) as ServerMessage);
+    socket.onmessage = (e) => this.receive(decodeMessage(String(e.data)));
     socket.onclose = () => {
       if (this.socket !== socket) return;
       this.socket = null;
       this.connected.set(false);
+      if (this.phase() === 'fight' && this.resume && !this.gone) return this.reconnect();
       if (this.phase() === 'waiting' || this.phase() === 'menu') {
         this.phase.set('menu');
         this.error.set('Keine Verbindung zum Spielserver. Läuft der SouthBeat-Server?');
       }
     };
+  }
+
+  /** The connection dropped mid-game: the server keeps the seat for a while, so knock again. */
+  private reconnect(): void {
+    const now = Date.now();
+    if (!this.giveUpAt) this.giveUpAt = now + RECONNECT_MS;
+    if (now > this.giveUpAt) {
+      this.giveUpAt = 0;
+      this.resume = null;
+      this.notice.set(null);
+      this.phase.set('left');
+      this.error.set('Die Verbindung zum Spielserver ist weg.');
+      return;
+    }
+    this.notice.set('Verbindung verloren, verbinde neu …');
+    this.retry = setTimeout(() => {
+      this.retry = null;
+      if (this.gone || !this.resume) return;
+      this.pending = { type: 'resume', ...this.resume };
+      this.open();
+    }, 1000);
   }
 
   private receive(msg: ServerMessage): void {
@@ -254,17 +296,30 @@ export class OnlinePage {
         break;
       case 'room':
         this.code.set(msg.code);
+        this.resume = { code: msg.code, token: msg.resume };
         this.roomName.set(msg.name);
         this.matchMode.set(msg.mode);
         this.arenaName.set(msg.mode === 'stage' ? `alle ${STAGES.length} Stages` : findArena(msg.arenaId).name);
         this.phase.set('waiting');
         break;
       case 'error':
+        if (this.phase() === 'fight') {
+          // The game we tried to come back to is over.
+          this.resume = null;
+          this.notice.set(null);
+          this.giveUpAt = 0;
+          this.phase.set('left');
+          return;
+        }
         // The connection stays open, so the lobby table keeps updating.
         this.error.set(msg.message);
         this.phase.set('menu');
         break;
       case 'start': {
+        this.code.set(msg.code);
+        this.resume = { code: msg.code, token: msg.resume };
+        this.giveUpAt = 0;
+        this.notice.set(null);
         this.matchArena = msg.arenaId;
         this.matchMode.set(msg.mode);
         this.cast = new Map();
@@ -295,7 +350,15 @@ export class OnlinePage {
       case 'rematch-wanted':
         this.rematchBy.update((by) => (by.includes(msg.by) ? by : [...by, msg.by]));
         break;
+      case 'opponent-away':
+        this.notice.set(`Verbindung des Gegners unterbrochen. Das Spiel wartet bis zu ${msg.seconds} Sekunden.`);
+        break;
+      case 'opponent-back':
+        this.notice.set(null);
+        break;
       case 'opponent-left':
+        this.resume = null;
+        this.notice.set(null);
         this.socket?.close();
         this.socket = null;
         this.phase.set('left');

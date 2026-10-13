@@ -101,7 +101,47 @@ describe('OnlineServer', () => {
     const room = host.last('room') as Extract<ServerMessage, { type: 'room' }>;
     const guest = connect();
     guest.say({ type: 'join', code: room.code, rosterId: OWN_FIGHTER, fighter: defaultCharacter(), fighterId: null, editToken: null });
+    guest.say({ type: 'leave' });
     guest.close();
+    assert.equal(host.last('opponent-left')?.type, 'opponent-left');
+    assert.equal(server.roomCount(), 0);
+  });
+
+  it('holds a started game for a dropped player and lets them take their seat again', () => {
+    const host = connect();
+    host.say(create());
+    const room = host.last('room') as Extract<ServerMessage, { type: 'room' }>;
+    const guest = connect();
+    guest.say({ type: 'join', code: room.code, rosterId: OWN_FIGHTER, fighter: defaultCharacter(), fighterId: null, editToken: null });
+    const start = guest.last('start') as Extract<ServerMessage, { type: 'start' }>;
+    assert.equal(start.code, room.code);
+    guest.close();
+    assert.equal(host.last('opponent-away')?.type, 'opponent-away');
+    assert.equal(host.last('opponent-left'), undefined);
+    assert.equal(server.roomCount(), 1);
+
+    // A wrong secret does not get the seat.
+    const thief = connect();
+    thief.say({ type: 'resume', code: room.code, token: 'geraten' });
+    assert.equal(thief.last('error')?.type, 'error');
+
+    const back = connect();
+    back.say({ type: 'resume', code: room.code, token: start.resume });
+    const again = back.last('start') as Extract<ServerMessage, { type: 'start' }>;
+    assert.equal(again.you, 1);
+    assert.equal(host.last('opponent-back')?.type, 'opponent-back');
+    assert.equal(server.roomCount(), 1);
+  });
+
+  it('closes a held game once the wait is over', async () => {
+    server = new OnlineServer(Math.random, () => {}, { ...DEFAULT_LIMITS, reconnectMs: 30 });
+    const host = connect();
+    host.say(create());
+    const room = host.last('room') as Extract<ServerMessage, { type: 'room' }>;
+    const guest = connect();
+    guest.say({ type: 'join', code: room.code, rosterId: OWN_FIGHTER, fighter: defaultCharacter(), fighterId: null, editToken: null });
+    guest.close();
+    await new Promise((r) => setTimeout(r, 60));
     assert.equal(host.last('opponent-left')?.type, 'opponent-left');
     assert.equal(server.roomCount(), 0);
   });

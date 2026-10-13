@@ -3,6 +3,9 @@
     @case ('fight') {
       @if (matchMode() === 'stage') {
         <app-stage-screen [you]="you()">
+          @if (notice(); as n) {
+            <div class="notice" role="status">{{ n }}</div>
+          }
           @if (result(); as r) {
             <div class="result">
               <p>{{ r }}</p>
@@ -75,6 +78,9 @@
           <div class="call" [class.fight]="c === 'FIGHT!'" [class.ko]="c === 'K.O.!'" aria-live="assertive">{{ c }}</div>
         } @else if (banner(); as b) {
           <div class="banner">{{ b }}</div>
+        }
+        @if (notice(); as n) {
+          <div class="notice" role="status">{{ n }}</div>
         }
         @if (result(); as r) {
           <div class="result">

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, Server } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
 import { defaultCharacter } from '../app/character/balance';
@@ -5,16 +6,24 @@ import { Character, MOVE_SLOTS, MoveSlot } from '../app/character/character.mode
 import { ARENAS, findArena } from '../app/arena/arenas';
 import { BEST_OF_THREE, Controls, FPS, FightState, createFight, step } from '../app/fight/combat';
 import { OWN_FIGHTER, builtInFighter } from '../app/select/roster';
-import { ClientMessage, GameMode, LOBBY_NAME_MAX, LobbyInfo, ONLINE_PATH, ServerMessage, newRoomCode, normalizeCode, snapshotOf, stageSnapshotOf } from '../app/online/protocol';
+import { ClientMessage, GameMode, LOBBY_NAME_MAX, LobbyInfo, ONLINE_PATH, RECONNECT_MS, ServerMessage, encodeMessage, newRoomCode, normalizeCode, snapshotOf, stageSnapshotOf } from '../app/online/protocol';
 import { Campaign, createCampaign, startStage, stepCampaign } from '../app/stage/campaign';
 import { STAGES } from '../app/stage/stages';
 import { cleanCharacter } from './game-data';
 import type { OnlineResult } from './api';
 
+/**
+ * The stage mode has many fighters on screen, so its frames go out 30 times a second; the
+ * game itself still runs at 60. Duels stay at 60 because every frame counts there.
+ */
+export const STAGE_SEND_RATE = 30;
+
 /** How often the server checks that a connection is still alive. */
 export const HEARTBEAT_MS = 15_000;
 
 export interface OnlineLimits {
+  /** How long a started game waits for a player whose connection dropped. */
+  reconnectMs: number;
   /** Open rooms at once; more and new lobbies are refused. */
   maxRooms: number;
   /** Connections from one address at once. */
@@ -23,7 +32,7 @@ export interface OnlineLimits {
   maxMessagesPerSecond: number;
 }
 
-export const DEFAULT_LIMITS: OnlineLimits = { maxRooms: 200, maxPerAddress: 8, maxMessagesPerSecond: 120 };
+export const DEFAULT_LIMITS: OnlineLimits = { maxRooms: 200, maxPerAddress: 8, maxMessagesPerSecond: 120, reconnectMs: RECONNECT_MS };
 
 interface Player {
   socket: WebSocket;
@@ -41,6 +50,10 @@ interface Player {
   /** Attack buttons pressed since the last frame. */
   pressed: Set<MoveSlot>;
   wantsRematch: boolean;
+  /** Secret that lets this player take their seat again after a dropped connection. */
+  resumeToken: string;
+  /** The connection dropped; the game is paused until they are back or the wait is over. */
+  away: boolean;
 }
 
 interface Room {
@@ -56,6 +69,8 @@ interface Room {
   known: Set<number>;
   knownRun: number;
   timer: ReturnType<typeof setInterval> | null;
+  /** Running while a player is away; closes the room when it runs out. */
+  waiting: ReturnType<typeof setTimeout> | null;
 }
 
 /**
@@ -81,6 +96,8 @@ export class OnlineServer {
       server,
       path: ONLINE_PATH,
       maxPayload: 16 * 1024,
+      // Frames are repetitive JSON; compression shrinks them several times over.
+      perMessageDeflate: { threshold: 256, zlibDeflateOptions: { level: 3 } },
       verifyClient: ({ req }, done) => done((perAddress.get(addressOf(req)) ?? 0) < this.limits.maxPerAddress, 429),
     });
     wss.on('connection', (socket, req) => {
@@ -156,6 +173,14 @@ export class OnlineServer {
         this.browsing.delete(socket);
         this.announce();
         this.start(room);
+      } else if (msg.type === 'resume' && !room) {
+        const found = this.rooms.get(normalizeCode(String(msg.code ?? '')));
+        const seat = found?.players.find((p) => p.away && typeof msg.token === 'string' && p.resumeToken === msg.token);
+        if (!found || !seat) return send(socket, { type: 'error', message: 'Das Spiel ist leider schon vorbei.' });
+        room = found;
+        player = seat;
+        this.browsing.delete(socket);
+        this.comeBack(found, seat, socket);
       } else if (msg.type === 'input' && player) {
         player.left = msg.left === true;
         player.right = msg.right === true;
@@ -163,6 +188,12 @@ export class OnlineServer {
         if (player.up) player.jumped = true;
         player.down = msg.down === true;
         if (MOVE_SLOTS.includes(msg.press as MoveSlot)) player.pressed.add(msg.press as MoveSlot);
+      } else if (msg.type === 'leave' && room) {
+        // Leaving on purpose: the other player need not wait.
+        const left = room;
+        room = null;
+        player = null;
+        this.close(left);
       } else if (msg.type === 'rematch' && room && player && this.finished(room)) {
         player.wantsRematch = true;
         const by = room.players.indexOf(player) as 0 | 1;
@@ -172,11 +203,11 @@ export class OnlineServer {
     };
     socket.on('close', () => {
       this.browsing.delete(socket);
-      if (!room) return;
-      this.stop(room);
-      this.rooms.delete(room.code);
-      room.players.filter((p) => p !== player).forEach((p) => send(p.socket, { type: 'opponent-left' }));
-      this.announce();
+      if (!room || !player || player.socket !== socket) return;
+      const other = room.players.find((p) => p !== player);
+      // A started game waits a moment for the player to come back, paused for both.
+      if (other && !other.away && room.players.length === 2) return this.hold(room, player);
+      this.close(room);
     });
   }
 
@@ -223,6 +254,8 @@ export class OnlineServer {
       down: false,
       pressed: new Set(),
       wantsRematch: false,
+      resumeToken: randomUUID(),
+      away: false,
     };
   }
 
@@ -248,9 +281,10 @@ export class OnlineServer {
       known: new Set(),
       knownRun: 0,
       timer: null,
+      waiting: null,
     };
     this.rooms.set(code, room);
-    send(host.socket, { type: 'room', code, name: room.name, mode: room.mode, arenaId: arena });
+    send(host.socket, { type: 'room', code, name: room.name, mode: room.mode, arenaId: arena, resume: host.resumeToken });
     return room;
   }
 
@@ -271,20 +305,34 @@ export class OnlineServer {
     } else {
       room.state = createFight(a.character, b.character, room.arenaId, BEST_OF_THREE);
     }
-    room.players.forEach((p, i) => {
+    room.players.forEach((p) => {
       p.wantsRematch = false;
       p.pressed.clear();
-      send(p.socket, {
-        type: 'start',
-        mode: room.mode,
-        you: i as 0 | 1,
-        arenaId: room.arenaId,
-        characters: [a.character, b.character],
-        rosterIds: [a.rosterId, b.rosterId],
-        fighterIds: [a.fighterId, b.fighterId],
-      });
+      this.sendStart(room, p);
     });
+    this.run(room);
+  }
+
+  private sendStart(room: Room, p: Player): void {
+    const [a, b] = room.players;
+    send(p.socket, {
+      type: 'start',
+      mode: room.mode,
+      you: room.players.indexOf(p) as 0 | 1,
+      arenaId: room.arenaId,
+      characters: [a.character, b.character],
+      rosterIds: [a.rosterId, b.rosterId],
+      fighterIds: [a.fighterId, b.fighterId],
+      code: room.code,
+      resume: p.resumeToken,
+    });
+  }
+
+  /** Steps the room's game from where it is, e.g. at the start or after a pause. */
+  private run(room: Room): void {
+    this.stop(room);
     if (room.mode === 'stage') return this.runStage(room);
+    const [a, b] = room.players;
     // Frames are stepped by elapsed time, so a late timer catches up instead of slowing the fight.
     const startedAt = Date.now();
     // The round clock restarts every round, so the server counts its own frames.
@@ -299,7 +347,7 @@ export class OnlineServer {
         events = events.concat(state.events);
       }
       state.events = events;
-      const snapshot = JSON.stringify({ type: 'state', snapshot: snapshotOf(state) } satisfies ServerMessage);
+      const snapshot = encodeMessage({ type: 'state', snapshot: snapshotOf(state) });
       room.players.forEach((p) => p.socket.readyState === WebSocket.OPEN && p.socket.send(snapshot));
       if (state.winner !== null) {
         this.stop(room);
@@ -341,10 +389,10 @@ export class OnlineServer {
         room.knownRun = c.run;
         room.known.clear();
       }
-      const snapshot = JSON.stringify({ type: 'stage', snapshot: stageSnapshotOf(c, room.known) } satisfies ServerMessage);
+      const snapshot = encodeMessage({ type: 'stage', snapshot: stageSnapshotOf(c, room.known) });
       room.players.forEach((p) => p.socket.readyState === WebSocket.OPEN && p.socket.send(snapshot));
       if (this.finished(room)) this.stop(room);
-    }, 1000 / FPS);
+    }, 1000 / STAGE_SEND_RATE);
   }
 
   private controls(p: Player): Controls {
@@ -364,6 +412,40 @@ export class OnlineServer {
     return c;
   }
 
+  /** Pauses the game and tells the other player; the room closes if nobody comes back. */
+  private hold(room: Room, away: Player): void {
+    away.away = true;
+    this.stop(room);
+    room.players.filter((p) => p !== away).forEach((p) => send(p.socket, { type: 'opponent-away', seconds: Math.round(this.limits.reconnectMs / 1000) }));
+    if (room.waiting) clearTimeout(room.waiting);
+    room.waiting = setTimeout(() => this.close(room), this.limits.reconnectMs);
+  }
+
+  private comeBack(room: Room, p: Player, socket: WebSocket): void {
+    if (room.waiting) clearTimeout(room.waiting);
+    room.waiting = null;
+    p.socket = socket;
+    p.away = false;
+    p.pressed.clear();
+    p.left = p.right = p.up = p.down = p.jumped = false;
+    // The new connection has seen nothing yet, so the stage sends every character again.
+    room.known.clear();
+    this.sendStart(room, p);
+    room.players.filter((o) => o !== p).forEach((o) => send(o.socket, { type: 'opponent-back' }));
+    if (!this.finished(room)) this.run(room);
+    else if (room.mode === 'duel' && room.state) send(socket, { type: 'state', snapshot: snapshotOf(room.state) });
+  }
+
+  private close(room: Room): void {
+    this.stop(room);
+    if (room.waiting) clearTimeout(room.waiting);
+    room.waiting = null;
+    if (this.rooms.get(room.code) !== room) return;
+    this.rooms.delete(room.code);
+    room.players.filter((p) => !p.away).forEach((p) => send(p.socket, { type: 'opponent-left' }));
+    this.announce();
+  }
+
   private stop(room: Room): void {
     if (room.timer) clearInterval(room.timer);
     room.timer = null;
@@ -375,5 +457,5 @@ function addressOf(req: IncomingMessage): string {
 }
 
 function send(socket: WebSocket, msg: ServerMessage): void {
-  if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
+  if (socket.readyState === WebSocket.OPEN) socket.send(encodeMessage(msg));
 }
