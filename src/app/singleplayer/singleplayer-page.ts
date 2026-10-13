@@ -34,7 +34,9 @@ export class SingleplayerPage {
     });
   });
 
-  protected readonly cleared = computed(() => this.ladder().every((e) => e.status === 'beaten'));
+  /** Opponents after the boss come from content packs: bonus fights once the ladder is done. */
+  protected readonly bossIndex = OPPONENTS.findIndex((o) => o.boss);
+  protected readonly cleared = computed(() => this.ladder().slice(0, this.bossIndex + 1).every((e) => e.status === 'beaten'));
 
   protected signature(o: Opponent): string {
     const special = findMove(o.character.moves.special)?.name;

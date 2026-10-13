@@ -117,6 +117,34 @@ Schutz vor Manipulation, ohne Login:
 - Grenzen: 600 Anfragen pro Minute, 60 Änderungen pro Minute und 20 neue Kämpfer pro Stunde je IP; höchstens 5000 Kämpfer, 200 offene Online-Räume, 8 Online-Verbindungen je IP und 120 Nachrichten pro Sekunde je Verbindung.
 - Sicherheits-Header (Content-Security-Policy, `X-Frame-Options`, `nosniff`, kein `X-Powered-By`) und gzip-Kompression.
 
+## Eigene Inhalte und Content-Studio
+
+Neue Gegner, Arenen, Kämpfer und Attacken kommen als JSON-Inhaltspakete ins Spiel. Der Server prüft jedes Paket gegen die Balance-Regeln (Schadens-Budget je Attacke, Statuspunkte, gültige Werte) und lädt es beim Start.
+
+**Im Spiel:** Menüpunkt *Content-Studio* (`/studio`). Du beschreibst in Worten, was du willst, eine KI baut daraus ein Paket, prüft es mit den Spielregeln und korrigiert Fehler selbst. Du siehst Arena, Figuren und Attacken als Vorschau und übernimmst sie mit einem Klick. Pakete lassen sich auch als JSON einfügen, herunterladen und wieder entfernen.
+
+**KI-Anbindung** (im Studio einstellbar oder per Umgebungsvariable):
+
+| Anbieter | Adresse | Key |
+| --- | --- | --- |
+| Ollama (lokal) | `http://localhost:11434/v1` | keiner |
+| LM Studio (lokal) | `http://localhost:1234/v1` | keiner |
+| llama.cpp-Server | `http://localhost:8080/v1` | keiner |
+| OpenAI oder andere OpenAI-kompatible Dienste | z. B. `https://api.openai.com/v1` | ja |
+| Anthropic Claude | leer lassen | ja, oder `ANTHROPIC_API_KEY` des Servers |
+
+Der Key bleibt auf dem Server (`data/studio-settings.json`, nur für den Server lesbar) und wird nie an Browser geschickt. Das Studio ändert, was alle Spieler sehen: Ohne `SOUTHBEAT_STUDIO_PASSWORD` ist es nur auf dem PC erreichbar, auf dem der Server läuft. Im Docker-Container ist deshalb ein Passwort nötig.
+
+**Für Coding-Agenten** (Claude Code & Co.): siehe [AGENTS.md](AGENTS.md). Kurz: Paket nach `content/packs/` legen und prüfen.
+
+```bash
+npm run content -- reference                 # Spielwerte und Regeln
+npm run content -- validate meine-datei.json # prüfen
+npm run content -- add meine-datei.json      # prüfen und nach content/packs kopieren
+```
+
+Das Schema liegt in `content/schema/content-pack.schema.json`, ein vollständiges Beispiel in `content/examples/netzwerk-pack.json`.
+
 ## Docker
 
 Das Image enthält den kompletten Server: Spielseiten, API, Speicherung und Online-Server auf einem Port.
@@ -142,6 +170,12 @@ Für Spiele im lokalen Netz muss der Server die Adresse kennen, unter der die an
 | `SOUTHBEAT_DATA_FILE` | `/app/data/southbeat.json` | Speicherdatei |
 | `NG_ALLOWED_HOSTS` | – | zusätzliche Hostnamen/IPs, kommagetrennt |
 | `TRUST_PROXY` | – | hinter einem Reverse Proxy `1`, damit die Limits die echte IP sehen |
+| `SOUTHBEAT_STUDIO_PASSWORD` | – | Passwort für das Content-Studio (im Container nötig) |
+| `SOUTHBEAT_LLM_PROVIDER` | `openai` | `openai` (alles OpenAI-kompatible) oder `anthropic` |
+| `SOUTHBEAT_LLM_BASE_URL` | Ollama | Adresse des LLM-Servers; Ollama auf dem Host: `http://host.docker.internal:11434/v1` |
+| `SOUTHBEAT_LLM_MODEL` | `llama3.1` bzw. `claude-opus-5-5` | Modell |
+| `SOUTHBEAT_LLM_API_KEY` | – | API-Key, falls nötig |
+| `SOUTHBEAT_CONTENT_DIR` | `content/packs` | mitgelieferte Inhaltspakete |
 
 Falls Docker Hub das Herunterladen des Node-Basisimages begrenzt („429 Too Many Requests“), geht ein Spiegel: `docker build --build-arg NODE_IMAGE=mirror.gcr.io/library/node:22-alpine -t southbeat .`
 

@@ -1,0 +1,190 @@
+<main class="studio">
+  <header>
+    <a routerLink="/" class="btn">← Menü</a>
+    <h1>Content-Studio</h1>
+  </header>
+  <p class="lead">
+    Beschreib, was du dir wünschst: einen Gegner, eine Arena, einen Kämpfer oder eine Attacke. Eine KI baut daraus ein
+    Inhaltspaket, das die Balance-Regeln des Spiels einhält. Du siehst eine Vorschau und entscheidest, ob es ins Spiel kommt.
+  </p>
+
+  @switch (access()) {
+    @case ('checking') {
+      <p>Verbinde mit dem Server …</p>
+    }
+    @case ('denied') {
+      <p class="warn">{{ accessMessage() }}</p>
+    }
+    @case ('password') {
+      <form class="card" (ngSubmit)="start()">
+        <label>Studio-Passwort <input type="password" name="password" [(ngModel)]="password" autocomplete="current-password" /></label>
+        <button class="btn primary" type="submit">Öffnen</button>
+        <p class="warn">{{ accessMessage() }}</p>
+      </form>
+    }
+    @case ('ok') {
+      <details class="card settings" [open]="!settings()?.hasKey && settings()?.provider === 'anthropic'">
+        <summary>
+          KI-Anbindung: <strong>{{ settings()?.provider === 'anthropic' ? 'Anthropic' : 'OpenAI-kompatibel' }}</strong> ·
+          {{ settings()?.model }} · {{ settings()?.hasKey ? 'mit Key' : 'ohne Key' }}
+        </summary>
+        <label>Vorlage
+          <select (change)="usePreset($any($event.target).value)">
+            <option value="">– wählen –</option>
+            @for (p of presets; track p.label) {
+              <option [value]="$index">{{ p.label }}</option>
+            }
+          </select>
+        </label>
+        <label>Schnittstelle
+          <select name="provider" [(ngModel)]="form.provider">
+            <option value="openai">OpenAI-kompatibel (Ollama, LM Studio, llama.cpp, OpenAI …)</option>
+            <option value="anthropic">Anthropic (Claude)</option>
+          </select>
+        </label>
+        <label>Adresse
+          <input name="baseUrl" [(ngModel)]="form.baseUrl" [placeholder]="form.provider === 'anthropic' ? 'leer = api.anthropic.com' : 'http://localhost:11434/v1'" />
+        </label>
+        <label>Modell <input name="model" [(ngModel)]="form.model" /></label>
+        <label>API-Key
+          <input
+            type="password"
+            name="apiKey"
+            [(ngModel)]="form.apiKey"
+            autocomplete="off"
+            [disabled]="!!settings()?.keyFromEnv"
+            [placeholder]="settings()?.keyFromEnv ? 'aus Umgebungsvariable' : settings()?.hasKey ? 'gespeichert, leer lassen zum Behalten' : 'optional, lokale Server brauchen keinen'"
+          />
+        </label>
+        <p class="hint">Der Key bleibt auf dem Server und wird nie an Browser geschickt. Ohne Key nutzt Anthropic die Variable ANTHROPIC_API_KEY des Servers.</p>
+        <div class="row">
+          <button class="btn primary" type="button" (click)="saveSettings()">Speichern</button>
+          @if (settings()?.hasKey && !settings()?.keyFromEnv) {
+            <button class="btn" type="button" (click)="saveSettings(true)">Key löschen</button>
+          }
+          <span class="note">{{ settingsNote() }}</span>
+        </div>
+      </details>
+
+      <div class="layout">
+        <section class="card chat" aria-label="Gespräch mit der KI">
+          <div class="log" aria-live="polite">
+            @for (entry of chat(); track $index) {
+              <div class="msg" [class]="entry.from">
+                <p>{{ entry.text }}</p>
+                @if (entry.steps?.length) {
+                  <ul class="steps">
+                    @for (s of entry.steps; track $index) {
+                      <li>{{ s }}</li>
+                    }
+                  </ul>
+                }
+              </div>
+            } @empty {
+              <p class="hint">Zum Beispiel:</p>
+              @for (e of examples; track e) {
+                <button class="btn example" type="button" (click)="example(e)">{{ e }}</button>
+              }
+            }
+            @if (busy()) {
+              <p class="hint">Die KI baut und prüft … das kann mit lokalen Modellen eine Weile dauern.</p>
+            }
+          </div>
+          <form (ngSubmit)="send()">
+            <textarea name="message" [(ngModel)]="message" rows="3" placeholder="Was soll ins Spiel?" (keydown.control.enter)="send()"></textarea>
+            <div class="row">
+              <button class="btn primary" type="submit" [disabled]="busy()">Senden</button>
+              <button class="btn" type="button" (click)="newChat()" [disabled]="busy()">Neues Gespräch</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="card preview" aria-label="Vorschau">
+          <h2>Vorschau</h2>
+          @if (draft(); as d) {
+            <p><strong>{{ d.name }}</strong> <code>{{ d.id }}</code></p>
+            @if (draftErrors().length) {
+              <ul class="errors">
+                @for (e of draftErrors(); track $index) {
+                  <li>{{ e }}</li>
+                }
+              </ul>
+            }
+            @for (a of arenas(); track a.id) {
+              <h3>Arena: {{ a.name }}</h3>
+              <app-arena-canvas [arena]="a" />
+              <p class="hint">{{ a.description }}</p>
+            }
+            @for (c of cast(); track c.id) {
+              <h3>{{ c.kind }}: {{ c.character.name }} · {{ c.title }}</h3>
+              <div class="fighter">
+                <app-arena-canvas [arena]="c.arena" [fighters]="[c.character.appearance]" />
+                <div>
+                  <p class="hint">{{ c.text }}</p>
+                  <ul class="stats">
+                    @for (k of statKeys; track k) {
+                      <li>{{ statLabels[k] }} {{ c.character.stats[k] }}</li>
+                    }
+                    <li>Summe {{ total(c.character) }}</li>
+                  </ul>
+                  <ul class="stats">
+                    @for (slot of ['light', 'heavy', 'kick', 'special', 'ultimate']; track slot) {
+                      <li>{{ $any(c.character.moves)[slot] }}</li>
+                    }
+                  </ul>
+                </div>
+              </div>
+            }
+            @if (moves().length) {
+              <h3>Attacken</h3>
+              <table>
+                <thead><tr><th>Name</th><th>Slot</th><th>Schaden</th><th>Startup</th><th>Wucht</th></tr></thead>
+                <tbody>
+                  @for (m of moves(); track m.id) {
+                    <tr>
+                      <td>{{ m.name }}@if (m.exclusive) { <span class="tag">Signatur</span> }</td>
+                      <td>{{ slotLabels[m.slot] }}</td>
+                      <td>{{ m.damage }}{{ m.hits ? '×' + m.hits : '' }}</td>
+                      <td>{{ m.startupFrames }}</td>
+                      <td>{{ m.power }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+            <div class="row">
+              <button class="btn primary" type="button" (click)="install()" [disabled]="draftErrors().length > 0">Ins Spiel übernehmen</button>
+              <button class="btn" type="button" (click)="jsonOpen.set(!jsonOpen())">JSON {{ jsonOpen() ? 'zuklappen' : 'bearbeiten' }}</button>
+              <button class="btn" type="button" (click)="download()">Herunterladen</button>
+              <button class="btn" type="button" (click)="discard()">Verwerfen</button>
+            </div>
+            @if (installNote()) {
+              <p class="ok">{{ installNote() }}</p>
+            }
+          } @else {
+            <p class="hint">Hier erscheint, was die KI baut. Du kannst auch ein Paket als JSON einfügen.</p>
+            <button class="btn" type="button" (click)="jsonOpen.set(true)">JSON einfügen</button>
+          }
+          @if (jsonOpen()) {
+            <textarea class="json" [value]="json()" (input)="json.set($any($event.target).value)" rows="16" spellcheck="false" aria-label="Paket als JSON"></textarea>
+            <button class="btn" type="button" (click)="checkJson()">Prüfen und Vorschau</button>
+          }
+        </section>
+      </div>
+
+      <section class="card">
+        <h2>Installierte Pakete</h2>
+        @for (p of packs(); track p.id) {
+          <div class="row pack">
+            <span><strong>{{ p.name }}</strong> <code>{{ p.id }}</code> · {{ p.studio ? 'aus dem Studio' : 'mit dem Spiel ausgeliefert' }}{{ p.installed ? '' : ' · fehlerhaft, nicht geladen' }}</span>
+            @if (p.studio) {
+              <button class="btn" type="button" (click)="remove(p.id)">Entfernen</button>
+            }
+          </div>
+        } @empty {
+          <p class="hint">Noch keine Pakete. Coding-Agenten wie Claude Code können Pakete auch direkt im Repository anlegen, siehe AGENTS.md.</p>
+        }
+      </section>
+    }
+  }
+</main>

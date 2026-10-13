@@ -20,7 +20,9 @@ ENV NODE_ENV=production \
     SOUTHBEAT_DATA_FILE=/app/data/southbeat.json
 # The server bundle contains everything it needs, so no node_modules are copied.
 COPY --from=build /src/dist/southbeat ./dist/southbeat
-# Fighters, statistics and ladder progress live here; mount a volume to keep them.
+# Content packs that ship with the game; packs made in the content studio go to /app/data/content.
+COPY --from=build /src/content/packs ./content/packs
+# Fighters, statistics, ladder progress, studio packs and LLM settings live here; mount a volume to keep them.
 RUN mkdir -p /app/data && chown -R node:node /app/data
 VOLUME /app/data
 USER node

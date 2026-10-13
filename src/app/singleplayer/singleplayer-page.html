@@ -20,7 +20,7 @@
           <app-sprite-preview [appearance]="entry.opponent.character.appearance" />
         </div>
         <div class="details">
-          <span class="rank">{{ entry.opponent.boss ? 'Endboss' : 'Gegner ' + (i + 1) }}</span>
+          <span class="rank">{{ entry.opponent.boss ? 'Endboss' : i > bossIndex ? 'Bonus-Gegner' : 'Gegner ' + (i + 1) }}</span>
           <h2>{{ entry.opponent.character.name }} <small>{{ entry.opponent.title }}</small></h2>
           <p>{{ entry.opponent.blurb }}</p>
           <p class="meta">{{ signature(entry.opponent) }} · Arena: {{ arenaName(entry.opponent) }}</p>

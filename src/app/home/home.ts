@@ -18,6 +18,7 @@ const MENU: MenuEntry[] = [
   { label: 'Freier Kampf', link: '/select', hint: 'Gegen die CPU oder zu zweit an einer Tastatur.' },
   { label: 'Online-Kampf', link: '/online', hint: 'Gegen jemanden an einem anderen PC.' },
   { label: 'Charakter erstellen', link: '/editor', hint: 'Aussehen, Moves, Werte und dein eigenes Geschoss.' },
+  { label: 'Content-Studio', link: '/studio', hint: 'Neue Gegner, Arenen und Attacken beschreiben, eine KI baut sie.' },
   { label: 'Steuerung', link: '/controls', hint: 'Tasten für Spieler 1 und 2 einstellen.' },
 ];
 

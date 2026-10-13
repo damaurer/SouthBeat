@@ -8,6 +8,17 @@ services:
     environment:
       # For play over the LAN: this PC's IP address (or host name), comma-separated for several.
       NG_ALLOWED_HOSTS: ${SOUTHBEAT_HOST:-localhost}
+      # Content studio: in a container every browser counts as remote, so it needs a password.
+      SOUTHBEAT_STUDIO_PASSWORD: ${SOUTHBEAT_STUDIO_PASSWORD:-}
+      # Optional LLM defaults; they can also be set in the studio. Ollama on this PC:
+      # SOUTHBEAT_LLM_BASE_URL=http://host.docker.internal:11434/v1
+      SOUTHBEAT_LLM_PROVIDER: ${SOUTHBEAT_LLM_PROVIDER:-}
+      SOUTHBEAT_LLM_BASE_URL: ${SOUTHBEAT_LLM_BASE_URL:-}
+      SOUTHBEAT_LLM_MODEL: ${SOUTHBEAT_LLM_MODEL:-}
+      SOUTHBEAT_LLM_API_KEY: ${SOUTHBEAT_LLM_API_KEY:-}
+    extra_hosts:
+      # Lets the container reach an LLM server running on this PC (Ollama, LM Studio).
+      - "host.docker.internal:host-gateway"
     volumes:
       - southbeat-data:/app/data
     restart: unless-stopped

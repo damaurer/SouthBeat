@@ -267,7 +267,8 @@ let installedPacks: ContentPack[] = [];
 /** Entries that came from packs, so they can be taken out again. */
 const installed = new WeakSet<object>();
 
-function arenaOf(spec: ArenaSpec): Arena {
+/** An arena of the game made from its description. */
+export function arenaOf(spec: ArenaSpec): Arena {
   return { id: spec.id, name: spec.name, description: spec.description, draw: (p) => drawArenaSpec(spec, p) };
 }
 

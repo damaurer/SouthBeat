@@ -12,5 +12,6 @@ export const routes: Routes = [
   { path: 'online', loadComponent: () => import('./online/online-page').then((m) => m.OnlinePage), title: 'SouthBeat · Online-Kampf' },
   { path: 'stages', loadComponent: () => import('./stage/stage-page').then((m) => m.StagePage), title: 'SouthBeat · Stage-Modus' },
   { path: 'controls', loadComponent: () => import('./settings/controls-page').then((m) => m.ControlsPage), title: 'SouthBeat · Steuerung' },
+  { path: 'studio', loadComponent: () => import('./content/studio-page').then((m) => m.StudioPage), title: 'SouthBeat · Content-Studio' },
   { path: '**', redirectTo: '' },
 ];

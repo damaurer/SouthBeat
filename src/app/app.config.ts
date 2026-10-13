@@ -1,4 +1,5 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZoneChangeDetection } from '@angular/core';
+import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners, provideZoneChangeDetection } from '@angular/core';
+import { ContentLoader } from './content/content-loader';
 import { RouteReuseStrategy, provideRouter } from '@angular/router';
 import { FightReuseStrategy } from './fight/fight-reuse';
 import { provideHttpClient, withFetch } from '@angular/common/http';
@@ -13,6 +14,8 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     { provide: RouteReuseStrategy, useClass: FightReuseStrategy },
     provideHttpClient(withFetch()),
-    provideClientHydration(withEventReplay())
+    provideClientHydration(withEventReplay()),
+    // Content packs from the server join the game before the first screen shows.
+    provideAppInitializer(() => inject(ContentLoader).load()),
   ]
 };

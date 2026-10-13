@@ -6,10 +6,13 @@ import {
 } from '@angular/ssr/node';
 import compression from 'compression';
 import express, { NextFunction, Request, Response } from 'express';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { gameApi } from './server/api';
 import { JsonFileStorage } from './server/file-storage';
 import { OnlineServer } from './server/online';
+import { ContentFiles } from './server/content-files';
+import { loadContent, studioApi } from './server/studio/studio-api';
+import { StudioSettings } from './server/studio/settings';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -56,6 +59,19 @@ app.use(compression());
  */
 const dataFile = process.env['SOUTHBEAT_DATA_FILE'] || join(process.cwd(), 'data', 'southbeat.json');
 const api = gameApi(new JsonFileStorage(dataFile));
+
+/**
+ * Content packs: shipped ones in content/packs, studio-made ones next to the data file.
+ * They are loaded once at start and again whenever the studio changes them.
+ */
+const dataDir = dirname(dataFile);
+const contentFiles = new ContentFiles(process.env['SOUTHBEAT_CONTENT_DIR'] || join(process.cwd(), 'content', 'packs'), join(dataDir, 'content'));
+const contentReady = loadContent(contentFiles).catch((error) => console.error('Inhaltspakete konnten nicht geladen werden', error));
+app.use(async (_req, _res, next) => {
+  await contentReady;
+  next();
+});
+app.use('/api', studioApi({ files: contentFiles, settings: new StudioSettings(join(dataDir, 'studio-settings.json')), password: process.env['SOUTHBEAT_STUDIO_PASSWORD'] }));
 app.use('/api', api.router);
 
 /**

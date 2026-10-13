@@ -9,6 +9,8 @@ export const serverRoutes: ServerRoute[] = [
   { path: 'select', renderMode: RenderMode.Client },
   { path: 'arena', renderMode: RenderMode.Client },
   { path: 'stages', renderMode: RenderMode.Client },
+  // The studio shows live server settings and packs; prerendering would bake in stale ones.
+  { path: 'studio', renderMode: RenderMode.Client },
   // Key bindings live in the browser.
   { path: 'controls', renderMode: RenderMode.Client },
   {

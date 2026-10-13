@@ -3,7 +3,7 @@
 import { build } from 'esbuild';
 import { spawnSync } from 'node:child_process';
 import { globSync, mkdirSync, rmSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { join, relative } from 'node:path';
 
 const out = join('out-tsc', 'server-tests');
 rmSync(out, { recursive: true, force: true });
@@ -16,8 +16,9 @@ await build({
   format: 'esm',
   packages: 'external',
   outdir: out,
+  outbase: 'src',
   outExtension: { '.js': '.mjs' },
   logLevel: 'warning',
 });
-const run = spawnSync(process.execPath, ['--test', ...files.map((f) => join(out, basename(f).replace(/\.ts$/, '.mjs')))], { stdio: 'inherit' });
+const run = spawnSync(process.execPath, ['--test', ...files.map((f) => join(out, relative('src', f).replace(/\.ts$/, '.mjs')))], { stdio: 'inherit' });
 process.exit(run.status ?? 1);
