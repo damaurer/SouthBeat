@@ -15,6 +15,8 @@
     <div class="member boss">
       <div class="name">Boss {{ b.name }}</div>
       <div class="bar hp"><span [style.width.%]="(b.hp / b.maxHp) * 100"></span></div>
+      <div class="bar action" [class.ready]="b.meter >= meterMax"><span [style.width.%]="(b.meter / meterMax) * 100"></span></div>
+      <div class="action-label">{{ b.meter >= meterMax ? 'ULTIMATE BEREIT!' : 'Action' }}</div>
     </div>
   }
 </div>

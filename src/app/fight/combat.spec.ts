@@ -1,6 +1,7 @@
 import { defaultCharacter } from '../character/balance';
 import { SPARRING_PARTNER } from '../character/sparring';
 import { seeded } from '../arena/painter';
+import { OPPONENTS } from '../singleplayer/opponents';
 import { Controls, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, canUseUltimate, cpuControls, createFight, projectileLift, step } from './combat';
 
 function press(c: Partial<Controls>): Controls {
@@ -117,6 +118,20 @@ describe('combat', () => {
     t.fighters[0].hp -= 10;
     for (let i = 0; i < ROUND_FRAMES; i++) step(t, [NO_INPUT, NO_INPUT]);
     expect(t.winner).toBe(1);
+  });
+
+  it('lets every ladder opponent fire its ultimate only with a full action bar', () => {
+    for (const o of OPPONENTS) {
+      const t = createFight(defaultCharacter(), o.character, 'bunker');
+      const rnd = seeded(7);
+      for (let i = 0; i < ROUND_FRAMES && t.winner === null; i++) {
+        const before = t.fighters[1].meter;
+        step(t, [NO_INPUT, cpuControls(t, 1, rnd, o.cpu)]);
+        if (t.events.some((e) => e.type === 'ultimate' && e.fighter === 1)) {
+          expect(before).toBeGreaterThanOrEqual(METER_MAX);
+        }
+      }
+    }
   });
 
   it('lets the CPU win against a player who does nothing', () => {

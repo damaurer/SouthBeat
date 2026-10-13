@@ -48,7 +48,7 @@ export class StageScreen {
   protected readonly meterMax = METER_MAX;
 
   protected readonly players = signal<BrawlerHud[]>([]);
-  protected readonly boss = signal<{ name: string; hp: number; maxHp: number } | null>(null);
+  protected readonly boss = signal<{ name: string; hp: number; maxHp: number; meter: number } | null>(null);
   protected readonly banner = signal<string | null>(null);
   protected readonly go = signal(false);
   protected readonly title = signal('');
@@ -171,7 +171,7 @@ export class StageScreen {
         })),
     );
     const boss = s.brawlers.find((b) => b.id === s.bossId);
-    this.boss.set(boss && !boss.out ? { name: boss.name, hp: boss.hp, maxHp: boss.maxHp } : null);
+    this.boss.set(boss && !boss.out ? { name: boss.name, hp: boss.hp, maxHp: boss.maxHp, meter: boss.meter } : null);
   }
 
   private draw(): void {

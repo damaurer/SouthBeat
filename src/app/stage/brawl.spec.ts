@@ -1,6 +1,6 @@
 import { defaultCharacter } from '../character/balance';
 import { seeded } from '../arena/painter';
-import { NO_INPUT } from '../fight/combat';
+import { METER_MAX, NO_INPUT } from '../fight/combat';
 import { DEPTH, createStage, stepStage } from './brawl';
 import { findMove } from '../character/character.model';
 import { GRUNT_TYPES, STAGES, WORLD_WIDTH, makeGrunt, paintStage } from './stages';
@@ -137,8 +137,11 @@ describe('stage mode', () => {
     const random = seeded(42);
     let segments = 0;
     for (let i = 0; i < 60 * 60 * 6 && s.phase !== 'cleared' && s.phase !== 'gameover'; i++) {
+      const meters = new Map(s.brawlers.map((b) => [b.id, b.meter]));
       stepStage(s, [], random);
       segments = Math.max(segments, s.segment);
+      // Nobody, the boss included, fires an ultimate without a full action bar.
+      for (const e of s.events) if (e.type === 'ultimate') expect(meters.get(e.who)).toBeGreaterThanOrEqual(METER_MAX);
     }
     expect(segments).toBe(2);
     expect(s.phase).toBe('cleared');
