@@ -57,6 +57,8 @@ npm start                      # Entwicklungsserver
 npx ng build && npm run serve:ssr:southbeat
 npx ng test --watch=false      # Browser-Tests (Karma)
 npm run test:server            # Server-Tests (Node)
+npm run lint                   # ESLint
+npm run e2e                    # Smoke-Tests gegen den gebauten Server
 npm run content -- validate content/packs/*.json
 ```
 

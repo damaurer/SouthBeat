@@ -11,16 +11,20 @@ const SCHEMA = join('content', 'schema', 'content-pack.schema.json');
 
 const HELP = `SouthBeat-Inhaltspakete
 
-  npm run content -- validate <datei.json>...   Pakete prüfen (gegen Spiel und content/packs)
+  npm run content -- validate [datei.json...]   Pakete prüfen (gegen Spiel und content/packs); ohne Datei nur die installierten
   npm run content -- add <datei.json>           prüfen und nach content/packs kopieren
   npm run content -- list                       installierte Pakete anzeigen
   npm run content -- reference                  Spielwerte und Regeln für Autoren und LLMs
   npm run content -- schema                     content/schema/content-pack.schema.json neu schreiben`;
 
-async function installed(): Promise<void> {
+/** Loads the installed packs like the game does; false if any of them is broken or rejected. */
+async function installed(): Promise<boolean> {
   const { packs, broken } = await new ContentFiles(SHIPPED, STUDIO).load();
   for (const b of broken) console.error(`Kaputte Datei: ${b}`);
-  for (const r of installPacks(packs.map((p) => p.pack))) console.error(`Paket ${r.pack} wird übersprungen:\n  ${r.errors.join('\n  ')}`);
+  const rejected = installPacks(packs.map((p) => p.pack));
+  for (const r of rejected) console.error(`Paket ${r.pack} wird übersprungen:\n  ${r.errors.join('\n  ')}`);
+  if (broken.length === 0 && rejected.length === 0) console.log(`✓ ${packs.length} installierte Pakete sind in Ordnung.`);
+  return broken.length === 0 && rejected.length === 0;
 }
 
 async function check(file: string): Promise<ContentPack | null> {
@@ -44,8 +48,7 @@ async function check(file: string): Promise<ContentPack | null> {
 const [command, ...args] = process.argv.slice(2);
 switch (command) {
   case 'validate': {
-    await installed();
-    let ok = args.length > 0;
+    let ok = await installed();
     for (const file of args) ok = (await check(file)) !== null && ok;
     process.exit(ok ? 0 : 1);
     break;

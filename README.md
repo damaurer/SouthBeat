@@ -43,6 +43,8 @@ Das Kampfsystem orientiert sich an Street Fighter:
 - **Seitenansicht**: Im Spiel werden die Figuren von der Seite gezeichnet (`src/app/character/profile.ts`, mit allen Frisuren, Bärten, Outfits, Accessoires und Körperformen aus dem Editor) und schauen sich im Zweikampf an. Im Stage-Modus blicken Gegner immer zu ihrem Ziel, auch wenn sie zurückweichen. Editor-Vorschau, Arena-Vorschau und Einzelspieler-Liste zeigen ebenfalls die Seitenansicht; nur die Gesichter in der Kämpferauswahl bleiben frontal.
 - **Animationen**: Oberarme, Unterarme, Oberschenkel, Unterschenkel, Kopf und Oberkörper bewegen sich einzeln, mit Ellbogen und Knien (`src/app/fight/pose.ts`, Posen in `animate.ts`). Deckung mit erhobenen Fäusten. Kampfhaltung mit Atmen, Laufzyklus, Sprung, Ducken, Block, jeder Angriff mit Ausholen, Treffer und Zurückziehen, Treffer-Reaktion, Hinfallen und Aufstehen, Siegerpose. Bei Treffern friert das Spiel kurz ein (Hitstop, je nach Härte 4 bis 12 Bilder), dazu Trefferblitz mit Funkenflug, Bildschirmwackeln bei harten Treffern und Staubwolken bei Landungen und Stürzen (`effects.ts`). Gilt im Zweikampf, Einzelspieler, Stage-Modus, online und auf dem Titelbildschirm.
 
+- **Training** (`/training`, Startseite „Training“): Ein Dummy, der nie umfällt (steht, duckt sich, blockt alles, springt oder wehrt sich als CPU), eine Uhr ohne Ende und auf Wunsch ein immer voller Action-Balken. Trefferboxen zeigen, wo ein Kämpfer getroffen werden kann (grün) und wohin ein Angriff reicht (gelb beim Ausholen, rot wenn er trifft). Die Eingabe-Anzeige links oben schreibt die letzten Eingaben in Prügler-Schreibweise aus Sicht des Kämpfers (→ ist immer nach vorn), ein Zähler rechts oben zeigt Treffer in Folge und ihren Schaden. Logik in `src/app/fight/training.ts`.
+- **Kämpfer & Bestenliste** (`/fighters`): „Meine Kämpfer“ zeigt alle in diesem Browser erstellten Kämpfer; dort wechselst du, wer spielt, bearbeitest oder legst einen neuen an. „Alle Kämpfer“ listet die Kämpfer aller Spieler mit Suche und Online-Bilanz. „Kämpfen“ oder „In die Auswahl“ setzt bis zu 8 davon als Rivalen auf den Auswahlbildschirm, gespielt vom Computer. „Bestenliste“ zeigt die Top 10 nach Online-Siegen.
 - **Einzelspieler** (`/singleplayer`): Eine Gegnerleiter durch die Chefetage. Jeder Sieg schaltet den nächsten Gegner frei, der Fortschritt landet in der Datendatei.
 
 | Gegner | Rolle | Stil | Arena |
@@ -85,7 +87,11 @@ Die Regeln stecken in `src/app/stage/brawl.ts`, der Ablauf über alle Stages in 
 
 Unter `/online` (Startseite: „Online-Kampf“) kämpfen zwei Spieler an zwei PCs in Echtzeit gegeneinander. Jeder wählt zuerst seinen Kämpfer in der Kämpferauswahl. Danach zeigt eine Lobby-Tabelle alle offenen Lobbys mit Name, Host und Arena; sie aktualisiert sich live. Ein Klick auf „Beitreten“ startet den Kampf sofort. Wer selbst hostet, gibt der Lobby einen Namen und wählt den Spielmodus: **Zweikampf** (gegeneinander, mit Arena oder „Zufällig“) oder **Stage-Modus** (zusammen durch alle fünf Stages, die Arenen geben die Stages vor). Die Tabelle zeigt den Modus jeder Lobby. Der Gast bringt nur seinen Kämpfer mit. Als Ausweichweg geht weiterhin der vierstellige Raumcode. Gespielt wird an jedem PC mit den Tasten von Spieler 1. Nach dem Kampf ist eine Revanche möglich; im Stage-Modus versuchen beide nach einem Game Over die Stage nochmal, nach der letzten Stage geht es von vorn los. Besiegte Bosse zählen für jeden Spieler im Einzelspieler-Fortschritt, wie im lokalen Stage-Modus. Sind beide Kämpfer selbst erstellt und gespeichert, zählt das Ergebnis in der Statistik.
 
-Kampf und Stage laufen auf dem Server (`src/server/online.ts`, WebSocket unter `/online` auf demselben Port). Die Browser schicken nur ihre Tasten und zeichnen die Bilder, die der Server 60-mal pro Sekunde zurückschickt. Beide sehen dadurch immer denselben Kampf, und niemand kann am eigenen Browser schummeln. Die Verzögerung hängt von der Verbindung zum Server ab; im lokalen Netz ist sie kaum spürbar.
+Kampf und Stage laufen auf dem Server (`src/server/online.ts`, WebSocket unter `/online` auf demselben Port). Die Browser schicken nur ihre Tasten und zeichnen die Bilder, die der Server zurückschickt: im Zweikampf 60-mal, im Stage-Modus 30-mal pro Sekunde. Beide sehen dadurch immer denselben Kampf, und niemand kann am eigenen Browser schummeln.
+
+- **Vorhersage**: Im Zweikampf misst der Browser die Laufzeit zum Server und spielt die eigenen, beim Server noch nicht angekommenen Eingaben auf einer Kopie vorab (höchstens 10 Bilder). Der eigene Kämpfer reagiert dadurch sofort, auch übers Internet; das nächste Bild vom Server korrigiert falsche Annahmen.
+- **Datenmenge**: Moves gehen als ID über die Leitung, Kommazahlen werden gerundet, größere Nachrichten komprimiert. Gemessen etwa 19 KB/s im Zweikampf und 18 KB/s im Stage-Modus pro Spieler (vorher 35 und 108).
+- **Verbindungsabbruch**: Bricht die Verbindung mitten im Spiel ab, hält der Server das Spiel bis zu 15 Sekunden an, beide sehen einen Hinweis, und der Browser verbindet sich mit einem geheimen Platz-Schlüssel neu. Wer bewusst geht oder den Tab schließt, beendet den Raum sofort.
 
 Zum Spielen über zwei PCs im selben Netz:
 
@@ -116,6 +122,18 @@ Schutz vor Manipulation, ohne Login:
 - Der Server prüft jeden Kämpfer gegen die Balance-Regeln und die Ladder-Reihenfolge.
 - Grenzen: 600 Anfragen pro Minute, 60 Änderungen pro Minute und 20 neue Kämpfer pro Stunde je IP; höchstens 5000 Kämpfer, 200 offene Online-Räume, 8 Online-Verbindungen je IP und 120 Nachrichten pro Sekunde je Verbindung.
 - Sicherheits-Header (Content-Security-Policy, `X-Frame-Options`, `nosniff`, kein `X-Powered-By`) und gzip-Kompression.
+
+### Datendatei, Wachstum und Backup
+
+Jede Änderung schreibt die ganze Datei, zuerst in eine temporäre Datei und dann per Umbenennen, damit ein Absturz nie eine halbe Datei hinterlässt. Kommen während eines Schreibvorgangs weitere Änderungen, werden sie danach gemeinsam geschrieben. Damit die Datei nicht endlos wächst, werden ab 20.000 Online-Kämpfen die ältesten zu Summen je Kämpfer und Arena zusammengefasst (Bilanzen und Bestenliste bleiben gleich), und ab 20.000 Einzelspieler-Ergebnissen bleibt pro Kämpfer und Gegner nur der erste Sieg. Zusammen mit der Grenze von 5000 Kämpfern bleibt die Datei bei einigen MB.
+
+Backup des Docker-Volumes:
+
+```bash
+docker run --rm -v southbeat_southbeat-data:/data -v "$PWD":/backup alpine tar czf /backup/southbeat-data.tgz -C /data .
+```
+
+Zurückspielen mit `tar xzf` in dasselbe Volume bei gestopptem Container. Ohne Docker reicht eine Kopie von `data/`. Für einen großen öffentlichen Server wäre SQLite (z. B. `better-sqlite3`) der nächste Schritt; `GameDataRules` enthält keine Datei-Logik, nur `JsonFileStorage` müsste ersetzt werden.
 
 ## Eigene Inhalte und Content-Studio
 
@@ -190,4 +208,10 @@ npm run build        # Produktions-Build inkl. SSR
 npm run serve:ssr:southbeat   # gebaute SSR-App starten (Port 4000)
 npm test             # Unit-Tests (Browser)
 npm run test:server  # Server-Tests (Node, z. B. Online-Räume)
+npm run lint         # ESLint mit Angular- und Barrierefreiheits-Regeln
+npm run e2e          # Playwright-Smoke-Tests gegen den gebauten Server (vorher npm run build)
 ```
+
+Die Smoke-Tests (`e2e/smoke.spec.ts`) gehen Startmenü, Kampf, Training, Online-Lobby mit zwei Browsern und die Kämpferliste durch und starten dafür einen eigenen Server mit leerer Datendatei. Ist Chromium schon installiert, zeigt `PLAYWRIGHT_CHROMIUM=/pfad/zu/chrome` darauf, sonst einmal `npx playwright install chromium`.
+
+`.github/workflows/ci.yml` führt bei jedem Push auf `main` und jedem Pull Request Lint, Build, Browser-, Server- und Smoke-Tests aus und prüft die Beispiel-Content-Packs. Er läuft, sobald das Repository auf GitHub liegt.

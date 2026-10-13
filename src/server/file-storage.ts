@@ -5,10 +5,14 @@ import { GameData, emptyGameData } from './game-data';
 /**
  * Keeps the game data in one JSON file. Writes go to a temporary file first and
  * are then renamed over the real one, so a crash never leaves a half-written file.
- * Writes are queued so two requests never write at the same time.
+ * Writes are queued so two requests never write at the same time, and changes that come
+ * in while a write is running are written together afterwards, so a busy server does not
+ * write the whole file once per request.
  */
 export class JsonFileStorage {
   private queue: Promise<void> = Promise.resolve();
+  /** The next write, not started yet; later changes join it. */
+  private pending: { data: GameData; done: Promise<void> } | null = null;
 
   constructor(readonly path: string) {}
 
@@ -26,14 +30,22 @@ export class JsonFileStorage {
   }
 
   save(data: GameData): Promise<void> {
-    const json = JSON.stringify(data, null, 2);
+    if (this.pending) {
+      this.pending.data = data;
+      return this.pending.done;
+    }
+    const pending = { data, done: Promise.resolve() };
     const write = async (): Promise<void> => {
+      // From here on, new changes wait for the next write.
+      if (this.pending === pending) this.pending = null;
+      const json = JSON.stringify(pending.data, null, 2);
       await mkdir(dirname(this.path), { recursive: true });
       const tmp = `${this.path}.tmp`;
       await writeFile(tmp, json, 'utf8');
       await rename(tmp, this.path);
     };
-    this.queue = this.queue.then(write, write);
-    return this.queue;
+    pending.done = this.queue = this.queue.then(write, write);
+    this.pending = pending;
+    return pending.done;
   }
 }

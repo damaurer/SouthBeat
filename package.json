@@ -9,7 +9,9 @@
     "test": "ng test",
     "serve:ssr:southbeat": "node dist/southbeat/server/server.mjs",
     "test:server": "node scripts/test-server.mjs",
-    "content": "node scripts/content.mjs"
+    "content": "node scripts/content.mjs",
+    "lint": "eslint src scripts e2e",
+    "e2e": "playwright test"
   },
   "prettier": {
     "printWidth": 100,
@@ -45,17 +47,21 @@
     "@angular/build": "^20.3.39",
     "@angular/cli": "^20.3.39",
     "@angular/compiler-cli": "^20.3.0",
+    "@playwright/test": "^1.56.1",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.1",
     "@types/jasmine": "~5.1.0",
     "@types/node": "^20.17.19",
     "@types/ws": "^8.18.1",
+    "angular-eslint": "^20.7.0",
+    "eslint": "^9.39.5",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.71.2"
   }
 }

@@ -114,4 +114,26 @@ describe('GameDataRules', () => {
     const b = rules.createFighter(defaultCharacter());
     expect(() => rules.recordMatch({ winnerId: a.id, loserId: b.id, arenaId: 'mars' })).toThrowError(GameDataError);
   });
+
+  it('folds old matches into totals without changing anyone\'s record', () => {
+    const a = rules.createFighter(defaultCharacter());
+    const b = rules.createFighter({ ...defaultCharacter(), name: 'Zweiter' });
+    for (let i = 0; i < 7; i++) rules.recordMatch({ winnerId: i % 3 ? a.id : b.id, loserId: i % 3 ? b.id : a.id, arenaId: i % 2 ? 'bunker' : 'rooftop' });
+    const before = { a: rules.statsFor(a.id), b: rules.statsFor(b.id), summary: rules.summary(), list: rules.listFighters().map((f) => f.record) };
+    rules.compact(2);
+    expect(data.matches.length).toBe(2);
+    expect(data.archived?.matches).toBe(5);
+    expect(rules.statsFor(a.id)).toEqual(before.a);
+    expect(rules.statsFor(b.id)).toEqual(before.b);
+    expect(rules.summary()).toEqual(before.summary);
+    expect(rules.listFighters().map((f) => f.record)).toEqual(before.list);
+  });
+
+  it('thins old ladder results to the first win per opponent', () => {
+    const a = rules.createFighter(defaultCharacter());
+    for (const won of [false, true, true, false]) rules.recordLadder(a.id, { opponentId: 'bernd-brummer', won }, a.editToken);
+    rules.compact(100, 2);
+    expect(data.ladder?.length).toBe(1);
+    expect(rules.ladderBeaten(a.id)).toEqual(['bernd-brummer']);
+  });
 });

@@ -15,13 +15,27 @@ export interface ServerFighter extends StoredFighter {
 /** More fighters than this and the server refuses new ones, so the file cannot be flooded. */
 export const MAX_FIGHTERS = 5000;
 
+/** Matches beyond this are folded into per-fighter totals, so the data file stays small. */
+export const MAX_MATCHES = 20_000;
+/** Ladder results beyond this are thinned out to what the progress needs. */
+export const MAX_LADDER = 20_000;
+
+/** Totals of matches that were folded away. */
+export interface ArchivedMatches {
+  matches: number;
+  byArena: Record<string, number>;
+  fighters: Record<string, { wins: number; losses: number }>;
+}
+
 /** Everything the game persists. This object is written to the data file as JSON. */
 export interface GameData {
   version: 1;
   fighters: ServerFighter[];
+  /** The newest matches, one by one; older ones are counted in `archived`. */
   matches: MatchRecord[];
   /** Added later; files written before it existed don't have it. */
   ladder?: LadderResult[];
+  archived?: ArchivedMatches;
 }
 
 export function emptyGameData(): GameData {
@@ -75,6 +89,7 @@ export class GameDataRules {
     if (!before.every((o) => beaten.includes(o.id))) throw new GameDataError(403, 'Dieser Gegner ist noch nicht freigeschaltet.');
     const result: LadderResult = { fighterId, opponentId, won, playedAt: this.now().toISOString() };
     (this.data.ladder ??= []).push(result);
+    this.compact();
     return result;
   }
 
@@ -121,12 +136,42 @@ export class GameDataRules {
     if (findArena(arenaId).id !== arenaId) throw new GameDataError(400, 'Unbekannte Arena.');
     const match: MatchRecord = { id: this.newId(), winnerId, loserId, arenaId, playedAt: this.now().toISOString() };
     this.data.matches.push(match);
+    this.compact();
     return match;
   }
 
+  /**
+   * Keeps the file from growing without end: the oldest matches become per-fighter totals,
+   * and old ladder results are thinned to one win per fighter and opponent.
+   */
+  compact(maxMatches = MAX_MATCHES, maxLadder = MAX_LADDER): void {
+    const extra = this.data.matches.length - maxMatches;
+    if (extra > 0) {
+      const a = (this.data.archived ??= { matches: 0, byArena: {}, fighters: {} });
+      for (const m of this.data.matches.splice(0, extra)) {
+        a.matches++;
+        a.byArena[m.arenaId] = (a.byArena[m.arenaId] ?? 0) + 1;
+        (a.fighters[m.winnerId] ??= { wins: 0, losses: 0 }).wins++;
+        (a.fighters[m.loserId] ??= { wins: 0, losses: 0 }).losses++;
+      }
+    }
+    const ladder = this.data.ladder ?? [];
+    if (ladder.length > maxLadder) {
+      // Only wins unlock anything; the first win against each opponent is enough.
+      const seen = new Set<string>();
+      this.data.ladder = ladder.filter((r) => {
+        const key = `${r.fighterId} ${r.opponentId}`;
+        if (!r.won || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+  }
+
   statsFor(id: string): FighterStats {
-    let wins = 0;
-    let losses = 0;
+    const old = this.data.archived?.fighters[id];
+    let wins = old?.wins ?? 0;
+    let losses = old?.losses ?? 0;
     for (const m of this.data.matches) {
       if (m.winnerId === id) wins++;
       if (m.loserId === id) losses++;
@@ -142,6 +187,12 @@ export class GameDataRules {
       if (!s) stats.set(id, (s = { matches: 0, wins: 0, losses: 0 }));
       return s;
     };
+    for (const [id, old] of Object.entries(this.data.archived?.fighters ?? {})) {
+      const s = of(id);
+      s.wins += old.wins;
+      s.losses += old.losses;
+      s.matches += old.wins + old.losses;
+    }
     for (const m of this.data.matches) {
       const w = of(m.winnerId);
       w.wins++;
@@ -154,7 +205,7 @@ export class GameDataRules {
   }
 
   summary(): StatsSummary {
-    const byArena: Record<string, number> = {};
+    const byArena: Record<string, number> = { ...this.data.archived?.byArena };
     for (const m of this.data.matches) byArena[m.arenaId] = (byArena[m.arenaId] ?? 0) + 1;
     const stats = this.allStats();
     const leaderboard = this.data.fighters
@@ -163,7 +214,7 @@ export class GameDataRules {
       .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
       .slice(0, 10)
       .map(({ id, name, wins, losses }) => ({ id, name, wins, losses }));
-    return { fighters: this.data.fighters.length, matches: this.data.matches.length, byArena, leaderboard };
+    return { fighters: this.data.fighters.length, matches: this.data.matches.length + (this.data.archived?.matches ?? 0), byArena, leaderboard };
   }
 
   /**
