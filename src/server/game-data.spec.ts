@@ -42,6 +42,21 @@ describe('GameDataRules', () => {
     expect(summary.leaderboard.map((e) => e.name)).toEqual(['Ada', 'Linus']);
   });
 
+  it('tracks beaten single-player opponents', () => {
+    const a = rules.createFighter(defaultCharacter());
+    rules.recordLadder(a.id, { opponentId: 'bernd-brummer', won: false });
+    expect(rules.getFighter(a.id).ladderBeaten).toEqual([]);
+    rules.recordLadder(a.id, { opponentId: 'bernd-brummer', won: true });
+    rules.recordLadder(a.id, { opponentId: 'bernd-brummer', won: true });
+    expect(rules.getFighter(a.id).ladderBeaten).toEqual(['bernd-brummer']);
+    expect(() => rules.recordLadder(a.id, { opponentId: 'chef', won: true })).toThrowError(GameDataError);
+  });
+
+  it('rejects signature moves of opponents for players', () => {
+    const c = defaultCharacter();
+    expect(() => rules.createFighter({ ...c, moves: { ...c.moves, special: 'tank-roll' } })).toThrowError(GameDataError);
+  });
+
   it('rejects invalid matches', () => {
     const a = rules.createFighter(defaultCharacter());
     expect(() => rules.recordMatch({ winnerId: a.id, loserId: a.id, arenaId: 'bunker' })).toThrowError(GameDataError);

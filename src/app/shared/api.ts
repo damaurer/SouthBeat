@@ -28,9 +28,19 @@ export interface NewMatch {
   arenaId: string;
 }
 
+/** A single-player fight against one of the ladder opponents. */
+export interface LadderResult {
+  fighterId: string;
+  opponentId: string;
+  won: boolean;
+  playedAt: string;
+}
+
 export interface FighterWithStats {
   fighter: StoredFighter;
   stats: FighterStats;
+  /** Ladder opponents this fighter has beaten at least once. */
+  ladderBeaten: string[];
 }
 
 export interface StatsSummary {

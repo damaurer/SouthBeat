@@ -1,0 +1,45 @@
+<section class="ladder">
+  <header>
+    <a routerLink="/">← Zurück</a>
+    <h1>Einzelspieler</h1>
+  </header>
+  <p class="intro">
+    Kämpfe dich als {{ player().name }} durch die Chefetage. Jeder Sieg schaltet den nächsten Gegner frei, ganz oben wartet der Endboss.
+  </p>
+  @if (!isSaved()) {
+    <p class="warning">Dein Kämpfer ist noch nicht gespeichert, dein Fortschritt geht beim Neuladen verloren. <a routerLink="/editor">Jetzt speichern</a></p>
+  }
+  @if (cleared()) {
+    <p class="cleared">Alle Gegner besiegt. Das Büro gehört dir!</p>
+  }
+
+  <ol>
+    @for (entry of ladder(); track entry.opponent.id; let i = $index) {
+      <li [class]="entry.status" [class.boss]="entry.opponent.boss">
+        <div class="portrait">
+          <app-sprite-preview [appearance]="entry.opponent.character.appearance" />
+        </div>
+        <div class="details">
+          <span class="rank">{{ entry.opponent.boss ? 'Endboss' : 'Gegner ' + (i + 1) }}</span>
+          <h2>{{ entry.opponent.character.name }} <small>{{ entry.opponent.title }}</small></h2>
+          <p>{{ entry.opponent.blurb }}</p>
+          <p class="meta">{{ signature(entry.opponent) }} · Arena: {{ arenaName(entry.opponent) }}</p>
+        </div>
+        <div class="action">
+          @switch (entry.status) {
+            @case ('beaten') {
+              <span class="badge">Besiegt</span>
+              <a routerLink="/fight" [queryParams]="{ opponent: entry.opponent.id }">Nochmal</a>
+            }
+            @case ('next') {
+              <a class="fight" routerLink="/fight" [queryParams]="{ opponent: entry.opponent.id }">Kämpfen</a>
+            }
+            @case ('locked') {
+              <span class="badge">Gesperrt</span>
+            }
+          }
+        </div>
+      </li>
+    }
+  </ol>
+</section>

@@ -1,8 +1,12 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
+  ACCESSORIES,
+  ACCESSORY_LABELS,
   Appearance,
   BEARD_LABELS,
+  BODY_LABELS,
+  BODY_TYPES,
   BEARD_STYLES,
   Character,
   HAIR_LABELS,
@@ -40,6 +44,10 @@ export class CharacterEditor {
   protected readonly errors = computed(() => characterErrors(this.draft()));
 
   protected readonly hairStyles = HAIR_STYLES;
+  protected readonly bodyTypes = BODY_TYPES;
+  protected readonly bodyLabels = BODY_LABELS;
+  protected readonly accessories = ACCESSORIES;
+  protected readonly accessoryLabels = ACCESSORY_LABELS;
   protected readonly beardStyles = BEARD_STYLES;
   protected readonly beardLabels = BEARD_LABELS;
   protected readonly outfitStyles = OUTFIT_STYLES;

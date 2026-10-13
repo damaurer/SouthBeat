@@ -5,7 +5,8 @@ import { SPARRING_PARTNER } from '../character/sparring';
 import { findArena, paintArena } from '../arena/arenas';
 import { ARENA_HEIGHT, ARENA_WIDTH, GROUND_Y } from '../arena/props';
 import { seeded } from '../arena/painter';
-import { Controls, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS, cpuControls, createFight, step } from './combat';
+import { Controls, DEFAULT_CPU, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS, cpuControls, createFight, step } from './combat';
+import { OPPONENTS, findOpponent } from '../singleplayer/opponents';
 import { Spark, renderFight } from './render';
 
 type Mode = 'cpu' | 'local';
@@ -39,7 +40,11 @@ interface Hud {
   seconds: number;
   banner: string | null;
   result: string | null;
+  bubble: { speaker: string; text: string } | null;
 }
+
+/** How long a speech bubble stays on screen. */
+const BUBBLE_FRAMES = 150;
 
 @Component({
   selector: 'app-fight-page',
@@ -51,7 +56,11 @@ export class FightPage {
   private readonly store = inject(CharacterStore);
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
 
-  protected readonly arena = findArena(inject(ActivatedRoute).snapshot.queryParamMap.get('arena') ?? '');
+  private readonly query = inject(ActivatedRoute).snapshot.queryParamMap;
+  /** Set when the fight is part of the single-player ladder. */
+  protected readonly opponent = findOpponent(this.query.get('opponent'));
+  protected readonly nextOpponent = this.opponent ? OPPONENTS[OPPONENTS.indexOf(this.opponent) + 1] : undefined;
+  protected readonly arena = findArena(this.opponent?.arenaId ?? this.query.get('arena') ?? '');
   protected readonly width = ARENA_WIDTH;
   protected readonly height = ARENA_HEIGHT;
   protected readonly meterMax = METER_MAX;
@@ -62,6 +71,9 @@ export class FightPage {
   private state!: FightState;
   private sparks: Spark[] = [];
   private banner: { text: string; frames: number } | null = null;
+  private bubble: { text: string; until: number } | null = null;
+  private nextBubbleAt = 0;
+  private resultRecorded = false;
   private readonly held = new Set<string>();
   private readonly pressed = new Set<string>();
   private random = seeded(Date.now());
@@ -114,9 +126,12 @@ export class FightPage {
   }
 
   protected reset(): void {
-    this.state = createFight(this.store.saved(), SPARRING_PARTNER, this.arena.id);
+    this.state = createFight(this.store.saved(), this.opponent?.character ?? SPARRING_PARTNER, this.arena.id);
     this.sparks = [];
     this.banner = null;
+    this.bubble = null;
+    this.nextBubbleAt = FPS / 2;
+    this.resultRecorded = false;
     this.random = seeded(Date.now());
     this.updateHud();
   }
@@ -124,7 +139,9 @@ export class FightPage {
   private tick(): void {
     const controls: [Controls, Controls] = [
       this.read(KEYS[0]),
-      this.mode() === 'cpu' ? cpuControls(this.state, 1, this.random) : this.read(KEYS[1]),
+      this.opponent || this.mode() === 'cpu'
+        ? cpuControls(this.state, 1, this.random, this.opponent?.cpu ?? DEFAULT_CPU)
+        : this.read(KEYS[1]),
     ];
     this.pressed.clear();
     step(this.state, controls);
@@ -138,8 +155,29 @@ export class FightPage {
       }
     }
     this.sparks = this.sparks.filter((s) => --s.life > 0);
+    this.updateBubble();
+    if (this.opponent && this.state.winner !== null && !this.resultRecorded) {
+      this.resultRecorded = true;
+      void this.store.recordLadder(this.opponent.id, this.state.winner === 0);
+    }
     if (this.banner && --this.banner.frames <= 0) this.banner = null;
     this.updateHud();
+  }
+
+  /** Speech bubbles are cosmetic: they never touch the fight state. */
+  private updateBubble(): void {
+    const o = this.opponent;
+    const frame = this.state.frame;
+    if (!o || this.state.winner !== null) {
+      this.bubble = null;
+      return;
+    }
+    if (this.bubble && frame >= this.bubble.until) this.bubble = null;
+    if (!this.bubble && frame >= this.nextBubbleAt) {
+      const text = o.lines[Math.floor(this.random() * o.lines.length)];
+      this.bubble = { text, until: frame + BUBBLE_FRAMES };
+      this.nextBubbleAt = frame + BUBBLE_FRAMES + Math.round(o.chattiness * FPS * (0.5 + this.random()));
+    }
   }
 
   private read(keys: KeyMap): Controls {
@@ -164,12 +202,18 @@ export class FightPage {
     let result: string | null = null;
     if (s.winner === 'draw') result = 'Unentschieden!';
     else if (s.winner !== null) result = `${s.fighters[s.winner].character.name} gewinnt!`;
+    if (this.opponent?.boss && s.winner === 0) result = `${this.opponent.character.name} ist besiegt! Du hast das Büro erobert!`;
     this.hud.set({
       fighters: [fighter(0), fighter(1)],
       seconds: Math.ceil((ROUND_FRAMES - s.frame) / FPS),
       banner: this.banner?.text ?? null,
       result,
+      bubble: this.bubble && this.opponent ? { speaker: this.opponent.character.name, text: this.bubble.text } : null,
     });
+  }
+
+  protected won(): boolean {
+    return this.state.winner === 0;
   }
 
   protected keyName(code: string): string {

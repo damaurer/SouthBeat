@@ -1,4 +1,4 @@
-import { Appearance, BeardStyle, HairStyle, OutfitStyle } from './character.model';
+import { Accessory, Appearance, BeardStyle, BodyType, HairStyle, OutfitStyle } from './character.model';
 
 export const SPRITE_WIDTH = 32;
 export const SPRITE_HEIGHT = 48;
@@ -30,10 +30,15 @@ type Material =
   | 'metal'
   | 'buckle'
   | 'shirt'
-  | 'tie';
+  | 'tie'
+  | 'lens'
+  | 'frame'
+  | 'rim'
+  | 'lash'
+  | 'gold';
 
 /** Materials that are too small or too dark to look right with edge lighting. */
-const FLAT: ReadonlySet<Material> = new Set(['skinDark', 'eyeWhite', 'iris', 'mouth', 'buckle']);
+const FLAT: ReadonlySet<Material> = new Set(['skinDark', 'eyeWhite', 'iris', 'mouth', 'buckle', 'frame', 'rim', 'lash', 'lens', 'gold']);
 
 const OUTLINE = '#140c1c';
 
@@ -132,6 +137,36 @@ function drawOutfit(c: Canvas, style: OutfitStyle): void {
       c.mirror(5, 29, 4, 1, 'mainDark');
       drawSlacks(c, 'pants');
       return;
+    case 'blouse':
+      c.rows(18, [[9, 22], [8, 23], [8, 23]], 'main');
+      c.rect(9, 21, 14, 10, 'main');
+      c.rows(18, [[14, 17], [15, 16]], 'skin');
+      c.mirror(13, 17, 2, 2, 'mainDark');
+      c.mirror(5, 19, 4, 6, 'main');
+      c.rect(10, 31, 12, 1, 'belt');
+      c.rows(32, [[10, 21], [10, 21], [9, 22], [9, 22], [9, 22], [8, 23], [8, 23]], 'pants');
+      c.mirror(9, 44, 6, 2, 'boots');
+      c.mirror(11, 44, 3, 1, 'skin');
+      return;
+    case 'uniform':
+      c.rows(18, [[9, 22], [8, 23], [8, 23]], 'main');
+      c.rect(9, 21, 14, 10, 'main');
+      c.rows(18, [[14, 17], [15, 16]], 'shirt');
+      drawTie(c, 18, 22);
+      c.mirror(7, 18, 4, 1, 'gold');
+      c.rect(10, 22, 4, 1, 'tie');
+      c.rect(10, 23, 4, 1, 'gold');
+      c.rect(11, 24, 2, 1, 'accent');
+      c.rect(19, 22, 2, 2, 'gold');
+      c.mirror(5, 19, 4, 12, 'main');
+      c.mirror(5, 29, 4, 1, 'gold');
+      c.rect(9, 30, 14, 2, 'belt');
+      c.rect(15, 30, 2, 2, 'buckle');
+      c.rect(10, 32, 12, 2, 'main');
+      c.mirror(10, 34, 5, 6, 'main');
+      c.mirror(10, 40, 5, 4, 'boots');
+      c.mirror(9, 44, 6, 2, 'boots');
+      return;
     case 'gi':
       c.rows(18, [[9, 13], [8, 14], [8, 14], [9, 14]], 'main');
       c.rows(18, [[18, 22], [17, 23], [17, 23], [17, 22]], 'main');
@@ -212,6 +247,74 @@ function drawOutfit(c: Canvas, style: OutfitStyle): void {
       c.mirror(10, 37, 5, 2, 'metal');
       c.mirror(9, 41, 6, 5, 'metal');
       return;
+  }
+}
+
+function drawAccessory(c: Canvas, accessory: Accessory): void {
+  switch (accessory) {
+    case 'none':
+      return;
+    case 'glasses':
+      c.mirror(12, 11, 4, 1, 'rim');
+      c.mirror(12, 10, 1, 1, 'rim');
+      c.mirror(15, 10, 1, 1, 'rim');
+      c.mirror(12, 9, 1, 1, 'rim');
+      c.mirror(15, 9, 1, 1, 'rim');
+      c.mirror(10, 9, 2, 1, 'rim');
+      return;
+    case 'sunglasses':
+      c.rect(11, 9, 10, 1, 'frame');
+      c.mirror(12, 10, 4, 2, 'lens');
+      c.mirror(13, 10, 1, 1, 'shirt');
+      return;
+    case 'headset':
+      c.rows(2, [[13, 18], [11, 12]], 'frame');
+      c.rows(3, [[19, 20]], 'frame');
+      c.mirror(10, 4, 1, 4, 'frame');
+      c.mirror(9, 8, 2, 4, 'frame');
+      c.rect(11, 12, 1, 2, 'frame');
+      c.rect(12, 14, 2, 1, 'frame');
+      c.set(14, 14, 'gold');
+      return;
+    case 'cap':
+      c.rows(0, [[12, 19], [11, 20], [10, 21], [10, 21], [10, 21]], 'mainDark');
+      c.rect(10, 4, 12, 1, 'gold');
+      c.rect(10, 5, 12, 1, 'frame');
+      c.rect(9, 6, 14, 1, 'frame');
+      c.rect(15, 1, 2, 2, 'gold');
+      return;
+  }
+}
+
+/** Widens (positive) or narrows (negative) the rows between y0 and y1 around the center line. */
+function reshape(c: Canvas, y0: number, y1: number, amount: number): void {
+  const half = SPRITE_WIDTH / 2;
+  for (let y = y0; y <= y1; y++) {
+    const row = c.grid[y];
+    const out: (Material | null)[] = Array<Material | null>(SPRITE_WIDTH).fill(null);
+    for (let x = 0; x < half; x++) {
+      const nx = x - amount;
+      if (nx >= 0 && nx < half) out[nx] = row[x];
+    }
+    for (let x = half; x < SPRITE_WIDTH; x++) {
+      const nx = x + amount;
+      if (nx >= half && nx < SPRITE_WIDTH) out[nx] = row[x];
+    }
+    for (let i = 0; i < amount; i++) {
+      out[half - 1 - i] ??= row[half - 1];
+      out[half + i] ??= row[half];
+    }
+    c.grid[y] = out;
+  }
+}
+
+function applyBody(c: Canvas, body: BodyType): void {
+  if (body === 'heavy') {
+    reshape(c, 17, 33, 2);
+    reshape(c, 24, 31, 1);
+    reshape(c, 15, 16, 1);
+  } else if (body === 'slim') {
+    reshape(c, 17, 33, -1);
   }
 }
 
@@ -326,6 +429,7 @@ const PANTS: Partial<Record<OutfitStyle, string>> = {
   hoodie: '#6b6f78',
   shirt: '#3a3f4a',
   casual: '#c2ab7f',
+  blouse: '#2b2f3a',
 };
 
 function palette(look: Appearance): Record<Material, string> {
@@ -335,7 +439,7 @@ function palette(look: Appearance): Record<Material, string> {
     hair: look.hairColor,
     eyeWhite: '#f4f4f4',
     iris: look.eyeColor,
-    mouth: adjust(look.skinColor, -0.45),
+    mouth: look.bodyType === 'slim' ? '#b03a48' : adjust(look.skinColor, -0.45),
     main: look.outfitColor,
     mainDark: adjust(look.outfitColor, -0.35),
     accent: look.outfitStyle === 'ninja' || look.outfitStyle === 'armor' ? '#d4a017' : '#f0f0f0',
@@ -345,6 +449,11 @@ function palette(look: Appearance): Record<Material, string> {
     metal: '#9aa5b1',
     buckle: '#e8c547',
     shirt: '#eef1f5',
+    lens: '#14141f',
+    frame: '#1c1c22',
+    rim: '#4a4f5c',
+    lash: '#1c1c22',
+    gold: '#e8c547',
     tie: look.outfitStyle === 'shirt' ? '#25365c' : '#8b1e2d',
   };
 }
@@ -357,11 +466,17 @@ export function spritePixels(look: Appearance): Pixel[] {
     drawFace(c);
     drawBeard(c, look.beardStyle);
     drawHair(c, look.hairStyle);
+    drawAccessory(c, look.accessory ?? 'none');
   } else {
     c.mirror(13, 9, 2, 2, 'eyeWhite');
     c.set(14, 10, 'iris');
     c.set(17, 10, 'iris');
   }
+  if (look.bodyType === 'slim' && look.outfitStyle !== 'ninja') {
+    c.set(12, 9, 'lash');
+    c.set(19, 9, 'lash');
+  }
+  applyBody(c, look.bodyType ?? 'normal');
 
   const colors = palette(look);
   const pixels: Pixel[] = [];

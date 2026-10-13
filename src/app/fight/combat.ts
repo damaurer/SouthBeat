@@ -53,8 +53,10 @@ export interface Action {
   move: Move;
   frame: number;
   startup: number;
+  /** Frames during which the move can hit. */
+  active: number;
   total: number;
-  hit: boolean;
+  hitsLanded: number;
 }
 
 export interface FighterState {
@@ -176,7 +178,8 @@ function startAction(state: FightState, i: number, f: FighterState, slot: MoveSl
   const move = findMove(f.character.moves[slot]);
   if (!move) return;
   const startup = startupFor(f.character, move);
-  f.action = { slot, move, frame: 0, startup, total: startup + ACTIVE_FRAMES + TIMING[slot].recovery, hit: false };
+  const active = activeFramesFor(move);
+  f.action = { slot, move, frame: 0, startup, active, total: startup + active + TIMING[slot].recovery, hitsLanded: 0 };
   if (slot === 'ultimate') {
     f.meter = 0;
     state.events.push({ type: 'ultimate', fighter: i, move });
@@ -188,17 +191,16 @@ function startAction(state: FightState, i: number, f: FighterState, slot: MoveSl
 function advanceAction(state: FightState, i: number, f: FighterState, o: FighterState): void {
   const action = f.action!;
   action.frame++;
-  const active = action.frame > action.startup && action.frame <= action.startup + ACTIVE_FRAMES;
-  if (active && !action.hit && inReach(f, o, action.slot)) {
-    action.hit = true;
-    const timing = TIMING[action.slot];
-    const damage = damageFor(f.character, o.character, action.move);
+  if (isActive(f) && landsHit(f, o, action)) {
+    action.hitsLanded++;
+    const move = action.move;
+    const damage = damageFor(f.character, o.character, move);
     o.hp = Math.max(0, o.hp - damage);
     // A started ultimate cannot be interrupted, otherwise the spent bar would be lost.
     if (o.action?.slot !== 'ultimate') {
-      o.hitstun = timing.hitstun;
+      o.hitstun = move.hitstun ?? TIMING[action.slot].hitstun;
       o.action = null;
-      o.x += f.facing * timing.knockback;
+      o.x += f.facing * (move.knockback ?? TIMING[action.slot].knockback);
     }
     if (action.slot !== 'ultimate') f.meter = Math.min(METER_MAX, f.meter + damage * METER_PER_DAMAGE_DEALT);
     o.meter = Math.min(METER_MAX, o.meter + damage * METER_PER_DAMAGE_TAKEN);
@@ -207,19 +209,45 @@ function advanceAction(state: FightState, i: number, f: FighterState, o: Fighter
   if (action.frame >= action.total) f.action = null;
 }
 
+function landsHit(f: FighterState, o: FighterState, a: Action): boolean {
+  const hits = a.move.hits ?? 1;
+  if (a.hitsLanded >= hits) return false;
+  if (a.move.projectileSpeed) {
+    return Math.abs(projectileX(f)! - o.x) <= 10;
+  }
+  // Combo moves get one hit window every ACTIVE_FRAMES frames.
+  const window = Math.floor((a.frame - a.startup - 1) / ACTIVE_FRAMES);
+  return window >= a.hitsLanded && inReach(f, o, a.slot);
+}
+
+function activeFramesFor(move: Move): number {
+  if (move.projectileSpeed) return Math.ceil((reachOf(move) - 12) / move.projectileSpeed);
+  return ACTIVE_FRAMES * (move.hits ?? 1);
+}
+
+/** Where a thrown move's projectile currently is, or null for melee moves. */
+export function projectileX(f: FighterState): number | null {
+  const a = f.action;
+  if (!a?.move.projectileSpeed || a.frame <= a.startup) return null;
+  return f.x + f.facing * (12 + a.move.projectileSpeed * (a.frame - a.startup));
+}
+
 export function inReach(f: FighterState, o: FighterState, slot: MoveSlot): boolean {
   const dx = o.x - f.x;
-  return Math.sign(dx) === f.facing && Math.abs(dx) <= TIMING[slot].reach;
+  const move = f.action?.move;
+  const reach = move && move.slot === slot ? reachOf(move) : TIMING[slot].reach;
+  return Math.sign(dx) === f.facing && Math.abs(dx) <= reach;
 }
 
 /** True while an attack's hitbox is out, for drawing effects. */
 export function isActive(f: FighterState): boolean {
   const a = f.action;
-  return !!a && a.frame > a.startup && a.frame <= a.startup + ACTIVE_FRAMES;
+  return !!a && a.frame > a.startup && a.frame <= a.startup + a.active;
 }
 
-export function reachOf(slot: MoveSlot): number {
-  return TIMING[slot].reach;
+/** Reach of a move, or of a slot's default move. */
+export function reachOf(moveOrSlot: Move | MoveSlot): number {
+  return typeof moveOrSlot === 'string' ? TIMING[moveOrSlot].reach : (moveOrSlot.reach ?? TIMING[moveOrSlot.slot].reach);
 }
 
 function keepApart(a: FighterState, b: FighterState): void {
@@ -240,8 +268,18 @@ function keepApart(a: FighterState, b: FighterState): void {
   }
 }
 
+/** How a computer opponent plays. */
+export interface CpuProfile {
+  /** Chance per frame to attack when in range. */
+  aggression: number;
+  /** Chance per frame to use the special move when it reaches. */
+  specialChance: number;
+}
+
+export const DEFAULT_CPU: CpuProfile = { aggression: 0.08, specialChance: 0.015 };
+
 /** A simple computer opponent: walks in, attacks in range and fires its ultimate when ready. */
-export function cpuControls(state: FightState, i: number, random: () => number): Controls {
+export function cpuControls(state: FightState, i: number, random: () => number, profile: CpuProfile = DEFAULT_CPU): Controls {
   const f = state.fighters[i];
   const o = state.fighters[1 - i];
   const c: Controls = { ...NO_INPUT };
@@ -249,17 +287,22 @@ export function cpuControls(state: FightState, i: number, random: () => number):
   const dist = Math.abs(o.x - f.x);
   const toward: 'left' | 'right' = o.x > f.x ? 'right' : 'left';
   const away: 'left' | 'right' = toward === 'right' ? 'left' : 'right';
+  const move = (slot: MoveSlot): Move | undefined => findMove(f.character.moves[slot]);
+  const reaches = (slot: MoveSlot): boolean => {
+    const m = move(slot);
+    return !!m && dist <= reachOf(m) - 4;
+  };
 
-  if (canUseUltimate(f) && dist <= reachOf('ultimate') - 10) {
+  if (canUseUltimate(f) && reaches('ultimate')) {
     c.ultimate = true;
-  } else if (dist <= reachOf('light')) {
-    const r = random();
-    if (r < 0.04) c.light = true;
-    else if (r < 0.06) c.heavy = true;
-    else if (r < 0.08) c.kick = true;
-    else if (r < 0.1) c[away] = true;
-  } else if (dist <= reachOf('special') && random() < 0.015) {
+  } else if (reaches('special') && random() < profile.specialChance) {
     c.special = true;
+  } else if (dist <= reachOf('light')) {
+    const r = random() / profile.aggression;
+    if (r < 0.5) c.light = true;
+    else if (r < 0.75) c.heavy = true;
+    else if (r < 1) c.kick = true;
+    else if (r < 1.25) c[away] = true;
   } else {
     c[toward] = random() < 0.9;
   }

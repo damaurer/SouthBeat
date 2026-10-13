@@ -12,7 +12,7 @@ Ein 2D-Pixel-Art-Beat-'em-up als Webanwendung, gebaut mit Angular und Server-Sid
 
 ## Stand
 
-- **Charakter-Editor** (`/editor`): Name, Haut- und Augenfarbe, 7 Frisuren, 6 Bartstile, Haar-/Bartfarbe, 10 Outfits (Hemd mit Krawatte, Anzug, Business Casual, Karate-Gi, Tanktop, Lederjacke, Hoodie, Ninja, Wrestler, Rüstung) mit eigener Farbe, je ein Move pro Slot (leichter Schlag, schwerer Schlag, Tritt, Spezialangriff, ultimativer Angriff) und vier Werte mit Live-Pixel-Vorschau (32×48 Pixel mit Licht, Schatten und Umriss). Gespeichert wird über die Server-API in einer Datei (siehe unten).
+- **Charakter-Editor** (`/editor`): Name, Körperbau (normal, kräftig, schlank), Accessoire (Brille, Sonnenbrille, Headset, Offiziersmütze), Haut- und Augenfarbe, 7 Frisuren, 6 Bartstile, Haar-/Bartfarbe, 12 Outfits (Hemd mit Krawatte, Anzug, Business Casual, Bluse & Rock, Uniform, Karate-Gi, Tanktop, Lederjacke, Hoodie, Ninja, Wrestler, Rüstung) mit eigener Farbe, je ein Move pro Slot (leichter Schlag, schwerer Schlag, Tritt, Spezialangriff, ultimativer Angriff) und vier Werte mit Live-Pixel-Vorschau (32×48 Pixel mit Licht, Schatten und Umriss). Gespeichert wird über die Server-API in einer Datei (siehe unten).
 - **Balance-Regeln** (`src/app/character/balance.ts`): Jeder Wert liegt zwischen 1 und 10, insgesamt dürfen 22 Punkte verteilt werden. `characterErrors()` prüft einen kompletten Charakter, damit später auch der Server manipulierte Werte ablehnen kann.
 
 - **Arenen** (`/arena`): 10 Büro-Arenen als Pixel-Art (Bunker-Office, Dachterrasse-Office, Großraumbüro, Serverraum, Startup-Loft, Teeküche, Meetingraum, Chefbüro, Garagen-Start-up, Hackathon-Nacht). Die Auswahl zeigt den eigenen Charakter gegen einen Sparringspartner in der Szene. Gezeichnet wird in `src/app/arena/arenas.ts`.
@@ -22,6 +22,17 @@ Ein 2D-Pixel-Art-Beat-'em-up als Webanwendung, gebaut mit Angular und Server-Sid
 | --- | --- | --- | --- | --- | --- | --- |
 | Spieler 1 | A / D | F | G | H | T | Leertaste |
 | Spieler 2 | ← / → | J | K | L | I | Enter |
+- **Einzelspieler** (`/singleplayer`): Eine Gegnerleiter durch die Chefetage. Jeder Sieg schaltet den nächsten Gegner frei, der Fortschritt landet in der Datendatei.
+
+| Gegner | Rolle | Stil | Arena |
+| --- | --- | --- | --- |
+| Bernd | Co-Teamleiter | Kräftig, Bart und Brille, Bauch-Schubser mit riesigem Rückstoß | Teeküche |
+| Konrad | Teamleiter | Panzer-General, Spezialattacke Panzer-Walze rollt über die ganze Arena | Bunker-Office |
+| Lena | HO | Sehr schnell, Kombo-Angriffe mit mehreren Treffern pro Taste | Meetingraum |
+| Ralf | CTO | Rack-Schlag mit Server-Bauteilen, wirft Festplatten | Serverraum |
+| Gustav Großmaul | CPO, Endboss | Wirft Tomaten, Ultimate Tomatenhagel, redet ununterbrochen | Dachterrasse-Office |
+
+Die Gegner sprechen in Sprechblasen am oberen Bildschirmrand. Die Sprechblasen sind rein kosmetisch und beeinflussen das Spiel nicht. Gegner und Sprüche stehen in `src/app/singleplayer/opponents.ts`.
 
 Online-Multiplayer folgt.
 

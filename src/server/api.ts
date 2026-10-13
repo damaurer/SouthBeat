@@ -41,6 +41,7 @@ export function gameApi(storage: JsonFileStorage): Router {
   router.get('/fighters/:id', handle((r, req) => r.getFighter(String(req.params['id']))));
   router.post('/fighters', handle((r, req) => r.createFighter(req.body), 201));
   router.put('/fighters/:id', handle((r, req) => r.updateFighter(String(req.params['id']), req.body)));
+  router.post('/fighters/:id/ladder', handle((r, req) => r.recordLadder(String(req.params['id']), req.body), 201));
   router.get('/stats', handle((r) => r.summary()));
   router.post('/matches', handle((r, req) => r.recordMatch(req.body), 201));
 

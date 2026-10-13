@@ -1,5 +1,7 @@
 import {
+  ACCESSORIES,
   BEARD_STYLES,
+  BODY_TYPES,
   Character,
   HAIR_STYLES,
   MOVE_SLOTS,
@@ -62,6 +64,8 @@ export function characterErrors(character: Character): string[] {
   }
   const look = character.appearance;
   if (
+    !BODY_TYPES.includes(look?.bodyType) ||
+    !ACCESSORIES.includes(look?.accessory) ||
     !HAIR_STYLES.includes(look?.hairStyle) ||
     !BEARD_STYLES.includes(look?.beardStyle) ||
     !OUTFIT_STYLES.includes(look?.outfitStyle) ||
@@ -71,7 +75,7 @@ export function characterErrors(character: Character): string[] {
   }
   for (const slot of MOVE_SLOTS) {
     const move = findMove(character.moves[slot]);
-    if (!move || move.slot !== slot) {
+    if (!move || move.slot !== slot || move.exclusive) {
       errors.push(`Ungültiger Move für ${slot}.`);
     }
   }
@@ -82,6 +86,8 @@ export function defaultCharacter(): Character {
   return {
     name: 'Rookie',
     appearance: {
+      bodyType: 'normal',
+      accessory: 'none',
       skinColor: '#e0ac69',
       eyeColor: '#3a6ea5',
       hairColor: '#3b2414',

@@ -1,17 +1,20 @@
 import { characterErrors } from '../app/character/balance';
 import { Character, MOVE_SLOTS, STAT_KEYS } from '../app/character/character.model';
 import { findArena } from '../app/arena/arenas';
-import { FighterStats, FighterWithStats, MatchRecord, NewMatch, StatsSummary, StoredFighter } from '../app/shared/api';
+import { FighterStats, FighterWithStats, LadderResult, MatchRecord, NewMatch, StatsSummary, StoredFighter } from '../app/shared/api';
+import { findOpponent } from '../app/singleplayer/opponents';
 
 /** Everything the game persists. This object is written to the data file as JSON. */
 export interface GameData {
   version: 1;
   fighters: StoredFighter[];
   matches: MatchRecord[];
+  /** Added later; files written before it existed don't have it. */
+  ladder?: LadderResult[];
 }
 
 export function emptyGameData(): GameData {
-  return { version: 1, fighters: [], matches: [] };
+  return { version: 1, fighters: [], matches: [], ladder: [] };
 }
 
 export class GameDataError extends Error {
@@ -44,7 +47,22 @@ export class GameDataRules {
 
   getFighter(id: string): FighterWithStats {
     const fighter = this.find(id);
-    return { fighter, stats: this.statsFor(id) };
+    return { fighter, stats: this.statsFor(id), ladderBeaten: this.ladderBeaten(id) };
+  }
+
+  recordLadder(fighterId: string, input: { opponentId?: unknown; won?: unknown }): LadderResult {
+    this.find(fighterId);
+    const { opponentId, won } = input ?? {};
+    if (typeof opponentId !== 'string' || !findOpponent(opponentId)) throw new GameDataError(400, 'Unbekannter Gegner.');
+    if (typeof won !== 'boolean') throw new GameDataError(400, 'won muss true oder false sein.');
+    const result: LadderResult = { fighterId, opponentId, won, playedAt: this.now().toISOString() };
+    (this.data.ladder ??= []).push(result);
+    return result;
+  }
+
+  ladderBeaten(fighterId: string): string[] {
+    const beaten = new Set((this.data.ladder ?? []).filter((r) => r.fighterId === fighterId && r.won).map((r) => r.opponentId));
+    return [...beaten];
   }
 
   createFighter(input: unknown): StoredFighter {
@@ -111,6 +129,8 @@ export class GameDataRules {
     const character = {
       name: typeof raw.name === 'string' ? raw.name.trim() : '',
       appearance: {
+        bodyType: look.bodyType,
+        accessory: look.accessory,
         skinColor: look.skinColor,
         eyeColor: look.eyeColor,
         hairColor: look.hairColor,

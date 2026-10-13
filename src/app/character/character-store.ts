@@ -16,6 +16,9 @@ export class CharacterStore {
 
   readonly saved = signal<Character>(defaultCharacter());
   readonly stats = signal<FighterStats | null>(null);
+  /** Single-player opponents beaten so far. Kept in memory only until the fighter is saved. */
+  readonly ladderBeaten = signal<string[]>([]);
+  readonly isSaved = signal(false);
 
   constructor() {
     const id = this.fighterId();
@@ -33,6 +36,7 @@ export class CharacterStore {
           : this.http.post<StoredFighter>('/api/fighters', character),
       );
       this.remember(stored.id);
+      this.isSaved.set(true);
       this.saved.set(toCharacter(stored));
       this.stats.update((s) => s ?? { matches: 0, wins: 0, losses: 0 });
       return true;
@@ -41,11 +45,27 @@ export class CharacterStore {
     }
   }
 
+  /** Records a single-player result; saved to the data file when the fighter is saved. */
+  async recordLadder(opponentId: string, won: boolean): Promise<void> {
+    if (won && !this.ladderBeaten().includes(opponentId)) this.ladderBeaten.update((b) => [...b, opponentId]);
+    const id = this.fighterId();
+    if (!id) return;
+    try {
+      await firstValueFrom(this.http.post(`/api/fighters/${encodeURIComponent(id)}/ladder`, { opponentId, won }));
+    } catch {
+      // Progress stays in memory for this session.
+    }
+  }
+
   private async load(id: string): Promise<void> {
     try {
-      const { fighter, stats } = await firstValueFrom(this.http.get<FighterWithStats>(`/api/fighters/${encodeURIComponent(id)}`));
+      const { fighter, stats, ladderBeaten } = await firstValueFrom(
+        this.http.get<FighterWithStats>(`/api/fighters/${encodeURIComponent(id)}`),
+      );
       this.saved.set(toCharacter(fighter));
       this.stats.set(stats);
+      this.ladderBeaten.set(ladderBeaten ?? []);
+      this.isSaved.set(true);
     } catch {
       // Unknown or unreachable: the editor starts from the default character.
     }
@@ -69,7 +89,8 @@ export class CharacterStore {
   }
 }
 
-/** Fighters saved before a move slot existed get the default move for it. */
+/** Fighters saved before a field existed get its default. */
 function toCharacter({ name, appearance, moves, stats }: StoredFighter): Character {
-  return { name, appearance, moves: { ...defaultCharacter().moves, ...moves }, stats };
+  const defaults = defaultCharacter();
+  return { name, appearance: { ...defaults.appearance, ...appearance }, moves: { ...defaults.moves, ...moves }, stats };
 }

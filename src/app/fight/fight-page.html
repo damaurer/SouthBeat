@@ -1,4 +1,7 @@
 <section class="fight">
+  @if (opponent) {
+    <p class="versus">Einzelspieler · {{ opponent.character.name }}, {{ opponent.title }}</p>
+  }
   @if (hud(); as h) {
     <div class="hud">
       @for (f of h.fighters; track $index) {
@@ -21,27 +24,44 @@
 
   <div class="screen">
     <canvas #canvas [width]="width" [height]="height" [attr.aria-label]="'Kampf in ' + arena.name"></canvas>
+    @if (hud()?.bubble; as bubble) {
+      <div class="bubble" aria-live="polite">
+        <strong>{{ bubble.speaker }}:</strong> {{ bubble.text }}
+      </div>
+    }
     @if (hud()?.banner; as banner) {
       <div class="banner">{{ banner }}</div>
     }
     @if (hud()?.result; as result) {
       <div class="result">
         <p>{{ result }}</p>
-        <button type="button" (click)="reset()">Nochmal</button>
-        <a routerLink="/arena">Andere Arena</a>
+        @if (opponent) {
+          @if (won() && nextOpponent) {
+            <a class="next" routerLink="/fight" [queryParams]="{ opponent: nextOpponent.id }">Nächster Gegner: {{ nextOpponent.character.name }}</a>
+          }
+          <button type="button" (click)="reset()">{{ won() ? 'Nochmal' : 'Revanche' }}</button>
+          <a routerLink="/singleplayer">Zur Gegnerliste</a>
+        } @else {
+          <button type="button" (click)="reset()">Nochmal</button>
+          <a routerLink="/arena">Andere Arena</a>
+        }
       </div>
     }
   </div>
 
   <div class="controls">
     <div class="mode">
-      <button type="button" [class.active]="mode() === 'cpu'" (click)="setMode('cpu')">Gegen CPU</button>
-      <button type="button" [class.active]="mode() === 'local'" (click)="setMode('local')">2 Spieler</button>
-      <a routerLink="/arena">← Arena wählen</a>
+      @if (opponent) {
+        <a routerLink="/singleplayer">← Gegnerliste</a>
+      } @else {
+        <button type="button" [class.active]="mode() === 'cpu'" (click)="setMode('cpu')">Gegen CPU</button>
+        <button type="button" [class.active]="mode() === 'local'" (click)="setMode('local')">2 Spieler</button>
+        <a routerLink="/arena">← Arena wählen</a>
+      }
     </div>
     <dl>
       @for (k of keys; track $index) {
-        @if ($index === 0 || mode() === 'local') {
+        @if ($index === 0 || (mode() === 'local' && !opponent)) {
           <div>
             <dt>Spieler {{ $index + 1 }}</dt>
             <dd>
