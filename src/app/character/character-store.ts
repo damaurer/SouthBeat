@@ -69,6 +69,7 @@ export class CharacterStore {
   }
 }
 
+/** Fighters saved before a move slot existed get the default move for it. */
 function toCharacter({ name, appearance, moves, stats }: StoredFighter): Character {
-  return { name, appearance, moves, stats };
+  return { name, appearance, moves: { ...defaultCharacter().moves, ...moves }, stats };
 }

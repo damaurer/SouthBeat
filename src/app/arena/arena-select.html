@@ -10,6 +10,7 @@
       <h2>{{ selected().name }}</h2>
       <p>{{ selected().description }}</p>
       <p class="matchup">{{ playerName() }} gegen Sparringspartner</p>
+      <a class="start" routerLink="/fight" [queryParams]="{ arena: selected().id }">Kampf starten</a>
     </div>
   </div>
 

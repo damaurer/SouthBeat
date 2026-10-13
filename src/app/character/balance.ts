@@ -90,7 +90,7 @@ export function defaultCharacter(): Character {
       outfitColor: '#9fc3e6',
       outfitStyle: 'shirt',
     },
-    moves: { light: 'keyboard-jab', heavy: 'laptop-uppercut', kick: 'chair-spin', special: 'coffee-throw' },
+    moves: { light: 'keyboard-jab', heavy: 'laptop-uppercut', kick: 'chair-spin', special: 'coffee-throw', ultimate: 'friday-deploy' },
     stats: { strength: 5, speed: 5, defense: 5, stamina: 5 },
   };
 }

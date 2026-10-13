@@ -28,6 +28,15 @@ header {
 .info h2 { margin-top: 0; }
 .matchup { color: #f1c40f; }
 
+.start {
+  display: inline-block;
+  padding: 8px 20px;
+  background: #f1c40f;
+  color: #14141f;
+  font-weight: bold;
+  text-decoration: none;
+}
+
 .arena-list {
   list-style: none;
   padding: 0;

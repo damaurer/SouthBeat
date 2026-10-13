@@ -16,7 +16,7 @@ export interface Appearance {
   outfitStyle: OutfitStyle;
 }
 
-export type MoveSlot = 'light' | 'heavy' | 'kick' | 'special';
+export type MoveSlot = 'light' | 'heavy' | 'kick' | 'special' | 'ultimate';
 
 export interface Move {
   id: string;
@@ -38,7 +38,7 @@ export interface Character {
 }
 
 export const STAT_KEYS: readonly StatKey[] = ['strength', 'speed', 'defense', 'stamina'];
-export const MOVE_SLOTS: readonly MoveSlot[] = ['light', 'heavy', 'kick', 'special'];
+export const MOVE_SLOTS: readonly MoveSlot[] = ['light', 'heavy', 'kick', 'special', 'ultimate'];
 
 export const HAIR_LABELS: Record<HairStyle, string> = {
   short: 'Kurz',
@@ -88,6 +88,7 @@ export const SLOT_LABELS: Record<MoveSlot, string> = {
   heavy: 'Schwerer Schlag',
   kick: 'Tritt',
   special: 'Spezialangriff',
+  ultimate: 'Ultimativer Angriff',
 };
 
 /**
@@ -104,6 +105,11 @@ export const MOVES: readonly Move[] = [
   { id: 'coffee-throw', name: 'Kaffee-Wurf', slot: 'special', damage: 8, startupFrames: 13 },
   { id: 'merge-conflict', name: 'Merge-Konflikt', slot: 'special', damage: 11, startupFrames: 16 },
   { id: 'stack-overflow', name: 'Stack Overflow', slot: 'special', damage: 10, startupFrames: 7 },
+  // Ultimates only work with a full action bar.
+  { id: 'friday-deploy', name: 'Freitags-Deploy', slot: 'ultimate', damage: 30, startupFrames: 20 },
+  { id: 'rm-rf', name: 'rm -rf /', slot: 'ultimate', damage: 34, startupFrames: 28 },
+  { id: 'blue-screen', name: 'Bluescreen', slot: 'ultimate', damage: 27, startupFrames: 14 },
+  { id: 'infinite-loop', name: 'Endlosschleife', slot: 'ultimate', damage: 24, startupFrames: 10 },
 ];
 
 export function movesForSlot(slot: MoveSlot): Move[] {

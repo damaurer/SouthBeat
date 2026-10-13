@@ -10,6 +10,12 @@ export class Painter {
     this.pixels = Array<string>(width * height).fill(background);
   }
 
+  clone(): Painter {
+    const copy = new Painter(this.width, this.height);
+    for (let i = 0; i < this.pixels.length; i++) copy.pixels[i] = this.pixels[i];
+    return copy;
+  }
+
   set(x: number, y: number, color: string): void {
     x = Math.floor(x);
     y = Math.floor(y);

@@ -1,0 +1,57 @@
+<section class="fight">
+  @if (hud(); as h) {
+    <div class="hud">
+      @for (f of h.fighters; track $index) {
+        <div class="panel" [class.right]="$index === 1">
+          <div class="name">{{ f.name }}</div>
+          <div class="bar hp" role="meter" [attr.aria-valuenow]="f.hp" [attr.aria-valuemax]="f.maxHp" aria-label="Leben">
+            <span [style.width.%]="(f.hp / f.maxHp) * 100"></span>
+          </div>
+          <div class="bar action" [class.ready]="f.ready" role="meter" [attr.aria-valuenow]="f.meter" [attr.aria-valuemax]="meterMax" aria-label="Action-Balken">
+            <span [style.width.%]="(f.meter / meterMax) * 100"></span>
+          </div>
+          <div class="action-label">{{ f.ready ? 'ULTIMATE BEREIT!' : 'Action' }}</div>
+        </div>
+        @if ($index === 0) {
+          <div class="timer">{{ h.seconds }}</div>
+        }
+      }
+    </div>
+  }
+
+  <div class="screen">
+    <canvas #canvas [width]="width" [height]="height" [attr.aria-label]="'Kampf in ' + arena.name"></canvas>
+    @if (hud()?.banner; as banner) {
+      <div class="banner">{{ banner }}</div>
+    }
+    @if (hud()?.result; as result) {
+      <div class="result">
+        <p>{{ result }}</p>
+        <button type="button" (click)="reset()">Nochmal</button>
+        <a routerLink="/arena">Andere Arena</a>
+      </div>
+    }
+  </div>
+
+  <div class="controls">
+    <div class="mode">
+      <button type="button" [class.active]="mode() === 'cpu'" (click)="setMode('cpu')">Gegen CPU</button>
+      <button type="button" [class.active]="mode() === 'local'" (click)="setMode('local')">2 Spieler</button>
+      <a routerLink="/arena">← Arena wählen</a>
+    </div>
+    <dl>
+      @for (k of keys; track $index) {
+        @if ($index === 0 || mode() === 'local') {
+          <div>
+            <dt>Spieler {{ $index + 1 }}</dt>
+            <dd>
+              Laufen {{ keyName(k.left) }}/{{ keyName(k.right) }} · Leicht {{ keyName(k.light) }} · Schwer {{ keyName(k.heavy) }} ·
+              Tritt {{ keyName(k.kick) }} · Spezial {{ keyName(k.special) }} · <strong>Ultimate {{ keyName(k.ultimate) }}</strong>
+            </dd>
+          </div>
+        }
+      }
+    </dl>
+    <p class="hint">Der Action-Balken lädt sich mit der Zeit, durch Treffer und durch eingesteckte Treffer auf. Ist er voll, startest du deinen ultimativen Angriff. Er lässt sich nicht unterbrechen.</p>
+  </div>
+</section>
