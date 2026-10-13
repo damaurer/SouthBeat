@@ -2,13 +2,16 @@ export type StatKey = 'strength' | 'speed' | 'defense' | 'stamina';
 
 export type Stats = Record<StatKey, number>;
 
-export type HairStyle = 'short' | 'spiky' | 'long' | 'bald';
-export type OutfitStyle = 'gi' | 'tanktop' | 'jacket';
+export type HairStyle = 'short' | 'spiky' | 'long' | 'mohawk' | 'ponytail' | 'afro' | 'bald';
+export type BeardStyle = 'none' | 'stubble' | 'mustache' | 'goatee' | 'full' | 'long';
+export type OutfitStyle = 'gi' | 'tanktop' | 'jacket' | 'hoodie' | 'ninja' | 'wrestler' | 'armor';
 
 export interface Appearance {
   skinColor: string;
+  eyeColor: string;
   hairColor: string;
   hairStyle: HairStyle;
+  beardStyle: BeardStyle;
   outfitColor: string;
   outfitStyle: OutfitStyle;
 }
@@ -36,8 +39,39 @@ export interface Character {
 
 export const STAT_KEYS: readonly StatKey[] = ['strength', 'speed', 'defense', 'stamina'];
 export const MOVE_SLOTS: readonly MoveSlot[] = ['light', 'heavy', 'kick', 'special'];
-export const HAIR_STYLES: readonly HairStyle[] = ['short', 'spiky', 'long', 'bald'];
-export const OUTFIT_STYLES: readonly OutfitStyle[] = ['gi', 'tanktop', 'jacket'];
+
+export const HAIR_LABELS: Record<HairStyle, string> = {
+  short: 'Kurz',
+  spiky: 'Stachelig',
+  long: 'Lang',
+  mohawk: 'Irokese',
+  ponytail: 'Zopf',
+  afro: 'Afro',
+  bald: 'Glatze',
+};
+
+export const BEARD_LABELS: Record<BeardStyle, string> = {
+  none: 'Kein Bart',
+  stubble: 'Dreitagebart',
+  mustache: 'Schnurrbart',
+  goatee: 'Ziegenbart',
+  full: 'Vollbart',
+  long: 'Langer Bart',
+};
+
+export const OUTFIT_LABELS: Record<OutfitStyle, string> = {
+  gi: 'Karate-Gi',
+  tanktop: 'Tanktop',
+  jacket: 'Lederjacke',
+  hoodie: 'Hoodie',
+  ninja: 'Ninja',
+  wrestler: 'Wrestler',
+  armor: 'Rüstung',
+};
+
+export const HAIR_STYLES = Object.keys(HAIR_LABELS) as HairStyle[];
+export const BEARD_STYLES = Object.keys(BEARD_LABELS) as BeardStyle[];
+export const OUTFIT_STYLES = Object.keys(OUTFIT_LABELS) as OutfitStyle[];
 
 export const STAT_LABELS: Record<StatKey, string> = {
   strength: 'Stärke',

@@ -2,8 +2,12 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   Appearance,
+  BEARD_LABELS,
+  BEARD_STYLES,
   Character,
+  HAIR_LABELS,
   HAIR_STYLES,
+  OUTFIT_LABELS,
   MOVE_SLOTS,
   MoveSlot,
   OUTFIT_STYLES,
@@ -17,9 +21,6 @@ import {
 import { STAT_MAX, STAT_MIN, adjustStat, canDecrease, canIncrease, characterErrors, remainingPoints } from './balance';
 import { CharacterStore } from './character-store';
 import { SpritePreview } from './sprite-preview';
-
-const HAIR_LABELS: Record<string, string> = { short: 'Kurz', spiky: 'Stachelig', long: 'Lang', bald: 'Glatze' };
-const OUTFIT_LABELS: Record<string, string> = { gi: 'Gi', tanktop: 'Tanktop', jacket: 'Jacke' };
 
 @Component({
   selector: 'app-character-editor',
@@ -37,6 +38,8 @@ export class CharacterEditor {
   protected readonly errors = computed(() => characterErrors(this.draft()));
 
   protected readonly hairStyles = HAIR_STYLES;
+  protected readonly beardStyles = BEARD_STYLES;
+  protected readonly beardLabels = BEARD_LABELS;
   protected readonly outfitStyles = OUTFIT_STYLES;
   protected readonly hairLabels = HAIR_LABELS;
   protected readonly outfitLabels = OUTFIT_LABELS;

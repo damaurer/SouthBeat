@@ -1,4 +1,16 @@
-import { Character, MOVE_SLOTS, STAT_KEYS, StatKey, Stats, findMove } from './character.model';
+import {
+  BEARD_STYLES,
+  Character,
+  HAIR_STYLES,
+  MOVE_SLOTS,
+  OUTFIT_STYLES,
+  STAT_KEYS,
+  StatKey,
+  Stats,
+  findMove,
+} from './character.model';
+
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 /** The fixed frame that keeps every custom character fair. */
 export const STAT_MIN = 1;
@@ -48,6 +60,15 @@ export function characterErrors(character: Character): string[] {
   if (name.length < 2 || name.length > 16) {
     errors.push('Der Name muss 2 bis 16 Zeichen lang sein.');
   }
+  const look = character.appearance;
+  if (
+    !HAIR_STYLES.includes(look?.hairStyle) ||
+    !BEARD_STYLES.includes(look?.beardStyle) ||
+    !OUTFIT_STYLES.includes(look?.outfitStyle) ||
+    ![look.skinColor, look.eyeColor, look.hairColor, look.outfitColor].every((c) => HEX_COLOR.test(c))
+  ) {
+    errors.push('Ungültiges Aussehen.');
+  }
   for (const slot of MOVE_SLOTS) {
     const move = findMove(character.moves[slot]);
     if (!move || move.slot !== slot) {
@@ -62,8 +83,10 @@ export function defaultCharacter(): Character {
     name: 'Rookie',
     appearance: {
       skinColor: '#e0ac69',
+      eyeColor: '#3a6ea5',
       hairColor: '#3b2414',
       hairStyle: 'short',
+      beardStyle: 'none',
       outfitColor: '#c0392b',
       outfitStyle: 'gi',
     },

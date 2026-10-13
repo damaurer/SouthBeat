@@ -36,3 +36,12 @@ describe('balance', () => {
     expect(characterErrors(c).length).toBe(1);
   });
 });
+
+describe('appearance validation', () => {
+  it('rejects unknown styles and colors, e.g. from an old save', () => {
+    const c = defaultCharacter();
+    const old = { ...c, appearance: { ...c.appearance, beardStyle: undefined } } as unknown as typeof c;
+    expect(characterErrors(old)).toContain('Ungültiges Aussehen.');
+    expect(characterErrors({ ...c, appearance: { ...c.appearance, eyeColor: 'red' } })).toContain('Ungültiges Aussehen.');
+  });
+});

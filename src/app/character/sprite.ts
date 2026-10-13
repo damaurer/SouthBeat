@@ -1,52 +1,7 @@
-import { Appearance, HairStyle } from './character.model';
+import { Appearance, BeardStyle, HairStyle, OutfitStyle } from './character.model';
 
-export const SPRITE_WIDTH = 16;
-export const SPRITE_HEIGHT = 22;
-
-// S skin, E eye, T torso, A arm, B belt, P pants, F feet
-const BODY = [
-  '................',
-  '................',
-  '......SSSS......',
-  '.....SSSSSS.....',
-  '.....SESSES.....',
-  '.....SSSSSS.....',
-  '......SSSS......',
-  '.......SS.......',
-  '....TTTTTTTT....',
-  '...ATTTTTTTTA...',
-  '...ATTTTTTTTA...',
-  '...ATTTTTTTTA...',
-  '...STTTTTTTTS...',
-  '....BBBBBBBB....',
-  '....PPPPPPPP....',
-  '....PPP..PPP....',
-  '....PPP..PPP....',
-  '....PPP..PPP....',
-  '....PPP..PPP....',
-  '....PPP..PPP....',
-  '....PPP..PPP....',
-  '...FFFF..FFFF...',
-];
-
-// Hair layers only paint their H cells on top of the body.
-const HAIR: Record<HairStyle, string[]> = {
-  short: ['................', '......HHHH......', '.....HHHHHH.....', '.....H....H.....'],
-  spiky: ['....H.H..H.H....', '.....HHHHHH.....', '....HHHHHHHH....', '.....H....H.....'],
-  long: [
-    '................',
-    '......HHHH......',
-    '.....HHHHHH.....',
-    '.....H....H.....',
-    '.....H....H.....',
-    '.....H....H.....',
-    '.....H....H.....',
-    '.....H....H.....',
-  ],
-  bald: [],
-};
-
-const SHIRT = '#f4f4f4';
+export const SPRITE_WIDTH = 32;
+export const SPRITE_HEIGHT = 48;
 
 export interface Pixel {
   x: number;
@@ -54,33 +9,317 @@ export interface Pixel {
   fill: string;
 }
 
-export function spritePixels(look: Appearance): Pixel[] {
-  const gi = look.outfitStyle === 'gi';
-  const palette: Record<string, string> = {
-    S: look.skinColor,
-    E: '#111111',
-    T: look.outfitColor,
-    A: look.outfitStyle === 'tanktop' ? look.skinColor : look.outfitColor,
-    B: gi ? '#111111' : '#5a3d1e',
-    P: gi ? look.outfitColor : '#2c2c34',
-    F: '#222222',
-    H: look.hairColor,
+/**
+ * The sprite is painted as named materials first. A lighting pass then adds a
+ * highlight on each region's top edge and a shadow on its right and bottom
+ * edges, and a final pass draws a dark outline around the silhouette.
+ */
+type Material =
+  | 'skin'
+  | 'skinDark'
+  | 'hair'
+  | 'eyeWhite'
+  | 'iris'
+  | 'mouth'
+  | 'main'
+  | 'mainDark'
+  | 'accent'
+  | 'pants'
+  | 'belt'
+  | 'boots'
+  | 'metal'
+  | 'buckle';
+
+/** Materials that are too small or too dark to look right with edge lighting. */
+const FLAT: ReadonlySet<Material> = new Set(['skinDark', 'eyeWhite', 'iris', 'mouth', 'buckle']);
+
+const OUTLINE = '#140c1c';
+
+class Canvas {
+  readonly grid: (Material | null)[][] = Array.from({ length: SPRITE_HEIGHT }, () =>
+    Array<Material | null>(SPRITE_WIDTH).fill(null),
+  );
+
+  set(x: number, y: number, m: Material | null): void {
+    if (x >= 0 && y >= 0 && x < SPRITE_WIDTH && y < SPRITE_HEIGHT) this.grid[y][x] = m;
+  }
+
+  rect(x: number, y: number, w: number, h: number, m: Material | null): void {
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) this.set(x + dx, y + dy, m);
+  }
+
+  /** Paints a horizontal span per row: rows[i] = [fromX, toX] for row y + i. */
+  rows(y: number, rows: [number, number][], m: Material | null): void {
+    rows.forEach(([from, to], i) => this.rect(from, y + i, to - from + 1, 1, m));
+  }
+
+  /** Mirrors a span across the body's vertical center line. */
+  mirror(x: number, y: number, w: number, h: number, m: Material | null): void {
+    this.rect(x, y, w, h, m);
+    this.rect(SPRITE_WIDTH - x - w, y, w, h, m);
+  }
+
+  get(x: number, y: number): Material | null {
+    return this.grid[y]?.[x] ?? null;
+  }
+}
+
+function drawBody(c: Canvas): void {
+  // Head with rounded corners, ears and neck.
+  c.rows(4, [[12, 19], [11, 20], [11, 20], [11, 20], [11, 20], [11, 20], [11, 20], [11, 20], [11, 20], [12, 19], [13, 18]], 'skin');
+  c.mirror(10, 9, 1, 3, 'skin');
+  c.rect(14, 15, 4, 3, 'skin');
+  // Torso, arms, fists.
+  c.rows(18, [[9, 22], [8, 23], [8, 23]], 'skin');
+  c.rect(9, 21, 14, 10, 'skin');
+  c.mirror(5, 19, 4, 12, 'skin');
+  c.mirror(5, 31, 4, 3, 'skin');
+  c.mirror(6, 32, 2, 1, 'skinDark');
+  // Hips, legs, feet.
+  c.rect(10, 31, 12, 3, 'skin');
+  c.mirror(10, 34, 5, 10, 'skin');
+  c.mirror(9, 44, 6, 2, 'skin');
+}
+
+function drawFace(c: Canvas): void {
+  c.mirror(13, 10, 2, 1, 'eyeWhite');
+  c.set(14, 10, 'iris');
+  c.set(17, 10, 'iris');
+  c.mirror(13, 9, 2, 1, 'hair');
+  c.rect(15, 12, 1, 1, 'skinDark');
+  c.rect(15, 14, 2, 1, 'mouth');
+}
+
+function drawOutfit(c: Canvas, style: OutfitStyle): void {
+  switch (style) {
+    case 'gi':
+      c.rows(18, [[9, 13], [8, 14], [8, 14], [9, 14]], 'main');
+      c.rows(18, [[18, 22], [17, 23], [17, 23], [17, 22]], 'main');
+      c.rect(9, 22, 14, 9, 'main');
+      c.mirror(5, 19, 4, 8, 'main');
+      c.rect(9, 31, 14, 2, 'belt');
+      c.rect(12, 33, 2, 3, 'belt');
+      c.rect(10, 33, 12, 1, 'main');
+      c.mirror(10, 34, 5, 9, 'main');
+      return;
+    case 'tanktop':
+      c.rows(19, [[10, 21], [10, 21]], 'main');
+      c.mirror(10, 18, 2, 1, 'main');
+      c.rect(10, 21, 12, 10, 'main');
+      drawJeans(c);
+      return;
+    case 'jacket':
+      c.rows(18, [[9, 22], [8, 23], [8, 23]], 'main');
+      c.rect(9, 21, 14, 10, 'main');
+      c.rows(18, [[14, 17], [14, 17], [15, 16]], 'accent');
+      c.rect(14, 21, 4, 10, 'accent');
+      c.mirror(12, 18, 2, 4, 'mainDark');
+      c.mirror(5, 19, 4, 12, 'main');
+      c.mirror(5, 29, 4, 1, 'mainDark');
+      drawJeans(c);
+      return;
+    case 'hoodie':
+      c.rows(15, [[11, 13], [10, 13], [10, 13]], 'mainDark');
+      c.rows(15, [[18, 20], [18, 21], [18, 21]], 'mainDark');
+      c.rows(18, [[9, 22], [8, 23], [8, 23]], 'main');
+      c.rect(9, 21, 14, 11, 'main');
+      c.rect(12, 26, 8, 4, 'mainDark');
+      c.mirror(14, 19, 1, 4, 'accent');
+      c.mirror(5, 19, 4, 12, 'main');
+      c.mirror(5, 30, 4, 1, 'mainDark');
+      c.rect(10, 32, 12, 2, 'pants');
+      c.mirror(10, 34, 5, 10, 'pants');
+      c.mirror(9, 44, 6, 2, 'boots');
+      return;
+    case 'ninja':
+      c.rows(4, [[12, 19], [11, 20], [11, 20], [11, 20], [11, 20]], 'main');
+      c.rect(11, 6, 10, 1, 'accent');
+      c.rows(11, [[11, 20], [11, 20], [11, 20], [12, 19], [13, 18]], 'main');
+      c.rect(14, 15, 4, 3, 'main');
+      c.mirror(10, 9, 1, 3, 'main');
+      c.rows(18, [[9, 22], [8, 23], [8, 23]], 'main');
+      c.rect(9, 21, 14, 10, 'main');
+      c.mirror(5, 19, 4, 12, 'main');
+      c.mirror(5, 26, 4, 2, 'mainDark');
+      c.rect(9, 30, 14, 2, 'accent');
+      c.rect(10, 32, 12, 2, 'main');
+      c.mirror(10, 34, 5, 10, 'main');
+      c.mirror(10, 40, 5, 4, 'mainDark');
+      c.mirror(9, 44, 6, 2, 'mainDark');
+      return;
+    case 'wrestler':
+      c.mirror(10, 18, 2, 5, 'main');
+      c.rect(10, 23, 12, 8, 'main');
+      c.rect(9, 30, 14, 2, 'belt');
+      c.rect(14, 30, 4, 2, 'buckle');
+      c.rect(10, 32, 12, 3, 'main');
+      c.mirror(10, 35, 5, 1, 'main');
+      c.mirror(10, 40, 5, 4, 'accent');
+      c.mirror(9, 44, 6, 2, 'accent');
+      c.mirror(5, 31, 4, 1, 'accent');
+      return;
+    case 'armor':
+      c.rows(17, [[7, 11], [7, 11], [7, 10]], 'metal');
+      c.rows(17, [[20, 24], [20, 24], [21, 24]], 'metal');
+      c.rect(9, 18, 14, 13, 'metal');
+      c.rect(13, 20, 6, 13, 'main');
+      c.rect(14, 22, 4, 2, 'accent');
+      c.mirror(5, 20, 4, 11, 'mainDark');
+      c.mirror(5, 27, 4, 4, 'metal');
+      c.rect(9, 31, 4, 2, 'belt');
+      c.rect(19, 31, 4, 2, 'belt');
+      c.mirror(10, 34, 5, 10, 'pants');
+      c.mirror(10, 37, 5, 2, 'metal');
+      c.mirror(9, 41, 6, 5, 'metal');
+      return;
+  }
+}
+
+function drawJeans(c: Canvas): void {
+  c.rect(10, 31, 12, 1, 'belt');
+  c.rect(15, 31, 2, 1, 'buckle');
+  c.rect(10, 32, 12, 2, 'pants');
+  c.mirror(10, 34, 5, 10, 'pants');
+  c.mirror(9, 44, 6, 2, 'boots');
+}
+
+function drawHair(c: Canvas, style: HairStyle): void {
+  const cap = (): void => {
+    c.rows(2, [[13, 18], [12, 19], [11, 20], [11, 20], [11, 20]], 'hair');
+    c.mirror(11, 7, 1, 3, 'hair');
   };
+  switch (style) {
+    case 'short':
+      cap();
+      c.rect(15, 7, 3, 1, 'hair');
+      return;
+    case 'spiky':
+      cap();
+      c.rows(0, [[12, 12], [11, 13]], 'hair');
+      c.rows(0, [[16, 16], [15, 17]], 'hair');
+      c.rows(0, [[20, 20], [19, 21]], 'hair');
+      c.mirror(9, 3, 2, 2, 'hair');
+      c.rect(12, 7, 2, 1, 'hair');
+      c.rect(16, 7, 3, 1, 'hair');
+      return;
+    case 'long':
+      cap();
+      c.rect(12, 7, 8, 1, 'hair');
+      c.mirror(9, 5, 2, 17, 'hair');
+      c.mirror(11, 10, 1, 4, 'hair');
+      return;
+    case 'mohawk':
+      c.rows(0, [[15, 16], [14, 17], [14, 17], [14, 17], [14, 17], [14, 17], [15, 16]], 'hair');
+      return;
+    case 'ponytail':
+      cap();
+      c.rect(12, 7, 8, 1, 'hair');
+      c.rows(5, [[21, 22], [21, 23], [22, 24], [22, 24], [23, 25], [23, 25], [23, 25], [23, 24]], 'hair');
+      return;
+    case 'afro':
+      c.rows(0, [[13, 18], [11, 20], [10, 21], [9, 22], [9, 22], [9, 22], [9, 22]], 'hair');
+      c.mirror(9, 7, 2, 4, 'hair');
+      return;
+    case 'bald':
+      return;
+  }
+}
 
-  const grid = BODY.map((row) => row.split(''));
-  HAIR[look.hairStyle].forEach((row, y) =>
-    row.split('').forEach((cell, x) => {
-      if (cell === 'H') grid[y][x] = 'H';
-    }),
-  );
+function drawBeard(c: Canvas, style: BeardStyle): void {
+  const mustache = (): void => c.rows(13, [[14, 17]], 'hair');
+  switch (style) {
+    case 'none':
+      return;
+    case 'stubble':
+      for (let y = 12; y <= 15; y++) {
+        for (let x = 12; x <= 19; x++) {
+          if ((x + y) % 2 === 0 && c.get(x, y) === 'skin' && !(y === 12 && x > 13 && x < 18)) c.set(x, y, 'hair');
+        }
+      }
+      return;
+    case 'mustache':
+      mustache();
+      c.mirror(13, 14, 1, 1, 'hair');
+      return;
+    case 'goatee':
+      mustache();
+      c.rows(15, [[14, 17], [15, 16]], 'hair');
+      return;
+    case 'full':
+      mustache();
+      c.mirror(11, 10, 2, 5, 'hair');
+      c.mirror(13, 14, 2, 1, 'hair');
+      c.rows(15, [[12, 19], [13, 18]], 'hair');
+      return;
+    case 'long':
+      mustache();
+      c.mirror(11, 10, 2, 5, 'hair');
+      c.mirror(13, 14, 2, 1, 'hair');
+      c.rows(15, [[12, 19], [12, 19], [13, 18], [13, 18], [14, 17], [14, 17], [15, 16]], 'hair');
+      return;
+  }
+}
 
+function adjust(hex: string, amount: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const channel = (shift: number): string => {
+    const v = (n >> shift) & 0xff;
+    const out = amount < 0 ? v * (1 + amount) : v + (255 - v) * amount;
+    return Math.round(out).toString(16).padStart(2, '0');
+  };
+  return `#${channel(16)}${channel(8)}${channel(0)}`;
+}
+
+function palette(look: Appearance): Record<Material, string> {
+  return {
+    skin: look.skinColor,
+    skinDark: adjust(look.skinColor, -0.25),
+    hair: look.hairColor,
+    eyeWhite: '#f4f4f4',
+    iris: look.eyeColor,
+    mouth: adjust(look.skinColor, -0.45),
+    main: look.outfitColor,
+    mainDark: adjust(look.outfitColor, -0.35),
+    accent: look.outfitStyle === 'ninja' || look.outfitStyle === 'armor' ? '#d4a017' : '#f0f0f0',
+    pants: look.outfitStyle === 'hoodie' ? '#6b6f78' : '#2f3e5c',
+    belt: look.outfitStyle === 'gi' ? '#1c1c1c' : '#5a3d1e',
+    boots: '#2a2226',
+    metal: '#9aa5b1',
+    buckle: '#e8c547',
+  };
+}
+
+export function spritePixels(look: Appearance): Pixel[] {
+  const c = new Canvas();
+  drawBody(c);
+  drawOutfit(c, look.outfitStyle);
+  if (look.outfitStyle !== 'ninja') {
+    drawFace(c);
+    drawBeard(c, look.beardStyle);
+    drawHair(c, look.hairStyle);
+  } else {
+    c.mirror(13, 9, 2, 2, 'eyeWhite');
+    c.set(14, 10, 'iris');
+    c.set(17, 10, 'iris');
+  }
+
+  const colors = palette(look);
   const pixels: Pixel[] = [];
-  grid.forEach((row, y) =>
-    row.forEach((cell, x) => {
-      if (cell === '.') return;
-      const shirt = look.outfitStyle === 'jacket' && cell === 'T' && (x === 7 || x === 8);
-      pixels.push({ x, y, fill: shirt ? SHIRT : palette[cell] });
-    }),
-  );
+  for (let y = 0; y < SPRITE_HEIGHT; y++) {
+    for (let x = 0; x < SPRITE_WIDTH; x++) {
+      const m = c.get(x, y);
+      if (m === null) {
+        const touches = [c.get(x - 1, y), c.get(x + 1, y), c.get(x, y - 1), c.get(x, y + 1)].some((n) => n !== null);
+        if (touches) pixels.push({ x, y, fill: OUTLINE });
+        continue;
+      }
+      let fill = colors[m];
+      if (!FLAT.has(m)) {
+        if (c.get(x, y - 1) !== m) fill = adjust(fill, 0.18);
+        else if (c.get(x + 1, y) !== m || c.get(x, y + 1) !== m) fill = adjust(fill, -0.28);
+      }
+      pixels.push({ x, y, fill });
+    }
+  }
   return pixels;
 }

@@ -24,13 +24,22 @@
       <fieldset>
         <legend>Aussehen</legend>
         <label>Haut <input type="color" [value]="draft().appearance.skinColor" (input)="setLook('skinColor', $any($event.target).value)" /></label>
-        <label>Haarfarbe <input type="color" [value]="draft().appearance.hairColor" (input)="setLook('hairColor', $any($event.target).value)" /></label>
+        <label>Augenfarbe <input type="color" [value]="draft().appearance.eyeColor" (input)="setLook('eyeColor', $any($event.target).value)" /></label>
+        <label>Haar- und Bartfarbe <input type="color" [value]="draft().appearance.hairColor" (input)="setLook('hairColor', $any($event.target).value)" /></label>
         <label>Outfit-Farbe <input type="color" [value]="draft().appearance.outfitColor" (input)="setLook('outfitColor', $any($event.target).value)" /></label>
         <label>
           Frisur
           <select (change)="setLook('hairStyle', $any($event.target).value)">
             @for (style of hairStyles; track style) {
               <option [value]="style" [selected]="style === draft().appearance.hairStyle">{{ hairLabels[style] }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Bart
+          <select (change)="setLook('beardStyle', $any($event.target).value)">
+            @for (style of beardStyles; track style) {
+              <option [value]="style" [selected]="style === draft().appearance.beardStyle">{{ beardLabels[style] }}</option>
             }
           </select>
         </label>
