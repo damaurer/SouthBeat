@@ -60,10 +60,10 @@
     @case ('waiting') {
       <h1>Online-Kampf</h1>
       <div class="card">
-        <p>Dein Raumcode:</p>
-        <p class="code" aria-live="polite">{{ code() }}</p>
-        <p>Gib den Code an deinen Gegner weiter. Er öffnet SouthBeat auf seinem PC unter „Online-Kampf“ und tritt damit bei. Der Kampf startet automatisch.</p>
-        <button type="button" (click)="leave()">Abbrechen</button>
+        <p>Deine Lobby <strong>{{ roomName() }}</strong> ist offen. Arena: {{ arenaName() }}</p>
+        <p>Sie steht jetzt in der Lobby-Tabelle. Dein Gegner tritt dort mit einem Klick bei, der Kampf startet dann automatisch.</p>
+        <p class="small">Oder er gibt den Raumcode ein: <span class="code-inline">{{ code() }}</span></p>
+        <button type="button" (click)="leave()">Lobby schließen</button>
       </div>
     }
     @case ('left') {
@@ -90,9 +90,37 @@
       @if (error(); as e) {
         <p class="error" role="alert">{{ e }}</p>
       }
+      <h2 class="section">Offene Lobbys</h2>
+      @if (lobbies().length) {
+        <table class="lobbies">
+          <thead>
+            <tr><th>Lobby</th><th>Host</th><th>Arena</th><th></th></tr>
+          </thead>
+          <tbody>
+            @for (l of lobbies(); track l.code) {
+              <tr>
+                <td>{{ l.name }}</td>
+                <td>{{ l.host }}</td>
+                <td>{{ arenaLabel(l.arenaId) }}</td>
+                <td><button type="button" (click)="joinLobby(l)">Beitreten</button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <p class="empty">{{ connected() ? 'Gerade ist keine Lobby offen. Erstelle doch eine!' : 'Verbinde mit dem Spielserver …' }}</p>
+      }
+      @if (!connected()) {
+        <button type="button" (click)="open()">Neu verbinden</button>
+      }
+
       <div class="choices">
         <form class="card" (submit)="$event.preventDefault(); create()">
-          <h2>Raum erstellen</h2>
+          <h2>Lobby erstellen</h2>
+          <label>
+            Name der Lobby
+            <input name="lobbyName" [ngModel]="lobbyName()" (ngModelChange)="lobbyName.set($event)" [maxlength]="nameMax" [placeholder]="'Lobby von ' + chosen()?.name" autocomplete="off" />
+          </label>
           <label>
             Arena
             <select name="arena" [(ngModel)]="arenaId">
@@ -102,16 +130,18 @@
               }
             </select>
           </label>
-          <button type="submit" [disabled]="phase() === 'connecting'">Raum erstellen</button>
+          <button type="submit">Lobby erstellen</button>
         </form>
-        <form class="card" (submit)="$event.preventDefault(); join()">
-          <h2>Raum beitreten</h2>
-          <label>
-            Raumcode
-            <input name="code" [(ngModel)]="joinCode" maxlength="4" autocomplete="off" placeholder="ABCD" />
-          </label>
-          <button type="submit" [disabled]="phase() === 'connecting'">Beitreten</button>
-        </form>
+        <details class="card">
+          <summary>Mit Raumcode beitreten</summary>
+          <form (submit)="$event.preventDefault(); join()">
+            <label>
+              Raumcode
+              <input class="code-input" name="code" [(ngModel)]="joinCode" maxlength="4" autocomplete="off" placeholder="ABCD" />
+            </label>
+            <button type="submit">Beitreten</button>
+          </form>
+        </details>
       </div>
       }
     }

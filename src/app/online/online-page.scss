@@ -14,7 +14,9 @@
   h2 { margin: 0; font-size: 1.1rem; }
   label { display: grid; gap: 4px; }
   input, select { font: inherit; padding: 6px; }
-  input { text-transform: uppercase; letter-spacing: 0.3em; }
+  .code-input { text-transform: uppercase; letter-spacing: 0.3em; }
+  form { display: grid; gap: 12px; margin-top: 12px; }
+  summary { cursor: pointer; font-weight: bold; }
 }
 
 .code {
@@ -41,3 +43,21 @@ a { color: inherit; }
   app-fighter-portrait { width: 48px; height: 36px; }
   button { font: inherit; margin-left: auto; cursor: pointer; }
 }
+
+.section { margin: 24px 0 8px; font-size: 1.1rem; }
+
+.lobbies {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+
+  th, td { padding: 8px; text-align: left; border-bottom: 1px solid #3a3a52; }
+  th { font-size: 0.8rem; text-transform: uppercase; opacity: 0.7; }
+  tbody tr:hover { background: #1f1f2e; }
+  td:last-child { text-align: right; }
+  button { font: inherit; padding: 4px 12px; cursor: pointer; background: #f1c40f; border: 2px solid #0b0b12; }
+}
+
+.empty { opacity: 0.8; }
+.small { font-size: 0.85rem; opacity: 0.85; }
+.code-inline { font-weight: bold; letter-spacing: 0.2em; color: #f1c40f; }

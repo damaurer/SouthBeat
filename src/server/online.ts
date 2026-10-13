@@ -5,7 +5,7 @@ import { Character, MOVE_SLOTS, MoveSlot } from '../app/character/character.mode
 import { ARENAS, findArena } from '../app/arena/arenas';
 import { Controls, FPS, FightState, createFight, step } from '../app/fight/combat';
 import { OWN_FIGHTER, builtInFighter } from '../app/select/roster';
-import { ClientMessage, ONLINE_PATH, ServerMessage, newRoomCode, normalizeCode, snapshotOf } from '../app/online/protocol';
+import { ClientMessage, LOBBY_NAME_MAX, LobbyInfo, ONLINE_PATH, ServerMessage, newRoomCode, normalizeCode, snapshotOf } from '../app/online/protocol';
 
 interface Player {
   socket: WebSocket;
@@ -25,6 +25,7 @@ interface Player {
 
 interface Room {
   code: string;
+  name: string;
   arenaId: string;
   players: Player[];
   state: FightState | null;
@@ -38,6 +39,8 @@ interface Room {
  */
 export class OnlineServer {
   private readonly rooms = new Map<string, Room>();
+  /** Connections not in a room yet; they get the lobby table whenever it changes. */
+  private readonly browsing = new Set<WebSocket>();
 
   constructor(private readonly random: () => number = Math.random) {}
 
@@ -50,6 +53,8 @@ export class OnlineServer {
   connect(socket: WebSocket): void {
     let room: Room | null = null;
     let player: Player | null = null;
+    this.browsing.add(socket);
+    send(socket, { type: 'lobbies', lobbies: this.lobbies() });
     socket.on('message', (data) => {
       let msg: ClientMessage;
       try {
@@ -59,7 +64,9 @@ export class OnlineServer {
       }
       if (msg.type === 'create' && !room) {
         player = this.player(socket, msg.rosterId, msg.fighter, msg.fighterId);
-        room = this.create(player, msg.arenaId);
+        room = this.create(player, msg.name, msg.arenaId);
+        this.browsing.delete(socket);
+        this.announce();
       } else if (msg.type === 'join' && !room) {
         const found = this.rooms.get(normalizeCode(String(msg.code ?? '')));
         if (!found) return send(socket, { type: 'error', message: 'Diesen Raum gibt es nicht.' });
@@ -67,6 +74,8 @@ export class OnlineServer {
         player = this.player(socket, msg.rosterId, msg.fighter, msg.fighterId);
         room = found;
         room.players.push(player);
+        this.browsing.delete(socket);
+        this.announce();
         this.start(room);
       } else if (msg.type === 'input' && player) {
         player.left = msg.left === true;
@@ -83,15 +92,30 @@ export class OnlineServer {
       }
     });
     socket.on('close', () => {
+      this.browsing.delete(socket);
       if (!room) return;
       this.stop(room);
       this.rooms.delete(room.code);
       room.players.filter((p) => p !== player).forEach((p) => send(p.socket, { type: 'opponent-left' }));
+      this.announce();
     });
   }
 
   roomCount(): number {
     return this.rooms.size;
+  }
+
+  /** Rooms that still wait for a second player, newest first. */
+  lobbies(): LobbyInfo[] {
+    return [...this.rooms.values()]
+      .filter((r) => r.players.length === 1)
+      .reverse()
+      .map((r) => ({ code: r.code, name: r.name, host: r.players[0].character.name, arenaId: r.arenaId }));
+  }
+
+  private announce(): void {
+    const msg: ServerMessage = { type: 'lobbies', lobbies: this.lobbies() };
+    this.browsing.forEach((s) => send(s, msg));
   }
 
   private player(socket: WebSocket, rosterId: unknown, fighter: unknown, fighterId: unknown): Player {
@@ -115,13 +139,14 @@ export class OnlineServer {
     };
   }
 
-  private create(host: Player, arenaId: unknown): Room {
+  private create(host: Player, name: unknown, arenaId: unknown): Room {
     let code = newRoomCode(this.random);
     while (this.rooms.has(code)) code = newRoomCode(this.random);
     const arena = typeof arenaId === 'string' && findArena(arenaId).id === arenaId ? arenaId : ARENAS[Math.floor(this.random() * ARENAS.length)].id;
-    const room: Room = { code, arenaId: arena, players: [host], state: null, timer: null };
+    const clean = typeof name === 'string' ? name.replace(/\s+/g, ' ').trim().slice(0, LOBBY_NAME_MAX) : '';
+    const room: Room = { code, name: clean || `Lobby von ${host.character.name}`, arenaId: arena, players: [host], state: null, timer: null };
     this.rooms.set(code, room);
-    send(host.socket, { type: 'room', code });
+    send(host.socket, { type: 'room', code, name: room.name, arenaId: arena });
     return room;
   }
 

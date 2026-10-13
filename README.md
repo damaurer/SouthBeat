@@ -53,7 +53,7 @@ Online-Multiplayer folgt.
 
 ## Online-Kampf
 
-Unter `/online` (Startseite: „Online-Kampf“) kämpfen zwei Spieler an zwei PCs in Echtzeit gegeneinander. Einer erstellt einen Raum, wählt die Arena und gibt den vierstelligen Raumcode weiter. Der andere tritt mit dem Code bei, und der Kampf startet sofort. Jeder spielt mit seinem gespeicherten Kämpfer und an seinem PC mit den Tasten von Spieler 1 (WASD, J K L Ö Ä). Nach dem Kampf ist eine Revanche möglich. Sind beide Kämpfer gespeichert, zählt das Ergebnis in der Statistik.
+Unter `/online` (Startseite: „Online-Kampf“) kämpfen zwei Spieler an zwei PCs in Echtzeit gegeneinander. Jeder wählt zuerst seinen Kämpfer in der Kämpferauswahl. Danach zeigt eine Lobby-Tabelle alle offenen Lobbys mit Name, Host und Arena; sie aktualisiert sich live. Ein Klick auf „Beitreten“ startet den Kampf sofort. Wer selbst hostet, gibt der Lobby einen Namen und wählt die Arena (oder „Zufällig“); der Gast bringt nur seinen Kämpfer mit. Als Ausweichweg geht weiterhin der vierstellige Raumcode. Gespielt wird an jedem PC mit den Tasten von Spieler 1. Nach dem Kampf ist eine Revanche möglich. Sind beide Kämpfer selbst erstellt und gespeichert, zählt das Ergebnis in der Statistik.
 
 Der Kampf läuft auf dem Server (`src/server/online.ts`, WebSocket unter `/online` auf demselben Port). Die Browser schicken nur ihre Tasten und zeichnen die Bilder, die der Server 60-mal pro Sekunde zurückschickt. Beide sehen dadurch immer denselben Kampf, und niemand kann am eigenen Browser schummeln. Die Verzögerung hängt von der Verbindung zum Server ab; im lokalen Netz ist sie kaum spürbar.
 

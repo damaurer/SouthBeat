@@ -13,7 +13,7 @@ import { Spark, renderFight } from '../fight/render';
 import { CharacterSelect, FighterPicks } from '../select/character-select';
 import { FighterPortrait } from '../select/fighter-portrait';
 import { RosterEntry, builtInFighter, resolvePick, roster } from '../select/roster';
-import { ClientMessage, FightSnapshot, ONLINE_PATH, ServerMessage, normalizeCode, stateFrom } from './protocol';
+import { ClientMessage, FightSnapshot, LOBBY_NAME_MAX, LobbyInfo, ONLINE_PATH, ServerMessage, normalizeCode, stateFrom } from './protocol';
 
 type Phase = 'menu' | 'connecting' | 'waiting' | 'fight' | 'left';
 
@@ -59,6 +59,7 @@ export class OnlinePage {
   protected readonly error = signal<string | null>(null);
   protected readonly code = signal('');
   protected readonly arenaName = signal('');
+  protected readonly roomName = signal('');
   protected readonly you = signal<0 | 1>(0);
   protected readonly fighters = signal<[FighterHud, FighterHud] | null>(null);
   protected readonly seconds = signal(99);
@@ -70,7 +71,12 @@ export class OnlinePage {
   /** The fighter picked on the select screen; null until one is picked. */
   protected readonly chosen = signal<RosterEntry | null>(null);
   private readonly router = inject(Router);
+  protected readonly lobbies = signal<LobbyInfo[]>([]);
+  protected readonly lobbyName = signal('');
+  protected readonly connected = signal(false);
+  protected readonly nameMax = LOBBY_NAME_MAX;
   protected joinCode = '';
+  private pending: ClientMessage | null = null;
   protected arenaId = '';
 
   private socket: WebSocket | null = null;
@@ -120,14 +126,24 @@ export class OnlinePage {
   protected choose(picks: FighterPicks): void {
     const entries = roster(this.store.saved(), this.store.ladderBeaten());
     this.chosen.set(resolvePick(picks.p1, entries, seeded(Date.now())));
+    this.open();
   }
 
   protected home(): void {
     void this.router.navigate(['/']);
   }
 
+  protected arenaLabel(id: string): string {
+    return findArena(id).name;
+  }
+
+  /** The host names the lobby and picks the arena; the guest only brings a fighter. */
   protected create(): void {
-    this.connect({ type: 'create', ...this.myFighter(), arenaId: this.arenaId });
+    this.request({ type: 'create', name: this.lobbyName(), ...this.myFighter(), arenaId: this.arenaId });
+  }
+
+  protected joinLobby(lobby: LobbyInfo): void {
+    this.request({ type: 'join', code: lobby.code, ...this.myFighter() });
   }
 
   private myFighter(): { rosterId: string; fighter: Character; fighterId: string | null } {
@@ -141,7 +157,7 @@ export class OnlinePage {
       this.error.set('Der Raumcode hat vier Buchstaben.');
       return;
     }
-    this.connect({ type: 'join', code, ...this.myFighter() });
+    this.request({ type: 'join', code, ...this.myFighter() });
   }
 
   protected rematch(): void {
@@ -153,37 +169,57 @@ export class OnlinePage {
     this.socket = null;
     this.state = null;
     this.phase.set('menu');
+    this.open();
   }
 
-  private connect(first: ClientMessage): void {
-    this.socket?.close();
+  /** Sends a message, opening the connection first if needed. */
+  private request(msg: ClientMessage): void {
     this.error.set(null);
-    this.phase.set('connecting');
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(msg));
+    } else {
+      this.pending = msg;
+      this.open();
+    }
+  }
+
+  /** Connects to the game server; while in the menu it keeps the lobby table up to date. */
+  protected open(): void {
+    if (typeof WebSocket === 'undefined' || (this.socket && this.socket.readyState <= WebSocket.OPEN)) return;
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
     const socket = new WebSocket(`${protocol}://${location.host}${ONLINE_PATH}`);
     this.socket = socket;
-    socket.onopen = () => socket.send(JSON.stringify(first));
-    socket.onmessage = (e) => this.receive(JSON.parse(String(e.data)) as ServerMessage);
-    socket.onerror = () => {
-      if (this.socket !== socket) return;
-      this.error.set('Keine Verbindung zum Spielserver. Läuft der SouthBeat-Server?');
-      this.phase.set('menu');
+    socket.onopen = () => {
+      this.connected.set(true);
+      if (this.pending) socket.send(JSON.stringify(this.pending));
+      this.pending = null;
     };
+    socket.onmessage = (e) => this.receive(JSON.parse(String(e.data)) as ServerMessage);
     socket.onclose = () => {
-      if (this.socket === socket && this.phase() === 'waiting') this.phase.set('menu');
+      if (this.socket !== socket) return;
+      this.socket = null;
+      this.connected.set(false);
+      if (this.phase() === 'waiting' || this.phase() === 'menu') {
+        this.phase.set('menu');
+        this.error.set('Keine Verbindung zum Spielserver. Läuft der SouthBeat-Server?');
+      }
     };
   }
 
   private receive(msg: ServerMessage): void {
     switch (msg.type) {
+      case 'lobbies':
+        this.lobbies.set(msg.lobbies);
+        break;
       case 'room':
         this.code.set(msg.code);
+        this.roomName.set(msg.name);
+        this.arenaName.set(findArena(msg.arenaId).name);
         this.phase.set('waiting');
         break;
       case 'error':
+        // The connection stays open, so the lobby table keeps updating.
         this.error.set(msg.message);
-        this.socket?.close();
-        this.socket = null;
         this.phase.set('menu');
         break;
       case 'start': {

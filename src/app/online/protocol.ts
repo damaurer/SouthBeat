@@ -15,14 +15,25 @@ export interface FightSnapshot {
 }
 
 export type ClientMessage =
-  | { type: 'create'; rosterId: string; fighter: Character; fighterId: string | null; arenaId: string }
+  | { type: 'create'; name: string; rosterId: string; fighter: Character; fighterId: string | null; arenaId: string }
   | { type: 'join'; code: string; rosterId: string; fighter: Character; fighterId: string | null }
   /** Sent whenever a key changes: which way the player walks, and an attack button if one was just pressed. */
   | { type: 'input'; left: boolean; right: boolean; up: boolean; down: boolean; press: MoveSlot | null }
   | { type: 'rematch' };
 
+/** An open lobby waiting for a second player, as shown in the lobby table. */
+export interface LobbyInfo {
+  code: string;
+  name: string;
+  host: string;
+  arenaId: string;
+}
+
+export const LOBBY_NAME_MAX = 30;
+
 export type ServerMessage =
-  | { type: 'room'; code: string }
+  | { type: 'lobbies'; lobbies: LobbyInfo[] }
+  | { type: 'room'; code: string; name: string; arenaId: string }
   | { type: 'start'; you: 0 | 1; arenaId: string; characters: [Character, Character]; rosterIds: [string, string]; fighterIds: [string | null, string | null] }
   | { type: 'state'; snapshot: FightSnapshot }
   | { type: 'rematch-wanted'; by: 0 | 1 }
