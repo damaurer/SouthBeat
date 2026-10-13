@@ -174,6 +174,12 @@ docker run -d -p 4000:4000 -v southbeat-data:/app/data --name southbeat southbea
 
 Danach läuft SouthBeat auf `http://localhost:4000`. Kämpfer, Statistiken und Ladder-Fortschritt liegen im Volume `southbeat-data` und bleiben bei Neustarts und Updates erhalten.
 
+Fertige Images gibt es auch bei GitHub Packages. Der CI-Workflow baut und veröffentlicht sie, sobald alle Tests grün sind: `latest` und `sha-…` für jeden Stand auf `main`, dazu `1.2.3`, `1.2` und `1` für einen Tag `v1.2.3`.
+
+```bash
+docker run -d -p 4000:4000 -v southbeat-data:/app/data --name southbeat ghcr.io/damaurer/southbeat:latest
+```
+
 Oder mit Docker Compose:
 
 ```bash
@@ -214,4 +220,4 @@ npm run e2e          # Playwright-Smoke-Tests gegen den gebauten Server (vorher 
 
 Die Smoke-Tests (`e2e/smoke.spec.ts`) gehen Startmenü, Kampf, Training, Online-Lobby mit zwei Browsern und die Kämpferliste durch und starten dafür einen eigenen Server mit leerer Datendatei. Ist Chromium schon installiert, zeigt `PLAYWRIGHT_CHROMIUM=/pfad/zu/chrome` darauf, sonst einmal `npx playwright install chromium`.
 
-`.github/workflows/ci.yml` führt bei jedem Push auf `main` und jedem Pull Request Lint, Build, Browser-, Server- und Smoke-Tests aus und prüft die Beispiel-Content-Packs. Er läuft, sobald das Repository auf GitHub liegt.
+`.github/workflows/ci.yml` führt bei jedem Push auf `main`, jedem Versions-Tag und jedem Pull Request Lint, Build, Browser-, Server- und Smoke-Tests aus und prüft die Beispiel-Content-Packs. Sind alle grün (nicht bei Pull Requests), baut er das Docker-Image und veröffentlicht es als `ghcr.io/damaurer/southbeat` (siehe „Docker“).

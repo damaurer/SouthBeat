@@ -5,3 +5,6 @@ dist
 data
 .vscode
 *.log
+test-results
+playwright-report
+coverage
