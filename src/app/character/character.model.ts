@@ -176,6 +176,10 @@ export const MOVES: readonly Move[] = [
   { id: 'rm-rf', name: 'rm -rf /', slot: 'ultimate', damage: 34, startupFrames: 28 },
   { id: 'blue-screen', name: 'Bluescreen', slot: 'ultimate', damage: 27, startupFrames: 14 },
   { id: 'infinite-loop', name: 'Endlosschleife', slot: 'ultimate', damage: 24, startupFrames: 10 },
+  { id: 'git-push-force', name: 'git push --force', slot: 'ultimate', damage: 31, startupFrames: 22 },
+  { id: 'prod-hotfix', name: 'Hotfix in Prod', slot: 'ultimate', damage: 26, startupFrames: 12 },
+  { id: 'ddos', name: 'DDoS-Flut', slot: 'ultimate', damage: 7, startupFrames: 16, hits: 4 },
+  { id: 'legacy-code', name: 'Legacy-Code', slot: 'ultimate', damage: 35, startupFrames: 30 },
 
   // Signature moves of the single-player opponents.
   { id: 'belly-bump', name: 'Bauch-Schubser', slot: 'special', damage: 9, startupFrames: 12, reach: 34, knockback: 40, hitstun: 26, exclusive: true },
@@ -185,6 +189,11 @@ export const MOVES: readonly Move[] = [
   { id: 'rack-slam', name: 'Rack-Schlag', slot: 'heavy', damage: 13, startupFrames: 15, reach: 36, exclusive: true },
   { id: 'hdd-throw', name: 'Festplatten-Wurf', slot: 'special', damage: 10, startupFrames: 14, reach: 150, projectileSpeed: 5, exclusive: true },
   { id: 'tomato-throw', name: 'Tomatenwurf', slot: 'special', damage: 7, startupFrames: 10, reach: 160, projectileSpeed: 4, exclusive: true },
+  // Every boss has an ultimate of its own.
+  { id: 'mandatory-meeting', name: 'Pflicht-Meeting', slot: 'ultimate', damage: 10, startupFrames: 18, reach: 110, hits: 3, exclusive: true },
+  { id: 'reorg', name: 'Umstrukturierung', slot: 'ultimate', damage: 34, startupFrames: 26, reach: 120, exclusive: true },
+  { id: 'sprint-finish', name: 'Sprint-Endspurt', slot: 'ultimate', damage: 5, startupFrames: 10, reach: 40, hits: 5, exclusive: true },
+  { id: 'kernel-panic', name: 'Kernel Panic', slot: 'ultimate', damage: 30, startupFrames: 16, exclusive: true },
   { id: 'tomato-rain', name: 'Tomatenhagel', slot: 'ultimate', damage: 8, startupFrames: 18, reach: 140, hits: 4, exclusive: true },
 
   // Moves of the office enemies in the stage mode.

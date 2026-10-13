@@ -47,11 +47,13 @@ Das Kampfsystem orientiert sich an Street Fighter:
 
 | Gegner | Rolle | Stil | Arena |
 | --- | --- | --- | --- |
-| Bernd Brummer (Bernd) | Co-Teamleiter | Kräftig, Bart und Brille, Bauch-Schubser mit riesigem Rückstoß | Teeküche |
-| Konrad Kettner (Konrad) | Teamleiter | Panzer-General, Spezialattacke Panzer-Walze rollt über die ganze Arena | Bunker-Office |
-| Lena Flink (Lena) | HO | Sehr schnell, Kombo-Angriffe mit mehreren Treffern pro Taste | Meetingraum |
-| Ralf Rackwitz (Ralf) | CTO | Rack-Schlag mit Server-Bauteilen, wirft Festplatten | Serverraum |
+| Bernd Brummer (Bernd) | Co-Teamleiter | Kräftig, Bart und Brille, Bauch-Schubser mit riesigem Rückstoß, Ultimate Pflicht-Meeting (Kalendereinladungen) | Teeküche |
+| Konrad Kettner (Konrad) | Teamleiter | Panzer-General, Spezialattacke Panzer-Walze rollt über die ganze Arena, Ultimate Umstrukturierung (Organigramm-Kästen stürzen herab) | Bunker-Office |
+| Lena Flink (Lena) | HO | Sehr schnell, Kombo-Angriffe mit mehreren Treffern pro Taste, Ultimate Sprint-Endspurt (5 Treffer) | Meetingraum |
+| Ralf Rackwitz (Ralf) | CTO | Rack-Schlag mit Server-Bauteilen, wirft Festplatten, Ultimate Kernel Panic | Serverraum |
 | Gustav Großmaul (Gustav) | CSO, Endboss | Alter Mann mit langem Bart, wirft Tomaten (Ultimate Tomatenhagel), redet ununterbrochen und verspricht Kunden Features, die weder abgestimmt noch implementiert sind | Dachterrasse-Office mit Tomatenbeeten |
+
+Jeder Boss hat eine eigene Ultimate, die Spieler nicht wählen können. Spieler wählen im Editor aus acht Ultimates: Freitags-Deploy, rm -rf /, Bluescreen, Endlosschleife, git push --force, Hotfix in Prod, DDoS-Flut und Legacy-Code. Langsamere Ultimates machen mehr Schaden (Schaden minus halbe Ausholzeit ist bei allen etwa gleich). Alle Ultimates brauchen eine volle Action-Leiste, auch bei Bossen. Die Effekte stehen in `src/app/fight/ultimates.ts`.
 
 Die Gegner sprechen in Sprechblasen am oberen Bildschirmrand. Die Sprechblasen sind rein kosmetisch und beeinflussen das Spiel nicht. Gegner und Sprüche stehen in `src/app/singleplayer/opponents.ts`. Außerdem sagen alle Kämpfer, auch in normalen Kämpfen und im 2-Spieler-Modus, hin und wieder etwas, wenn sie getroffen werden: Spieler 1 links oben, Spieler 2 rechts oben. Jeder Gegner hat dafür eigene Sprüche, alle anderen nutzen die allgemeinen aus `src/app/fight/hit-lines.ts`.
 

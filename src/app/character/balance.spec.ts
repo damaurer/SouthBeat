@@ -1,3 +1,5 @@
+import { MOVES, findMove } from './character.model';
+import { OPPONENTS } from '../singleplayer/opponents';
 import { STAT_BUDGET, STAT_MAX, STAT_MIN, adjustStat, characterErrors, defaultCharacter, remainingPoints, statErrors } from './balance';
 
 describe('balance', () => {
@@ -34,6 +36,24 @@ describe('balance', () => {
     const c = defaultCharacter();
     c.moves.light = 'monitor-slam';
     expect(characterErrors(c).length).toBe(1);
+  });
+});
+
+describe('ultimates', () => {
+  const ultimates = MOVES.filter((m) => m.slot === 'ultimate');
+  const total = (m: (typeof MOVES)[number]) => m.damage * (m.hits ?? 1);
+
+  it('offers the player at least eight ultimates, balanced against their wind-up', () => {
+    const open = ultimates.filter((m) => !m.exclusive);
+    expect(open.length).toBeGreaterThanOrEqual(8);
+    // Slower ultimates hit harder: total damage minus half the startup stays about the same.
+    for (const m of open) expect(Math.abs(total(m) - m.startupFrames / 2 - 20)).withContext(m.id).toBeLessThanOrEqual(1);
+  });
+
+  it('gives every boss an ultimate of its own that players cannot pick', () => {
+    const ids = OPPONENTS.map((o) => o.character.moves.ultimate);
+    expect(new Set(ids).size).toBe(OPPONENTS.length);
+    for (const id of ids) expect(findMove(id)?.exclusive).withContext(id).toBeTrue();
   });
 });
 

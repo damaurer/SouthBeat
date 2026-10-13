@@ -85,6 +85,28 @@ function keysFor(slot: MoveSlot, move: Move, stance: 'stand' | 'crouch' | 'air',
         wind: on({ armFront: 2.9, elbowFront: 0.3, armBack: 2.8, elbowBack: 0.3, lean: -0.2, y: -1 }),
         hit: on({ armFront: 1.2, elbowFront: 0, armBack: 1.1, elbowBack: 0, reachFront: 3, lean: 0.3, x: 3 }),
       };
+    case 'sprint-finish':
+      return {
+        wind: on({ lean: -0.15, y: 2, kneeFront: 1, kneeBack: 1 }),
+        hit: step % 2 === 0
+          ? on({ ...straight(3), lean: 0.5, x: 3, armBack: -0.8, elbowBack: 0.6, legBack: -0.8, kneeBack: 0.7, legFront: 0.7, kneeFront: 0.9 })
+          : on({ armBack: 1.57, elbowBack: 0, reachBack: 4, armFront: 0.4, elbowFront: 2, lean: 0.5, x: 3, legBack: -0.6, kneeBack: 0.9, legFront: 0.9, kneeFront: 0.5 }),
+      };
+    case 'mandatory-meeting':
+      return {
+        wind: on({ armFront: 2.6, elbowFront: 0.4, lean: -0.1 }),
+        hit: on({ armFront: step % 2 ? 1.3 : 1.8, elbowFront: 0, reachFront: 2, armBack: 0.9, elbowBack: 1.6, lean: 0.1, x: 1 }),
+      };
+    case 'reorg':
+      return {
+        wind: on({ armFront: 2.95, elbowFront: 0.2, armBack: 2.9, elbowBack: 0.2, lean: -0.2, y: -2 }),
+        hit: on({ armFront: 0.9, elbowFront: 0, armBack: 0.8, elbowBack: 0, reachFront: 2, lean: 0.4, x: 2, y: 3, kneeFront: 0.9, kneeBack: 0.8 }),
+      };
+    case 'ddos':
+      return {
+        wind: on({ armFront: 0.9, elbowFront: 1.7, armBack: 0.8, elbowBack: 1.7, y: 1 }),
+        hit: on({ armFront: step % 2 ? 1.2 : 1.0, elbowFront: 1.2, armBack: step % 2 ? 1.0 : 1.2, elbowBack: 1.2, lean: 0.1 }),
+      };
     case 'tomato-rain':
       return {
         wind: on({ armFront: 2.8, elbowFront: 0.2, armBack: 2.6, elbowBack: 0.2 }),

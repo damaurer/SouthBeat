@@ -7,6 +7,7 @@ import { reachOf } from '../fight/combat';
 import { poseFor } from '../fight/animate';
 import { Effects } from '../fight/effects';
 import { posedSprite } from '../fight/pose';
+import { drawUltimate } from '../fight/ultimates';
 import { drawArt, drawProjectile } from '../fight/render';
 import { Brawler, Item, Projectile, StageState } from './brawl';
 
@@ -105,7 +106,7 @@ function drawSwing(p: Painter, b: Brawler, x: number, feet: number, frame: numbe
       }
       return;
     case 'ultimate':
-      for (let i = 0; i < reach + 30; i++) box(i, chest - 8 + Math.round(Math.sin((i + frame) * 0.5) * 2), 1, 16, (i + frame) % 6 < 3 ? '#ffe66d' : '#ff6b1a');
+      drawUltimate(p, a.move.id, { front: x + b.facing * 12, facing: b.facing, reach: reach + 30, chest, ground: feet, frame });
       return;
   }
 }

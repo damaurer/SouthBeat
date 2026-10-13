@@ -7,6 +7,9 @@ import { ART_PALETTE, ART_SIZE, DEFAULT_ART } from '../character/projectile-art'
 import { Outcome, poseFor } from './animate';
 import { Effects } from './effects';
 import { posedSprite } from './pose';
+import { drawTomato, drawUltimate } from './ultimates';
+
+export { drawTomato };
 
 export { drawSpark } from './effects';
 export type { Spark } from './effects';
@@ -22,12 +25,6 @@ const SPECIAL_COLORS: Record<string, [string, string]> = {
   headhunt: ['#0a66c2', '#ffffff'],
 };
 
-const ULTIMATE_COLORS: Record<string, [string, string]> = {
-  'friday-deploy': ['#ff6b1a', '#ffe66d'],
-  'rm-rf': ['#d62828', '#1a1a1a'],
-  'blue-screen': ['#0a3dcc', '#ffffff'],
-  'infinite-loop': ['#9b59ff', '#5ad1ff'],
-};
 
 /** Caches sprite pixels per look so they are not rebuilt every frame. */
 const spriteCache = new WeakMap<object, Pixel[]>();
@@ -171,13 +168,6 @@ function drawAttack(p: Painter, f: FighterState, frame: number): void {
       box(reach - 23, CHEST_Y - 5, 6, 1, '#39ff88');
       box(reach - 23, CHEST_Y - 1, 6, 1, '#ff5a5a');
       return;
-    case 'tomato-rain':
-      for (let i = 0; i < 6; i++) {
-        const dx = 20 + ((i * 37 + frame) % Math.max(1, reach - 30));
-        const y = ((frame * 4 + i * 23) % 70) + 40;
-        drawTomato(p, Math.round(f.x + f.facing * dx), y);
-      }
-      return;
   }
 
   switch (a.slot) {
@@ -205,20 +195,9 @@ function drawAttack(p: Painter, f: FighterState, frame: number): void {
       box(dx - 6, CHEST_Y, 5, 1, c2);
       return;
     }
-    case 'ultimate': {
-      const [c1, c2] = ULTIMATE_COLORS[a.move.id] ?? ['#ffe66d', '#ffffff'];
-      for (let i = 0; i < reach; i++) {
-        const wave = Math.round(Math.sin((i + frame) * 0.5) * 2);
-        box(i, CHEST_Y - 8 + wave, 1, 16, (i + frame) % 6 < 3 ? c1 : c2);
-      }
-      if (a.move.id === 'blue-screen') {
-        box(reach - 40, CHEST_Y - 12, 34, 24, '#0a3dcc');
-        const tx = Math.round(f.facing === 1 ? front + reach - 36 : front - reach + 10);
-        p.text(tx, CHEST_Y - 8, ':(', '#ffffff');
-        p.text(tx, CHEST_Y, 'ERROR', '#ffffff');
-      }
+    case 'ultimate':
+      drawUltimate(p, a.move.id, { front, facing: f.facing, reach, chest: CHEST_Y + lift, ground: GROUND_Y, frame });
       return;
-    }
   }
 }
 
@@ -234,16 +213,6 @@ export function drawArt(p: Painter, art: string[], x: number, y: number, facing:
   });
 }
 
-export function drawTomato(p: Painter, x: number, y: number): void {
-  p.rect(x - 4, y - 2, 9, 6, '#140c1c');
-  p.rect(x - 3, y - 3, 7, 8, '#140c1c');
-  p.rect(x - 3, y - 2, 7, 6, '#d62828');
-  p.rect(x - 2, y - 3, 5, 8, '#d62828');
-  p.rect(x - 2, y + 3, 5, 1, '#a61b1b');
-  p.rect(x - 2, y - 2, 2, 2, '#ff8a80');
-  p.rect(x - 1, y - 4, 3, 1, '#2b9348');
-  p.set(x, y - 5, '#2b9348');
-}
 
 export function drawProjectile(p: Painter, id: string, x: number, facing: 1 | -1, frame: number, ground = GROUND_Y): void {
   const px = Math.round(x);
