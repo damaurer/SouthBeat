@@ -6,6 +6,8 @@ import {
 } from '@angular/ssr/node';
 import express from 'express';
 import { join } from 'node:path';
+import { gameApi } from './server/api';
+import { JsonFileStorage } from './server/file-storage';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -13,16 +15,11 @@ const app = express();
 const angularApp = new AngularNodeAppEngine();
 
 /**
- * Example Express Rest API endpoints can be defined here.
- * Uncomment and define endpoints as necessary.
- *
- * Example:
- * ```ts
- * app.get('/api/{*splat}', (req, res) => {
- *   // Handle API request
- * });
- * ```
+ * Fighters and game statistics are saved in one JSON file.
+ * Set SOUTHBEAT_DATA_FILE to choose where; the default is data/southbeat.json.
  */
+const dataFile = process.env['SOUTHBEAT_DATA_FILE'] || join(process.cwd(), 'data', 'southbeat.json');
+app.use('/api', gameApi(new JsonFileStorage(dataFile)));
 
 /**
  * Serve static files from /browser

@@ -8,6 +8,9 @@
     <div class="preview">
       <app-sprite-preview [appearance]="draft().appearance" />
       <p class="fighter-name">{{ draft().name || '???' }}</p>
+      @if (record(); as r) {
+        <p class="record">{{ r.wins }} Siege · {{ r.losses }} Niederlagen</p>
+      }
     </div>
 
     <div class="panels">
@@ -94,9 +97,14 @@
         </ul>
       }
 
-      <button type="button" class="save" (click)="save()" [disabled]="errors().length > 0">Speichern</button>
-      @if (savedNotice()) {
-        <span class="saved">Gespeichert!</span>
+      <button type="button" class="save" (click)="save()" [disabled]="errors().length > 0 || saveState() === 'saving'">Speichern</button>
+      @switch (saveState()) {
+        @case ('saved') {
+          <span class="saved">Gespeichert!</span>
+        }
+        @case ('error') {
+          <span class="save-error">Speichern fehlgeschlagen. Ist der Server erreichbar?</span>
+        }
       }
     </div>
   </div>

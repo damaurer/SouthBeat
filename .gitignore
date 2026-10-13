@@ -6,6 +6,9 @@
 /out-tsc
 /bazel-out
 
+# Game data written by the server
+/data
+
 # Node
 /node_modules
 npm-debug.log

@@ -1,37 +1,74 @@
 import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { Character } from './character.model';
 import { characterErrors, defaultCharacter } from './balance';
+import { FighterStats, FighterWithStats, StoredFighter } from '../shared/api';
 
-const STORAGE_KEY = 'southbeat.character';
+/** The browser only remembers which fighter is the player's; the fighter itself lives in the server's data file. */
+const FIGHTER_ID_KEY = 'southbeat.fighterId';
 
-/** Keeps the player's character in the browser until there is a backend. */
 @Injectable({ providedIn: 'root' })
 export class CharacterStore {
+  private readonly http = inject(HttpClient);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
-  readonly saved = signal<Character>(this.load());
 
-  save(character: Character): boolean {
+  readonly saved = signal<Character>(defaultCharacter());
+  readonly stats = signal<FighterStats | null>(null);
+
+  constructor() {
+    const id = this.fighterId();
+    if (id) void this.load(id);
+  }
+
+  /** Creates or updates the player's fighter in the data file. */
+  async save(character: Character): Promise<boolean> {
     if (characterErrors(character).length > 0) return false;
-    this.saved.set(character);
-    if (this.browser) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(character));
-      } catch {
-        // Storage can be blocked; the character stays in memory.
-      }
+    const id = this.fighterId();
+    try {
+      const stored = await firstValueFrom(
+        id
+          ? this.http.put<StoredFighter>(`/api/fighters/${encodeURIComponent(id)}`, character)
+          : this.http.post<StoredFighter>('/api/fighters', character),
+      );
+      this.remember(stored.id);
+      this.saved.set(toCharacter(stored));
+      this.stats.update((s) => s ?? { matches: 0, wins: 0, losses: 0 });
+      return true;
+    } catch {
+      return false;
     }
-    return true;
   }
 
-  private load(): Character {
-    if (!this.browser) return defaultCharacter();
+  private async load(id: string): Promise<void> {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? (JSON.parse(raw) as Character) : null;
-      return parsed && characterErrors(parsed).length === 0 ? parsed : defaultCharacter();
+      const { fighter, stats } = await firstValueFrom(this.http.get<FighterWithStats>(`/api/fighters/${encodeURIComponent(id)}`));
+      this.saved.set(toCharacter(fighter));
+      this.stats.set(stats);
     } catch {
-      return defaultCharacter();
+      // Unknown or unreachable: the editor starts from the default character.
     }
   }
+
+  private fighterId(): string | null {
+    if (!this.browser) return null;
+    try {
+      return localStorage.getItem(FIGHTER_ID_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  private remember(id: string): void {
+    try {
+      localStorage.setItem(FIGHTER_ID_KEY, id);
+    } catch {
+      // Without storage the fighter is still saved, it just gets a new id next time.
+    }
+  }
+}
+
+function toCharacter({ name, appearance, moves, stats }: StoredFighter): Character {
+  return { name, appearance, moves, stats };
 }

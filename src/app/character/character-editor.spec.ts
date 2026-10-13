@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { CharacterEditor } from './character-editor';
 import { STAT_BUDGET } from './balance';
 
@@ -8,7 +10,7 @@ describe('CharacterEditor', () => {
     localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [CharacterEditor],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
 
@@ -25,6 +27,21 @@ describe('CharacterEditor', () => {
 
     expect(el.querySelector('.budget')?.textContent).toContain('0 Punkte');
     expect(plus().every((b) => b.disabled)).toBeTrue();
+  });
+
+  it('saves a new fighter to the server and remembers its id', async () => {
+    const fixture = TestBed.createComponent(CharacterEditor);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.save')!.click();
+
+    const req = TestBed.inject(HttpTestingController).expectOne('/api/fighters');
+    expect(req.request.method).toBe('POST');
+    req.flush({ ...req.request.body, id: 'abc', createdAt: '', updatedAt: '' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(localStorage.getItem('southbeat.fighterId')).toBe('abc');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.saved')).not.toBeNull();
   });
 
   it('renders the sprite preview', () => {

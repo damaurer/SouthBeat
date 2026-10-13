@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   Appearance,
@@ -31,8 +31,10 @@ import { SpritePreview } from './sprite-preview';
 export class CharacterEditor {
   private readonly store = inject(CharacterStore);
 
-  protected readonly draft = signal<Character>(structuredClone(this.store.saved()));
-  protected readonly savedNotice = signal(false);
+  /** Follows the stored fighter (e.g. once it has loaded from the server) until the player edits it. */
+  protected readonly draft = linkedSignal<Character>(() => structuredClone(this.store.saved()));
+  protected readonly saveState = signal<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  protected readonly record = this.store.stats;
 
   protected readonly remaining = computed(() => remainingPoints(this.draft().stats));
   protected readonly errors = computed(() => characterErrors(this.draft()));
@@ -76,12 +78,13 @@ export class CharacterEditor {
     return canDecrease(this.draft().stats, key);
   }
 
-  protected save(): void {
-    this.savedNotice.set(this.store.save(this.draft()));
+  protected async save(): Promise<void> {
+    this.saveState.set('saving');
+    this.saveState.set((await this.store.save(this.draft())) ? 'saved' : 'error');
   }
 
   private update(change: (c: Character) => Character): void {
     this.draft.update(change);
-    this.savedNotice.set(false);
+    this.saveState.set('idle');
   }
 }
