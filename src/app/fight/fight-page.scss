@@ -184,3 +184,43 @@ dd { margin: 0; }
 @keyframes pulse {
   50% { background: #ffffff; }
 }
+
+.combo {
+  position: absolute;
+  top: 8%;
+  right: 3%;
+  padding: 4px 10px;
+  border: 2px solid #f1c40f;
+  background: rgb(20 20 31 / 80%);
+  color: #f1c40f;
+  font-weight: bold;
+}
+
+.input-log {
+  position: absolute;
+  top: 8%;
+  left: 2%;
+  margin: 0;
+  padding: 4px 8px;
+  list-style: none;
+  font-family: monospace;
+  font-size: clamp(0.7rem, 1.6vw, 1rem);
+  line-height: 1.25;
+  color: #f0f0f0;
+  background: rgb(20 20 31 / 60%);
+  pointer-events: none;
+
+  &:empty {
+    display: none;
+  }
+
+  li:first-child {
+    color: #f1c40f;
+  }
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

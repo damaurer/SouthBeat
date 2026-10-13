@@ -1,4 +1,7 @@
 <section class="fight">
+  @if (training) {
+    <p class="versus">Training · Der Dummy geht nie zu Boden, die Uhr läuft nicht ab.</p>
+  }
   @if (opponent) {
     <p class="versus">Einzelspieler · {{ opponent.character.name }}, {{ opponent.title }}</p>
   }
@@ -17,7 +20,7 @@
         </div>
         @if ($index === 0) {
           <div class="timer">
-            {{ h.seconds }}
+            {{ training ? '∞' : h.seconds }}
             <div class="rounds" [attr.aria-label]="'Runde ' + h.round + ', Stand ' + h.wins[0] + ':' + h.wins[1]">
               @for (side of [0, 1]; track side) {
                 <span class="pips">
@@ -47,11 +50,21 @@
     } @else if (hud()?.banner; as banner) {
       <div class="banner">{{ banner }}</div>
     }
+    @if (training) {
+      @if (combo().shown > 0 && combo().hits > 0) {
+        <div class="combo" aria-live="polite">{{ combo().hits }} {{ combo().hits === 1 ? 'Treffer' : 'Treffer Combo' }} · {{ combo().damage }} Schaden</div>
+      }
+      <ol class="input-log" aria-label="Deine letzten Eingaben">
+        @for (i of inputs(); track $index) {
+          <li>{{ i }}</li>
+        }
+      </ol>
+    }
     @if (paused()) {
       <div class="pause-menu" role="dialog" aria-label="Pause">
         <p class="title">Pause</p>
         <button type="button" class="btn primary" (click)="togglePause()">Weiter</button>
-        <button type="button" class="btn" (click)="reset()">{{ opponent ? 'Kampf neu starten' : 'Revanche' }}</button>
+        <button type="button" class="btn" (click)="reset()">{{ opponent ? 'Kampf neu starten' : training ? 'Zurücksetzen' : 'Revanche' }}</button>
         <a class="btn" routerLink="/controls">Tasten ändern</a>
         <button type="button" class="btn" (click)="sound.toggleMute()">Ton: {{ sound.muted() ? 'aus' : 'an' }}</button>
         <button type="button" class="btn" (click)="sound.toggleMusic(); sound.startMusic(arena.id)">Musik: {{ sound.music() ? 'an' : 'aus' }}</button>
@@ -81,12 +94,24 @@
     <div class="mode">
       @if (opponent) {
         <a class="btn" routerLink="/singleplayer">← Gegnerliste</a>
+      } @else if (training) {
+        <a class="btn" routerLink="/">← Hauptmenü</a>
+        <label class="difficulty">
+          Dummy
+          <select (change)="setDummy($any($event.target).value)">
+            @for (d of dummyModes; track d) {
+              <option [value]="d" [selected]="d === dummy()">{{ dummyLabels[d] }}</option>
+            }
+          </select>
+        </label>
+        <label class="toggle"><input type="checkbox" [checked]="showBoxes()" (change)="showBoxes.set($any($event.target).checked)" /> Trefferboxen</label>
+        <label class="toggle"><input type="checkbox" [checked]="fullMeter()" (change)="fullMeter.set($any($event.target).checked)" /> Action-Balken immer voll</label>
       } @else {
         <span class="mode-label">{{ mode() === 'cpu' ? 'Gegen CPU' : '2 Spieler' }}</span>
         <a class="btn" routerLink="/select" [queryParams]="picks">← Kämpferauswahl</a>
         <a class="btn" routerLink="/arena" [queryParams]="picks">Arena wählen</a>
       }
-      @if (opponent || mode() === 'cpu') {
+      @if (opponent || (mode() === 'cpu' && !training) || (training && dummy() === 'cpu')) {
         <label class="difficulty">
           CPU
           <select (change)="setDifficulty($any($event.target).value)">
@@ -100,7 +125,7 @@
     </div>
     <dl>
       @for (k of keys; track $index) {
-        @if ($index === 0 || (mode() === 'local' && !opponent)) {
+        @if ($index === 0 || (mode() === 'local' && !opponent && !training)) {
           <div>
             <dt>Spieler {{ $index + 1 }}</dt>
             <dd>
@@ -114,6 +139,9 @@
     <p><a class="btn" routerLink="/controls">Tasten ändern</a></p>
     <details class="help">
       <summary>Steuerung und Tipps</summary>
+      @if (training) {
+        <p class="hint">Training: Grün ist die Stelle, an der ein Kämpfer getroffen werden kann, gelb ein Angriff, der gerade ausholt, rot ein Angriff, der trifft. Die Eingabe-Anzeige zeigt die Richtung von deinem Kämpfer aus (→ ist immer nach vorn): ↓ ↘ → plus L, S oder T ist der Spezialangriff. Treffer, die den Dummy noch taumelnd erwischen, zählen als Combo.</p>
+      }
       <p class="hint">Gamepads gehen auch: Steuerkreuz oder Stick laufen, A leicht, X schwer, B Tritt, Y Spezial, RB/RT Ultimate, Start Pause. Pad 1 spielt für Spieler 1, Pad 2 für Spieler 2.</p>
       <p class="hint">Blocken: vom Gegner weg halten, geduckt blockt auch Feger. Sprungangriffe musst du stehend blocken. ↓ ↘ → plus Angriff löst den Spezialangriff aus. Der Action-Balken lädt sich mit der Zeit, durch Treffer und durch eingesteckte Treffer auf. Ist er voll, startest du deinen ultimativen Angriff. Er lässt sich nicht unterbrechen. Wer zuerst zwei Runden gewinnt, gewinnt den Kampf.</p>
     </details>

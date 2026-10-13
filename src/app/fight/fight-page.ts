@@ -19,6 +19,7 @@ import { KeyBindings } from './key-bindings';
 import { picksFromQuery } from '../select/select-page';
 import { OWN_FIGHTER, RosterEntry, resolvePick, roster } from '../select/roster';
 import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from './hit-lines';
+import { Combo, DUMMY_LABELS, DUMMY_MODES, DummyMode, NO_COMBO, TRAINING_RULES, afterTrainingStep, drawBoxes, dummyControls, dummyReeling, inputEntry, logInput } from './training';
 
 type Mode = 'cpu' | 'local';
 
@@ -63,9 +64,12 @@ export class FightPage {
   private readonly store = inject(CharacterStore);
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
 
-  private readonly query = inject(ActivatedRoute).snapshot.queryParamMap;
+  private readonly route = inject(ActivatedRoute).snapshot;
+  private readonly query = this.route.queryParamMap;
+  /** Training against a dummy that never goes down, opened from the title menu. */
+  protected readonly training = !!this.route.data['training'];
   /** Set when the fight is part of the single-player ladder. */
-  protected readonly opponent = findOpponent(this.query.get('opponent'));
+  protected readonly opponent = this.training ? undefined : findOpponent(this.query.get('opponent'));
   protected readonly nextOpponent = this.opponent ? OPPONENTS[OPPONENTS.indexOf(this.opponent) + 1] : undefined;
   protected readonly arena = findArena(this.opponent?.arenaId ?? this.query.get('arena') ?? '');
   protected readonly width = ARENA_WIDTH;
@@ -84,6 +88,14 @@ export class FightPage {
   protected readonly difficulties = DIFFICULTIES;
   protected readonly difficultyLabels = DIFFICULTY_LABELS;
   protected readonly sound = inject(Sound);
+  protected readonly dummy = signal<DummyMode>('stand');
+  protected readonly dummyModes = DUMMY_MODES;
+  protected readonly dummyLabels = DUMMY_LABELS;
+  protected readonly fullMeter = signal(false);
+  protected readonly showBoxes = signal(true);
+  protected readonly combo = signal<Combo>(NO_COMBO);
+  protected readonly inputs = signal<string[]>([]);
+  private lastInput = '';
   private readonly pads = inject(Pads);
   private readonly router = inject(Router);
   private lastCall: string | null = null;
@@ -157,6 +169,7 @@ export class FightPage {
           carry -= 1 / FPS;
         }
         const frame = renderFight(arena, this.state, this.fx);
+        if (this.training && this.showBoxes()) drawBoxes(frame, this.state);
         ctx.putImageData(new ImageData(frame.toRgba(), frame.width, frame.height), 0, 0);
         raf = requestAnimationFrame(loop);
       };
@@ -188,7 +201,10 @@ export class FightPage {
     const [a, b] = this.lineup();
     const rank = this.opponent ? OPPONENTS.indexOf(this.opponent) : 1;
     this.cpu = cpuFor(b.cpu, this.difficulty(), rank);
-    this.state = createFight(a.character, b.character, this.arena.id, BEST_OF_THREE);
+    this.state = createFight(a.character, b.character, this.arena.id, this.training ? TRAINING_RULES : BEST_OF_THREE);
+    this.combo.set(NO_COMBO);
+    this.inputs.set([]);
+    this.lastInput = '';
     this.paused.set(false);
     this.lastCall = null;
     this.fx.clear();
@@ -220,12 +236,16 @@ export class FightPage {
   private tick(): void {
     const controls: [Controls, Controls] = [
       merge(this.read(this.keys[0]), this.pads.controls(0)),
-      this.opponent || this.mode() === 'cpu'
-        ? cpuControls(this.state, 1, this.random, this.cpu)
-        : merge(this.read(this.keys[1]), this.pads.controls(1)),
+      this.training && this.dummy() !== 'cpu'
+        ? dummyControls(this.state, this.dummy())
+        : this.opponent || this.mode() === 'cpu' || this.training
+          ? cpuControls(this.state, 1, this.random, this.cpu)
+          : merge(this.read(this.keys[1]), this.pads.controls(1)),
     ];
     this.pressed.clear();
+    const reeling = dummyReeling(this.state);
     step(this.state, controls);
+    if (this.training) this.trainingFrame(controls[0], reeling);
 
     for (const e of this.state.events) {
       if (e.type === 'hit') {
@@ -253,6 +273,21 @@ export class FightPage {
     }
     if (this.banner && --this.banner.frames <= 0) this.banner = null;
     this.updateHud();
+  }
+
+  private trainingFrame(mine: Controls, reeling: boolean): void {
+    const combo = afterTrainingStep(this.state, { dummy: this.dummy(), fullMeter: this.fullMeter() }, this.combo(), reeling);
+    if (combo.hits !== this.combo().hits || combo.shown === 0 || combo.shown % 30 === 0) this.combo.set(combo);
+    const entry = inputEntry(this.state.fighters[0], mine);
+    if (entry !== this.lastInput) {
+      this.inputs.set(logInput(this.inputs(), entry, this.lastInput));
+      this.lastInput = entry;
+    }
+  }
+
+  protected setDummy(d: DummyMode): void {
+    this.dummy.set(d);
+    this.combo.set(NO_COMBO);
   }
 
   /** Speech bubbles are cosmetic: they never touch the fight state. */
@@ -306,7 +341,7 @@ export class FightPage {
     if (this.opponent?.boss && s.winner === 0) result = `${this.opponent.character.name} ist besiegt! Du hast das Büro erobert!`;
     this.hud.set({
       fighters: [fighter(0), fighter(1)],
-      seconds: Math.ceil((ROUND_FRAMES - s.frame) / FPS),
+      seconds: this.training ? Infinity : Math.ceil((ROUND_FRAMES - s.frame) / FPS),
       round: s.round,
       wins: s.wins,
       call: roundBanner(s),
