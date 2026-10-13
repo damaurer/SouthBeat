@@ -8,6 +8,8 @@ export const serverRoutes: ServerRoute[] = [
   // Both select screens read the picks from the query string.
   { path: 'select', renderMode: RenderMode.Client },
   { path: 'arena', renderMode: RenderMode.Client },
+  // Key bindings live in the browser.
+  { path: 'controls', renderMode: RenderMode.Client },
   {
     path: '**',
     renderMode: RenderMode.Prerender

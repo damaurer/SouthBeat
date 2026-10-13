@@ -29,6 +29,18 @@ export const ATTACK_SLOTS: readonly MoveSlot[] = ['light', 'heavy', 'kick', 'spe
 const KEY_NAMES: Record<string, string> = {
   Semicolon: 'Ö',
   Quote: 'Ä',
+  BracketLeft: 'Ü',
+  Space: 'Leertaste',
+  Enter: 'Enter',
+  ShiftLeft: 'Shift links',
+  ShiftRight: 'Shift rechts',
+  ControlLeft: 'Strg links',
+  ControlRight: 'Strg rechts',
+  AltLeft: 'Alt',
+  AltRight: 'Alt Gr',
+  Backspace: '⌫',
+  Tab: 'Tab',
+  NumpadEnter: 'Num Enter',
   ArrowUp: '↑',
   ArrowDown: '↓',
   ArrowLeft: '←',
@@ -36,5 +48,5 @@ const KEY_NAMES: Record<string, string> = {
 };
 
 export function keyName(code: string): string {
-  return KEY_NAMES[code] ?? code.replace(/^Key/, '').replace(/^Numpad/, 'Num ');
+  return KEY_NAMES[code] ?? code.replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, 'Num ');
 }

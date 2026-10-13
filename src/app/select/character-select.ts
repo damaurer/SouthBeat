@@ -2,7 +2,8 @@ import { Component, DestroyRef, computed, inject, input, linkedSignal, output, s
 import { RouterLink } from '@angular/router';
 import { CharacterStore } from '../character/character-store';
 import { STAT_KEYS, STAT_LABELS } from '../character/character.model';
-import { KEYS, keyName } from '../fight/controls';
+import { KeyMap } from '../fight/controls';
+import { KeyBindings } from '../fight/key-bindings';
 import { FighterPortrait } from './fighter-portrait';
 import { RANDOM_FIGHTER, RosterEntry, roster } from './roster';
 
@@ -45,8 +46,11 @@ export class CharacterSelect {
   private readonly store = inject(CharacterStore);
   protected readonly statKeys = STAT_KEYS;
   protected readonly statLabels = STAT_LABELS;
-  protected readonly keys = KEYS;
-  protected readonly keyName = keyName;
+  private readonly bindings = inject(KeyBindings);
+  protected get keys(): [KeyMap, KeyMap] {
+    return this.bindings.keys();
+  }
+  protected readonly keyName = (code: string): string => this.bindings.name(code);
   protected readonly random = RANDOM_FIGHTER;
 
   protected readonly entries = computed(() => roster(this.store.saved(), this.store.ladderBeaten()));
@@ -162,7 +166,7 @@ export class CharacterSelect {
 
   private key(e: KeyboardEvent): void {
     for (const p of [0, 1] as const) {
-      const k = KEYS[p];
+      const k = this.keys[p];
       if (!Object.values(k).includes(e.code)) continue;
       if (p === 1 && this.solo()) continue;
       e.preventDefault();

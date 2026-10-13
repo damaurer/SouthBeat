@@ -1,0 +1,44 @@
+<section class="controls-page">
+  <header>
+    <a routerLink="/">← Zurück</a>
+    <h1>Steuerung</h1>
+  </header>
+  <p>Klicke auf eine Taste und drücke dann die neue. Esc bricht ab. Ist die Taste schon belegt, tauschen die beiden Belegungen. Die Einstellung gilt nur auf diesem PC; im Online-Kampf spielst du mit deinen Tasten für Spieler 1.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Aktion</th>
+        @for (p of players; track p) {
+          <th [class]="p === 0 ? 'p1' : 'p2'">Spieler {{ p + 1 }}</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (a of actions; track a) {
+        <tr>
+          <th scope="row">{{ labels[a] }}</th>
+          @for (p of players; track p) {
+            <td>
+              <button type="button" class="key" [class.listening]="isListening(p, a)" (click)="listen(p, a)" [attr.aria-label]="'Spieler ' + (p + 1) + ', ' + labels[a]">
+                {{ isListening(p, a) ? 'Taste drücken …' : bindings.name(bindings.keys()[p][a]) }}
+              </button>
+            </td>
+          }
+        </tr>
+      }
+    </tbody>
+    <tfoot>
+      <tr>
+        <td></td>
+        @for (p of players; track p) {
+          <td><button type="button" class="reset" (click)="reset(p)">Standard</button></td>
+        }
+      </tr>
+    </tfoot>
+  </table>
+
+  @if (notice(); as n) {
+    <p class="notice" role="status">{{ n }}</p>
+  }
+</section>

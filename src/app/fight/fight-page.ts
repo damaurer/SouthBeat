@@ -8,7 +8,8 @@ import { MoveSlot } from '../character/character.model';
 import { Controls, DEFAULT_CPU, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS, cpuControls, createFight, step } from './combat';
 import { OPPONENTS, findOpponent } from '../singleplayer/opponents';
 import { Spark, renderFight } from './render';
-import { GAME_KEYS, KEYS, KeyMap, keyName } from './controls';
+import { KeyMap } from './controls';
+import { KeyBindings } from './key-bindings';
 import { picksFromQuery } from '../select/select-page';
 import { OWN_FIGHTER, RosterEntry, resolvePick, roster } from '../select/roster';
 import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from './hit-lines';
@@ -60,7 +61,10 @@ export class FightPage {
   protected readonly width = ARENA_WIDTH;
   protected readonly height = ARENA_HEIGHT;
   protected readonly meterMax = METER_MAX;
-  protected readonly keys = KEYS;
+  private readonly bindings = inject(KeyBindings);
+  protected get keys(): [KeyMap, KeyMap] {
+    return this.bindings.keys();
+  }
   /** Free fights get their fighters and mode from the select screens. */
   protected readonly picks = picksFromQuery(this.query) ?? { p1: OWN_FIGHTER, p2: 'sparring', mode: 'cpu' as Mode };
   protected readonly mode = signal<Mode>(this.opponent ? 'cpu' : this.picks.mode);
@@ -94,7 +98,7 @@ export class FightPage {
       const ctx = this.canvas().nativeElement.getContext('2d')!;
       const arena = paintArena(this.arena);
       const onDown = (e: KeyboardEvent): void => {
-        if (!GAME_KEYS.has(e.code)) return;
+        if (!this.bindings.isGameKey(e.code)) return;
         e.preventDefault();
         if (!e.repeat) this.pressed.add(e.code);
         this.held.add(e.code);
@@ -159,10 +163,10 @@ export class FightPage {
 
   private tick(): void {
     const controls: [Controls, Controls] = [
-      this.read(KEYS[0]),
+      this.read(this.keys[0]),
       this.opponent || this.mode() === 'cpu'
         ? cpuControls(this.state, 1, this.random, this.cpu)
-        : this.read(KEYS[1]),
+        : this.read(this.keys[1]),
     ];
     this.pressed.clear();
     step(this.state, controls);
@@ -255,6 +259,6 @@ export class FightPage {
   }
 
   protected keyName(code: string): string {
-    return keyName(code);
+    return this.bindings.name(code);
   }
 }

@@ -7,7 +7,8 @@ import { ARENAS, findArena, paintArena } from '../arena/arenas';
 import { ARENA_HEIGHT, ARENA_WIDTH, GROUND_Y } from '../arena/props';
 import { Painter, seeded } from '../arena/painter';
 import { FightState, METER_MAX, ROUND_FRAMES, FPS } from '../fight/combat';
-import { ATTACK_SLOTS, KEYS, keyName } from '../fight/controls';
+import { ATTACK_SLOTS, KeyMap } from '../fight/controls';
+import { KeyBindings } from '../fight/key-bindings';
 import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from '../fight/hit-lines';
 import { Spark, renderFight } from '../fight/render';
 import { CharacterSelect, FighterPicks } from '../select/character-select';
@@ -49,8 +50,12 @@ export class OnlinePage {
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
 
   protected readonly arenas = ARENAS;
-  protected readonly keys = KEYS[0];
-  protected readonly keyName = keyName;
+  private readonly bindings = inject(KeyBindings);
+  /** Online you always play with your player 1 keys, as set up on this PC. */
+  protected get keys(): KeyMap {
+    return this.bindings.keys()[0];
+  }
+  protected readonly keyName = (code: string): string => this.bindings.name(code);
   protected readonly width = ARENA_WIDTH;
   protected readonly height = ARENA_HEIGHT;
   protected readonly meterMax = METER_MAX;

@@ -4,7 +4,8 @@ import { CharacterStore } from '../character/character-store';
 import { seeded } from './painter';
 import { ARENAS, Arena } from './arenas';
 import { ArenaCanvas } from './arena-canvas';
-import { KEYS, keyName } from '../fight/controls';
+import { KeyMap } from '../fight/controls';
+import { KeyBindings } from '../fight/key-bindings';
 import { OWN_FIGHTER, resolvePick, roster } from '../select/roster';
 import { picksFromQuery } from '../select/select-page';
 
@@ -29,8 +30,11 @@ export class ArenaSelect {
 
   protected readonly arenas = ARENAS;
   protected readonly randomId = RANDOM_ARENA;
-  protected readonly keys = KEYS;
-  protected readonly keyName = keyName;
+  private readonly bindings = inject(KeyBindings);
+  protected get keys(): [KeyMap, KeyMap] {
+    return this.bindings.keys();
+  }
+  protected readonly keyName = (code: string): string => this.bindings.name(code);
   /** Index into the arenas; one past the end is the random tile. */
   protected readonly cursor = signal(0);
   protected readonly selected = computed<Arena | null>(() => ARENAS[this.cursor()] ?? null);
@@ -66,7 +70,7 @@ export class ArenaSelect {
   }
 
   private key(e: KeyboardEvent): void {
-    const k = KEYS.find((m) => Object.values(m).includes(e.code));
+    const k = this.keys.find((m) => Object.values(m).includes(e.code));
     if (!k) return;
     e.preventDefault();
     const count = ARENAS.length + 1;

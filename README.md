@@ -28,6 +28,8 @@ Ein 2D-Pixel-Art-Beat-'em-up als Webanwendung, gebaut mit Angular und Server-Sid
 
 Springen mit W bzw. ↑, Ducken mit S bzw. ↓. Ö und Ä beziehen sich auf die deutsche Tastatur.
 
+Die Tabelle zeigt die Standardbelegung. Unter **Steuerung** (`/controls`, Startseite) lässt sich jede Taste für Spieler 1 und Spieler 2 neu belegen: Feld anklicken, neue Taste drücken, Esc bricht ab. Ist die Taste schon belegt, tauschen die beiden Belegungen. „Standard“ setzt einen Spieler zurück. Die Belegung wird im Browser gespeichert und gilt damit pro PC; im Online-Kampf spielt jeder mit seinen eigenen Tasten für Spieler 1.
+
 Das Kampfsystem orientiert sich an Street Fighter:
 
 - **Blocken**: Vom Gegner weg halten blockt. Stehend blockst du mittlere Angriffe und Sprungangriffe, geduckt (zurück + unten) mittlere Angriffe und Feger. Geblockte Normalangriffe machen keinen Schaden, Spezialangriffe und Ultimates ziehen ein Viertel ab. Nach einem Block steckt man kurz im Blockstun.

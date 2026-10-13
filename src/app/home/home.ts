@@ -12,6 +12,7 @@ import { RouterLink } from '@angular/router';
       <a routerLink="/editor">Charakter erstellen</a>
       <a routerLink="/select">Freier Kampf</a>
       <a routerLink="/online">Online-Kampf</a>
+      <a routerLink="/controls">Steuerung</a>
     </main>
   `,
   styles: `
