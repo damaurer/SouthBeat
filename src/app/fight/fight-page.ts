@@ -2,12 +2,13 @@ import { Component, DestroyRef, ElementRef, afterNextRender, effect, inject, sig
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CharacterStore } from '../character/character-store';
 import { findArena, paintArena } from '../arena/arenas';
-import { ARENA_HEIGHT, ARENA_WIDTH, GROUND_Y } from '../arena/props';
+import { ARENA_HEIGHT, ARENA_WIDTH } from '../arena/props';
 import { seeded } from '../arena/painter';
 import { MoveSlot } from '../character/character.model';
 import { Controls, DEFAULT_CPU, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS, cpuControls, createFight, step } from './combat';
 import { OPPONENTS, findOpponent } from '../singleplayer/opponents';
-import { Spark, renderFight } from './render';
+import { Effects } from './effects';
+import { fightEffects, renderFight } from './render';
 import { KeyMap } from './controls';
 import { KeyBindings } from './key-bindings';
 import { picksFromQuery } from '../select/select-page';
@@ -72,7 +73,7 @@ export class FightPage {
 
   private state!: FightState;
   private cpu = DEFAULT_CPU;
-  private sparks: Spark[] = [];
+  private readonly fx = new Effects();
   private banner: { text: string; frames: number } | null = null;
   private bubbles: [{ text: string; until: number } | null, { text: string; until: number } | null] = [null, null];
   private nextBubbleAt = 0;
@@ -119,7 +120,7 @@ export class FightPage {
           this.tick();
           carry -= 1 / FPS;
         }
-        const frame = renderFight(arena, this.state, this.sparks);
+        const frame = renderFight(arena, this.state, this.fx);
         ctx.putImageData(new ImageData(frame.toRgba(), frame.width, frame.height), 0, 0);
         raf = requestAnimationFrame(loop);
       };
@@ -149,7 +150,7 @@ export class FightPage {
     const [a, b] = this.lineup();
     this.cpu = b.cpu;
     this.state = createFight(a.character, b.character, this.arena.id);
-    this.sparks = [];
+    this.fx.clear();
     this.banner = null;
     this.bubbles = [null, null];
     this.nextBubbleAt = FPS / 2;
@@ -173,17 +174,12 @@ export class FightPage {
 
     for (const e of this.state.events) {
       if (e.type === 'hit') {
-        const target = this.state.fighters[1 - e.attacker];
-        this.sparks.push({ x: target.x, y: GROUND_Y - 28 - target.y, life: 12, big: e.slot === 'ultimate' });
         this.reactToHit((1 - e.attacker) as 0 | 1, e.slot);
-      } else if (e.type === 'block') {
-        const target = this.state.fighters[1 - e.attacker];
-        this.sparks.push({ x: target.x + target.facing * 10, y: GROUND_Y - 28 - target.y, life: 10, big: false, blocked: true });
       } else if (e.type === 'ultimate') {
         this.banner = { text: `${this.state.fighters[e.fighter].character.name}: ${e.move.name}!`, frames: 90 };
       }
     }
-    this.sparks = this.sparks.filter((s) => --s.life > 0);
+    fightEffects(this.fx, this.state);
     this.updateBubble();
     if (this.opponent && this.state.winner !== null && !this.resultRecorded) {
       this.resultRecorded = true;

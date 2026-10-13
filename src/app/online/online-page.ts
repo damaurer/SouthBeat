@@ -4,13 +4,14 @@ import { Router, RouterLink } from '@angular/router';
 import { CharacterStore } from '../character/character-store';
 import { Character } from '../character/character.model';
 import { ARENAS, findArena, paintArena } from '../arena/arenas';
-import { ARENA_HEIGHT, ARENA_WIDTH, GROUND_Y } from '../arena/props';
+import { ARENA_HEIGHT, ARENA_WIDTH } from '../arena/props';
 import { Painter, seeded } from '../arena/painter';
 import { FightState, METER_MAX, ROUND_FRAMES, FPS } from '../fight/combat';
 import { ATTACK_SLOTS, KeyMap } from '../fight/controls';
 import { KeyBindings } from '../fight/key-bindings';
 import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from '../fight/hit-lines';
-import { Spark, renderFight } from '../fight/render';
+import { Effects } from '../fight/effects';
+import { fightEffects, renderFight } from '../fight/render';
 import { CharacterSelect, FighterPicks } from '../select/character-select';
 import { FighterPortrait } from '../select/fighter-portrait';
 import { RosterEntry, builtInFighter, resolvePick, roster } from '../select/roster';
@@ -116,7 +117,7 @@ export class OnlinePage {
   private recordedRun = 0;
   private state: FightState | null = null;
   private matchArena = '';
-  private sparks: Spark[] = [];
+  private readonly fx = new Effects();
   private bannerUntil = 0;
   private recorded = false;
   private random = seeded(Date.now());
@@ -267,7 +268,7 @@ export class OnlinePage {
         this.arena = paintArena(arena);
         this.arenaName.set(arena.name);
         this.state = null;
-        this.sparks = [];
+        this.fx.clear();
         this.recorded = false;
         this.hitDecks = msg.rosterIds.map((id) => new LineDeck(builtInFighter(id)?.hitLines ?? HIT_LINES)) as [LineDeck, LineDeck];
         this.lastHitLine = [-Infinity, -Infinity];
@@ -299,14 +300,10 @@ export class OnlinePage {
     if (!this.characters || !this.arena) return;
     const state = stateFrom(snapshot, this.characters, this.matchArena);
     this.state = state;
+    fightEffects(this.fx, state);
     for (const e of state.events) {
       if (e.type === 'hit') {
-        const target = (1 - e.attacker) as 0 | 1;
-        this.sparks.push({ x: state.fighters[target].x, y: GROUND_Y - 28 - state.fighters[target].y, life: 12, big: e.slot === 'ultimate' });
-        this.reactToHit(target, e.slot);
-      } else if (e.type === 'block') {
-        const t = state.fighters[1 - e.attacker];
-        this.sparks.push({ x: t.x + t.facing * 10, y: GROUND_Y - 28 - t.y, life: 10, big: false, blocked: true });
+        this.reactToHit((1 - e.attacker) as 0 | 1, e.slot);
       } else if (e.type === 'ultimate') {
         this.banner.set(`${this.characters[e.fighter].name}: ${e.move.name}!`);
         this.bannerUntil = state.frame + 90;
@@ -373,8 +370,7 @@ export class OnlinePage {
   private draw(): void {
     const canvas = this.canvas()?.nativeElement;
     if (!canvas || !this.state || !this.arena) return;
-    this.sparks = this.sparks.filter((s) => --s.life > 0);
-    const frame = renderFight(this.arena, this.state, this.sparks);
+    const frame = renderFight(this.arena, this.state, this.fx);
     canvas.getContext('2d')!.putImageData(new ImageData(frame.toRgba(), frame.width, frame.height), 0, 0);
   }
 

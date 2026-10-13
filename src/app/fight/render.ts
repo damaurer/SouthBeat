@@ -1,18 +1,15 @@
-import { Painter } from '../arena/painter';
+import { Painter, shade } from '../arena/painter';
 import { GROUND_Y } from '../arena/props';
 import { SPRITE_HEIGHT, SPRITE_WIDTH, Pixel, spritePixels } from '../character/sprite';
 import { FightState, FighterState, isActive, projectileLift, projectileX, reachOf } from './combat';
 import { Appearance, usesCustomArt } from '../character/character.model';
 import { ART_PALETTE, ART_SIZE, DEFAULT_ART } from '../character/projectile-art';
+import { Outcome, poseFor } from './animate';
+import { Effects } from './effects';
+import { posedSprite } from './pose';
 
-export interface Spark {
-  x: number;
-  y: number;
-  life: number;
-  big: boolean;
-  /** Blocked hits get a blue guard spark instead of a hit spark. */
-  blocked?: boolean;
-}
+export { drawSpark } from './effects';
+export type { Spark } from './effects';
 
 const CHEST_Y = GROUND_Y - 30;
 const KNEE_Y = GROUND_Y - 14;
@@ -32,11 +29,8 @@ const ULTIMATE_COLORS: Record<string, [string, string]> = {
   'infinite-loop': ['#9b59ff', '#5ad1ff'],
 };
 
-/** Caches sprite pixels per fighter so they are not rebuilt every frame. */
+/** Caches sprite pixels per look so they are not rebuilt every frame. */
 const spriteCache = new WeakMap<object, Pixel[]>();
-function pixelsFor(f: FighterState): Pixel[] {
-  return cachedSprite(f.character.appearance);
-}
 
 export function cachedSprite(look: Appearance): Pixel[] {
   let pixels = spriteCache.get(look);
@@ -47,31 +41,52 @@ export function cachedSprite(look: Appearance): Pixel[] {
   return pixels;
 }
 
-export function renderFight(arena: Painter, state: FightState, sparks: Spark[]): Painter {
+export function renderFight(arena: Painter, state: FightState, fx: Effects): Painter {
   const p = arena.clone();
-  state.fighters.forEach((f) => drawFighter(p, f, state.frame));
+  state.fighters.forEach((f) => drawShadow(p, Math.round(f.x), GROUND_Y, 9 - Math.min(4, Math.round(f.y / 10))));
+  state.fighters.forEach((f, i) => drawFighter(p, f, state.frame, outcomeOf(state, i)));
   state.fighters.forEach((f) => drawAttack(p, f, state.frame));
-  for (const s of sparks) drawSpark(p, s);
-  return p;
+  fx.draw(p);
+  return fx.shaken(p);
 }
 
-/** Crouching folds the legs: rows in this band are dropped and everything above moves down. */
-const CROUCH_FROM = 30;
-const CROUCH_DROP = 10;
-
-export function isCrouched(f: FighterState): boolean {
-  if (f.action) return f.action.stance === 'crouch';
-  return f.y === 0 && (f.crouching || f.guard === 'low');
+/**
+ * Feeds one fight frame into the effects: sparks and debris for hits and blocks, dust for
+ * landings, knockdowns and running. Call once per game frame, after `step`.
+ */
+export function fightEffects(fx: Effects, state: FightState): void {
+  for (const e of state.events) {
+    if (e.type !== 'hit' && e.type !== 'block') continue;
+    const attacker = state.fighters[e.attacker];
+    const target = state.fighters[1 - e.attacker];
+    const low = attacker.action?.level === 'low';
+    const y = (low ? GROUND_Y - 12 : GROUND_Y - 30) - Math.round(target.y);
+    const x = e.type === 'block' ? target.x + target.facing * 10 : target.x - attacker.facing * 4;
+    fx.hit(x, y, attacker.facing, { big: e.slot === 'ultimate', heavy: e.slot === 'heavy' || e.slot === 'kick' || e.slot === 'special', blocked: e.type === 'block' });
+  }
+  state.fighters.forEach((f, i) => fx.watch(i, f.x, GROUND_Y, f));
+  fx.step();
 }
 
-function drawFighter(p: Painter, f: FighterState, frame: number): void {
-  let x = Math.round(f.x) - SPRITE_WIDTH / 2;
+function outcomeOf(state: FightState, i: number): Outcome {
+  if (state.winner === null || state.winner === 'draw') return null;
+  return state.winner === i ? 'won' : 'lost';
+}
+
+/** A soft dark patch on the floor under a fighter. */
+export function drawShadow(p: Painter, x: number, ground: number, half: number): void {
+  for (let dy = -1; dy <= 0; dy++) {
+    const w = dy === 0 ? half : half - 2;
+    for (let dx = -w; dx < w; dx++) {
+      const px = x + dx;
+      const py = ground + dy;
+      if (px >= 0 && px < p.width && py >= 0 && py < p.height) p.set(px, py, shade(p.get(px, py), -0.4));
+    }
+  }
+}
+
+function drawFighter(p: Painter, f: FighterState, frame: number, outcome: Outcome): void {
   const a = f.action;
-  if (a) x += a.frame <= a.startup ? -f.facing : f.facing * 3;
-  const flash = f.hitstun > 0 && f.hitstun % 6 < 3;
-  let pixels = flash ? pixelsFor(f).map((px) => ({ ...px, fill: '#ffffff' })) : pixelsFor(f);
-  const top = GROUND_Y - SPRITE_HEIGHT - Math.round(f.y);
-
   if (a?.slot === 'ultimate' && a.frame <= a.startup) {
     // Charging aura around the fighter.
     const color = frame % 4 < 2 ? '#ffe66d' : '#ffffff';
@@ -80,27 +95,16 @@ function drawFighter(p: Painter, f: FighterState, frame: number): void {
       p.set(f.x + Math.cos(angle) * 20, GROUND_Y - 24 + Math.sin(angle) * 28, color);
     }
   }
-  if (f.knockedDown && f.y === 0) {
-    // Lying flat, head pointing away from the opponent, squeezed to half height.
-    for (const px of pixels) {
-      const lx = f.facing === 1 ? SPRITE_HEIGHT - 1 - px.y : px.y;
-      p.set(Math.round(f.x) - SPRITE_HEIGHT / 2 + lx, GROUND_Y - 1 - Math.floor((SPRITE_WIDTH - 1 - px.x) / 2), px.fill);
-    }
-    return;
-  }
-  if (isCrouched(f)) {
-    pixels = pixels
-      .filter((px) => px.y < CROUCH_FROM || px.y >= CROUCH_FROM + CROUCH_DROP)
-      .map((px) => (px.y < CROUCH_FROM ? { ...px, y: px.y + CROUCH_DROP } : px));
-  }
-  p.sprite(x, top, pixels, SPRITE_WIDTH, f.facing === -1);
-  if (f.guard && f.blockstun > 0) {
-    // Raised forearms while blocking.
-    const gy = top + (f.guard === 'low' ? CROUCH_DROP : 0) + 18;
-    const gx = Math.round(f.x) + f.facing * 9;
-    p.rect(gx - 1, gy, 3, 8, '#9fd8ff');
-  }
+  const flash = f.hitstun > 0 && !f.knockedDown && f.hitstun % 6 < 2;
+  let pixels = posedSprite(f.character.appearance, poseFor(f, frame, outcome));
+  if (flash) pixels = pixels.map((px) => ({ ...px, fill: '#ffffff' }));
+  const left = Math.round(f.x) - SPRITE_WIDTH / 2;
+  const top = GROUND_Y - SPRITE_HEIGHT - Math.round(f.y);
+  p.sprite(left, top, pixels, SPRITE_WIDTH, f.facing === -1);
 }
+
+/** Crouching lowers attacks by this many pixels. */
+const CROUCH_DROP = 9;
 
 function drawAttack(p: Painter, f: FighterState, frame: number): void {
   const a = f.action;
@@ -109,6 +113,7 @@ function drawAttack(p: Painter, f: FighterState, frame: number): void {
   if (!a || !(isActive(f) || showBeam)) return;
   const front = f.x + f.facing * 12;
   const reach = reachOf(a.move);
+  const fresh = a.frame - a.startup <= 4;
   // Jumping fighters attack from higher up, crouching ones from lower down.
   const lift = -Math.round(f.y) + (a.stance === 'crouch' ? CROUCH_DROP : 0);
   const box = (dx: number, y: number, w: number, h: number, color: string): void => {
@@ -176,18 +181,21 @@ function drawAttack(p: Painter, f: FighterState, frame: number): void {
   }
 
   switch (a.slot) {
+    // Normal attacks show the swing itself; short speed lines trail the fist or foot.
     case 'light':
-      box(reach - 18, CHEST_Y, 5, 4, '#f2f2f2');
-      box(reach - 24, CHEST_Y + 1, 5, 1, '#9aa5b1');
+      if (fresh) box(reach - 30, CHEST_Y + 1, 8, 1, '#ffffff');
       return;
     case 'heavy':
-      box(reach - 20, CHEST_Y - 3, 8, 7, '#ffe66d');
-      box(reach - 30, CHEST_Y - 1, 9, 1, '#ffffff');
-      box(reach - 30, CHEST_Y + 2, 9, 1, '#ffffff');
+      if (fresh) {
+        box(reach - 36, CHEST_Y - 1, 12, 1, '#ffffff');
+        box(reach - 34, CHEST_Y + 2, 9, 1, '#ffe66d');
+      }
       return;
     case 'kick':
-      box(reach - 20, KNEE_Y, 9, 4, '#f2f2f2');
-      box(reach - 30, KNEE_Y + 1, 9, 1, '#9aa5b1');
+      if (fresh) {
+        box(reach - 34, KNEE_Y - 2, 10, 1, '#ffffff');
+        box(reach - 32, KNEE_Y + 1, 7, 1, '#9aa5b1');
+      }
       return;
     case 'special': {
       const [c1, c2] = SPECIAL_COLORS[a.move.id] ?? ['#ffffff', '#cccccc'];
@@ -311,14 +319,4 @@ function drawTank(p: Painter, x: number, facing: 1 | -1, frame: number, ground: 
   p.rect(x - 8, g - 22, 14, 6, dark);
   p.rect(facing === 1 ? x + 6 : x - 22, g - 20, 16, 2, dark);
   p.rect(x - 4, g - 13, 4, 3, '#e8c547');
-}
-
-export function drawSpark(p: Painter, s: Spark): void {
-  const r = s.big ? 10 - s.life / 3 : 5 - s.life / 4;
-  const color = s.blocked ? (s.life % 4 < 2 ? '#ffffff' : '#5ad1ff') : s.life % 4 < 2 ? '#ffffff' : '#ffe66d';
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2;
-    p.set(s.x + Math.cos(angle) * r, s.y + Math.sin(angle) * r, color);
-    p.set(s.x + Math.cos(angle) * (r - 2), s.y + Math.sin(angle) * (r - 2), color);
-  }
 }

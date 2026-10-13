@@ -4,9 +4,9 @@ import { ARENA_HEIGHT, ARENA_WIDTH } from '../arena/props';
 import { Painter, seeded } from '../arena/painter';
 import { FPS, METER_MAX } from '../fight/combat';
 import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from '../fight/hit-lines';
-import { Spark } from '../fight/render';
+import { Effects } from '../fight/effects';
 import { Brawler, StageState } from './brawl';
-import { renderStage, feetY } from './render-stage';
+import { renderStage, stageEffects } from './render-stage';
 import { GRUNT_TYPES, ITEM_NAMES, STAGES, paintStage } from './stages';
 
 interface BrawlerHud {
@@ -57,7 +57,7 @@ export class StageScreen {
   private state: StageState | null = null;
   private run = 0;
   private world: Painter | null = null;
-  private sparks: Spark[] = [];
+  private readonly fx = new Effects();
   private bannerUntil = 0;
   private clearedShown = false;
   private dirty = false;
@@ -87,7 +87,6 @@ export class StageScreen {
       if (e.type === 'hit') {
         const t = s.brawlers.find((b) => b.id === e.target);
         if (!t) continue;
-        this.sparks.push({ x: t.x, y: feetY(t.z) - 28, life: 12, big: e.slot === 'ultimate', blocked: e.armored });
         this.react(s, t, e.slot);
       } else if (e.type === 'pickup') {
         const who = s.brawlers.find((b) => b.id === e.who);
@@ -103,7 +102,7 @@ export class StageScreen {
       this.clearedShown = true;
       this.flash(s, s.stage.index + 1 < STAGES.length ? 'Stage geschafft!' : 'Alle Stages geschafft!', 180);
     }
-    this.sparks = this.sparks.filter((sp) => --sp.life > 0);
+    stageEffects(this.fx, s);
     this.talk(s);
     if (this.banner() && s.frame >= this.bannerUntil) this.banner.set(null);
     this.go.set(s.phase === 'go');
@@ -114,7 +113,7 @@ export class StageScreen {
   private begin(s: StageState, run: number): void {
     this.run = run;
     this.world = paintStage(s.stage);
-    this.sparks = [];
+    this.fx.clear();
     this.clearedShown = false;
     this.bubble.set(null);
     this.chatter = new LineDeck(s.stage.boss.lines);
@@ -179,7 +178,7 @@ export class StageScreen {
     const canvas = this.canvas()?.nativeElement;
     if (!canvas || !this.state || !this.world) return;
     this.dirty = false;
-    const frame = renderStage(this.world, this.state, this.sparks);
+    const frame = renderStage(this.world, this.state, this.fx);
     canvas.getContext('2d')!.putImageData(new ImageData(frame.toRgba(), frame.width, frame.height), 0, 0);
   }
 }

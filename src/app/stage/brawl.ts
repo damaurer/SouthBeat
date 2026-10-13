@@ -27,6 +27,9 @@ const TIMING: Record<MoveSlot, { recovery: number; hitstun: number; knockback: n
   ultimate: { recovery: 24, hitstun: 45, knockback: 22 },
 };
 
+/** Shorter freezes than in the duel, since many more hits land in a brawl. */
+const STAGE_HITSTOP: Record<MoveSlot, number> = { light: 2, kick: 4, heavy: 5, special: 4, ultimate: 9 };
+
 export type Team = 'player' | 'enemy';
 export type Brain = 'human' | 'ally' | 'grunt' | 'boss';
 
@@ -73,6 +76,9 @@ export interface Brawler {
   out: boolean;
   /** AI: frames until it may attack again. */
   cooldown: number;
+  /** Frames walked in a row and frames lying on the floor, for the animations. */
+  walkFrames: number;
+  downFrames: number;
 }
 
 export interface Projectile {
@@ -121,6 +127,8 @@ export interface StageState {
   events: StageEvent[];
   nextId: number;
   bossId: number | null;
+  /** Frames the action freezes after a hit. */
+  hitstop: number;
 }
 
 export interface StagePlayer {
@@ -142,6 +150,7 @@ export function createStage(stage: StageDef, players: StagePlayer[], carry?: Bra
     events: [],
     nextId: 1,
     bossId: null,
+    hitstop: 0,
   };
   players.forEach((p, i) => {
     const b = brawler(state, 'player', p.brain, p.character, maxHpFor(p.character), DEFAULT_CPU, 1);
@@ -187,6 +196,8 @@ function brawler(state: StageState, team: Team, brain: Brain, character: Charact
     downFor: 0,
     out: false,
     cooldown: 30,
+    walkFrames: 0,
+    downFrames: 0,
   };
 }
 
@@ -230,9 +241,16 @@ export function stepStage(state: StageState, controls: Controls[], random: () =>
   state.events = [];
   if (state.phase === 'cleared' || state.phase === 'gameover') return;
   state.frame++;
+  if (state.hitstop > 0) {
+    state.hitstop--;
+    return;
+  }
   const players = state.brawlers.filter((b) => b.team === 'player');
 
   for (const b of state.brawlers) {
+    const walked = b.walkFrames;
+    b.walkFrames = 0;
+    b.downFrames = b.knockedDown ? b.downFrames + 1 : 0;
     if (b.invulnerable > 0) b.invulnerable--;
     if (b.out) continue;
     if (b.hp <= 0) {
@@ -249,7 +267,7 @@ export function stepStage(state: StageState, controls: Controls[], random: () =>
       continue;
     }
     const c = b.brain === 'human' ? controls[b.player ?? 0] ?? NO_CONTROLS : think(state, b, random);
-    act(state, b, c);
+    if (act(state, b, c)) b.walkFrames = walked + 1;
   }
 
   moveProjectiles(state);
@@ -260,11 +278,12 @@ export function stepStage(state: StageState, controls: Controls[], random: () =>
 
 const NO_CONTROLS: Controls = { left: false, right: false, up: false, down: false, light: false, heavy: false, kick: false, special: false, ultimate: false };
 
-function act(state: StageState, b: Brawler, c: Controls): void {
+/** Starts an attack or walks; returns whether the fighter walked. */
+function act(state: StageState, b: Brawler, c: Controls): boolean {
   const slot: MoveSlot | null = c.ultimate && b.meter >= METER_MAX ? 'ultimate' : c.heavy ? 'heavy' : c.kick ? 'kick' : c.special ? 'special' : c.light ? 'light' : null;
   if (slot) {
     start(state, b, slot);
-    return;
+    return false;
   }
   const dx = (c.right ? 1 : 0) - (c.left ? 1 : 0);
   // Up walks into the depth of the floor, down towards the front.
@@ -273,6 +292,7 @@ function act(state: StageState, b: Brawler, c: Controls): void {
   b.x += dx * speed;
   b.z = Math.max(0, Math.min(DEPTH, b.z + dz * speed * 0.6));
   if (dx !== 0) b.facing = dx > 0 ? 1 : -1;
+  return dx !== 0 || dz !== 0;
 }
 
 function start(state: StageState, b: Brawler, slot: MoveSlot): void {
@@ -348,6 +368,7 @@ function strike(state: StageState, from: Brawler, to: Brawler, slot: MoveSlot, m
     // Armored enemies take the damage but keep going.
     from.meter = Math.min(METER_MAX, from.meter + damage * 1.2);
     state.events.push({ type: 'hit', attacker: from.id, target: to.id, slot, damage, armored: true });
+    state.hitstop = Math.max(state.hitstop, 2);
     return;
   }
   const knockdown = slot === 'kick' || slot === 'ultimate' || to.hp === 0;
@@ -359,6 +380,7 @@ function strike(state: StageState, from: Brawler, to: Brawler, slot: MoveSlot, m
   if (slot !== 'ultimate') from.meter = Math.min(METER_MAX, from.meter + damage * 1.2);
   to.meter = Math.min(METER_MAX, to.meter + damage * 0.8);
   state.events.push({ type: 'hit', attacker: from.id, target: to.id, slot, damage });
+  state.hitstop = Math.max(state.hitstop, STAGE_HITSTOP[slot]);
   if (to.hp === 0) state.events.push({ type: 'ko', target: to.id });
 }
 

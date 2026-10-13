@@ -66,6 +66,7 @@ export function stateFrom(snapshot: FightSnapshot, characters: [Character, Chara
     frame: snapshot.frame,
     winner: snapshot.winner,
     events: snapshot.events,
+    hitstop: 0,
     fighters: [
       { ...snapshot.fighters[0], character: characters[0] },
       { ...snapshot.fighters[1], character: characters[1] },

@@ -98,6 +98,10 @@ export interface FighterState {
   /** Progress of the ↓↘→ motion: 1 after ↓, 2 after ↘. */
   motionStep: number;
   buffered: { slot: MoveSlot; frames: number } | null;
+  /** Frames walked in a row, for the walking animation. */
+  walkFrames: number;
+  /** Frames spent lying on the floor, for the fall and get-up animation. */
+  downFrames: number;
 }
 
 export type FightEvent =
@@ -113,6 +117,8 @@ export interface FightState {
   /** Index of the winning fighter, 'draw', or null while the round runs. */
   winner: 0 | 1 | 'draw' | null;
   events: FightEvent[];
+  /** Frames the fight freezes after a hit, so every hit lands with weight. */
+  hitstop: number;
 }
 
 export function maxHpFor(c: Character): number {
@@ -153,8 +159,10 @@ export function createFight(a: Character, b: Character, arenaId: string): FightS
     motion: 0,
     motionStep: 0,
     buffered: null,
+    walkFrames: 0,
+    downFrames: 0,
   });
-  return { arenaId, frame: 0, fighters: [fighter(a, 86, 1), fighter(b, 154, -1)], winner: null, events: [] };
+  return { arenaId, frame: 0, fighters: [fighter(a, 86, 1), fighter(b, 154, -1)], winner: null, events: [], hitstop: 0 };
 }
 
 export function canUseUltimate(f: FighterState): boolean {
@@ -172,6 +180,8 @@ const MOTION_WINDOW = 12;
 const BLOCKSTUN_SHARE = 0.6;
 const CHIP_SHARE = 0.25;
 const KNOCKDOWN_FRAMES = 50;
+/** Freeze frames per hit: the harder the hit, the longer the impact holds. */
+export const HITSTOP: Record<MoveSlot, number> = { light: 4, kick: 6, heavy: 7, special: 6, ultimate: 12 };
 
 export function isAirborne(f: FighterState): boolean {
   return f.y > 0;
@@ -182,8 +192,20 @@ export function step(state: FightState, controls: [Controls, Controls]): void {
   state.events = [];
   if (state.winner !== null) return;
   state.frame++;
+  if (state.hitstop > 0) {
+    // Frozen for a moment after a hit; buttons pressed meanwhile still count afterwards.
+    state.hitstop--;
+    state.fighters.forEach((f, i) => {
+      const pressed = pressedSlot(f, controls[i]);
+      if (pressed) f.buffered = { slot: pressed, frames: BUFFER_FRAMES };
+    });
+    return;
+  }
 
   state.fighters.forEach((f, i) => {
+    const walked = f.walkFrames;
+    f.walkFrames = 0;
+    f.downFrames = f.knockedDown ? f.downFrames + 1 : 0;
     const o = state.fighters[1 - i];
     const c = controls[i];
     const forward = f.facing === 1 ? c.right : c.left;
@@ -238,6 +260,7 @@ export function step(state: FightState, controls: [Controls, Controls]): void {
     if (f.crouching) return;
     const dir = (c.right ? 1 : 0) - (c.left ? 1 : 0);
     f.x += dir * walkSpeed(f.character) * (back ? BACK_WALK : 1);
+    if (dir !== 0) f.walkFrames = walked + 1;
   });
 
   const [a, b] = state.fighters;
@@ -341,6 +364,7 @@ function advanceAction(state: FightState, i: number, f: FighterState, o: Fighter
       o.x += (f.facing * knockback) / 2;
       o.meter = Math.min(METER_MAX, o.meter + full * METER_PER_DAMAGE_TAKEN * 0.5);
       state.events.push({ type: 'block', attacker: i, slot: action.slot, damage: chip });
+      state.hitstop = Math.max(state.hitstop, 3);
     } else {
       o.hp = Math.max(0, o.hp - full);
       // A started ultimate cannot be interrupted, otherwise the spent bar would be lost.
@@ -361,6 +385,7 @@ function advanceAction(state: FightState, i: number, f: FighterState, o: Fighter
       if (action.slot !== 'ultimate') f.meter = Math.min(METER_MAX, f.meter + full * METER_PER_DAMAGE_DEALT);
       o.meter = Math.min(METER_MAX, o.meter + full * METER_PER_DAMAGE_TAKEN);
       state.events.push({ type: 'hit', attacker: i, slot: action.slot, damage: full });
+      state.hitstop = Math.max(state.hitstop, HITSTOP[action.slot]);
     }
   }
   if (action.frame >= action.total) f.action = null;

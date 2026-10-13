@@ -4,7 +4,10 @@ import { usesCustomArt } from '../character/character.model';
 import { DEFAULT_ART } from '../character/projectile-art';
 import { SPRITE_HEIGHT, SPRITE_WIDTH } from '../character/sprite';
 import { reachOf } from '../fight/combat';
-import { Spark, cachedSprite, drawArt, drawProjectile, drawSpark } from '../fight/render';
+import { poseFor } from '../fight/animate';
+import { Effects } from '../fight/effects';
+import { posedSprite } from '../fight/pose';
+import { drawArt, drawProjectile } from '../fight/render';
 import { Brawler, Item, Projectile, StageState } from './brawl';
 
 /** Screen row of a fighter's feet; deeper on the floor means higher up on screen. */
@@ -14,7 +17,7 @@ export function feetY(z: number): number {
 
 type Drawable = { z: number; draw: (p: Painter) => void };
 
-export function renderStage(world: Painter, state: StageState, sparks: Spark[]): Painter {
+export function renderStage(world: Painter, state: StageState, fx: Effects): Painter {
   const cam = Math.round(state.cameraX);
   const p = new Painter(ARENA_WIDTH, ARENA_HEIGHT);
   for (let y = 0; y < ARENA_HEIGHT; y++) {
@@ -27,8 +30,22 @@ export function renderStage(world: Painter, state: StageState, sparks: Spark[]):
     ...state.projectiles.map((pr) => ({ z: pr.z - 0.1, draw: (q: Painter) => drawShot(q, pr, cam, state.frame) })),
   ];
   scene.sort((a, b) => b.z - a.z).forEach((d) => d.draw(p));
-  for (const s of sparks) drawSpark(p, { ...s, x: s.x - cam });
-  return p;
+  fx.draw(p, cam);
+  return fx.shaken(p);
+}
+
+/** Sparks for hits and dust for landings and falls; call once per stage frame. */
+export function stageEffects(fx: Effects, state: StageState): void {
+  for (const e of state.events) {
+    if (e.type !== 'hit') continue;
+    const from = state.brawlers.find((b) => b.id === e.attacker);
+    const t = state.brawlers.find((b) => b.id === e.target);
+    if (!t) continue;
+    const dir = from ? from.facing : t.facing === 1 ? -1 : 1;
+    fx.hit(t.x - dir * 3, feetY(t.z) - 28, dir, { big: e.slot === 'ultimate', heavy: e.slot !== 'light', blocked: e.armored });
+  }
+  for (const b of state.brawlers) if (!b.out) fx.watch(b.id, b.x, feetY(b.z), b);
+  fx.step();
 }
 
 function drawBrawler(p: Painter, b: Brawler, cam: number, frame: number): void {
@@ -37,26 +54,16 @@ function drawBrawler(p: Painter, b: Brawler, cam: number, frame: number): void {
   // Shadow on the floor.
   shadow(p, x, feet, 7);
   if (b.invulnerable > 0 && frame % 8 < 4) return;
-  const flash = b.hitstun > 0 && b.hitstun % 6 < 3 && !b.knockedDown;
-  const pixels = cachedSprite(b.character.appearance);
-  const fill = (c: string): string => (flash ? '#ffffff' : c);
-  if (b.knockedDown) {
-    for (const px of pixels) {
-      const lx = b.facing === 1 ? SPRITE_HEIGHT - 1 - px.y : px.y;
-      p.set(x - SPRITE_HEIGHT / 2 + lx, feet - 1 - Math.floor((SPRITE_WIDTH - 1 - px.x) / 2), fill(px.fill));
-    }
-    return;
-  }
+  const flash = b.hitstun > 0 && b.hitstun % 6 < 2 && !b.knockedDown;
+  let pixels = posedSprite(b.character.appearance, poseFor(b, frame));
+  if (flash) pixels = pixels.map((px) => ({ ...px, fill: '#ffffff' }));
+  p.sprite(x - SPRITE_WIDTH / 2, feet - SPRITE_HEIGHT, pixels, SPRITE_WIDTH, b.facing === -1);
   const a = b.action;
-  const lean = a ? (a.frame <= a.startup ? -b.facing : b.facing * 3) : 0;
-  const left = x - SPRITE_WIDTH / 2 + lean;
-  const top = feet - SPRITE_HEIGHT;
-  for (const px of pixels) p.set(left + (b.facing === -1 ? SPRITE_WIDTH - 1 - px.x : px.x), top + px.y, fill(px.fill));
-  if (b.weapon) {
+  if (b.weapon && !b.knockedDown) {
     // A keyboard held in the front hand.
-    const hx = x + b.facing * (a && a.frame > a.startup ? 14 : 9);
-    p.rect(hx - 5, feet - 26, 11, 4, '#1c1c24');
-    for (let i = 0; i < 4; i++) p.rect(hx - 4 + i * 3, feet - 25, 2, 1, '#d0d4dc');
+    const hx = x + b.facing * (a && a.frame > a.startup ? 17 : 11);
+    p.rect(hx - 5, feet - 24, 11, 4, '#1c1c24');
+    for (let i = 0; i < 4; i++) p.rect(hx - 4 + i * 3, feet - 23, 2, 1, '#d0d4dc');
   }
   if (a && a.frame > a.startup && a.frame <= a.startup + Math.max(a.active, a.slot === 'ultimate' ? 18 : 0) && !a.move.projectileSpeed) {
     drawSwing(p, b, x, feet, frame);
@@ -67,25 +74,34 @@ function drawSwing(p: Painter, b: Brawler, x: number, feet: number, frame: numbe
   const a = b.action!;
   const chest = feet - 30;
   const reach = reachOf(a.move);
+  const fresh = a.frame - a.startup <= 4;
   const box = (dx: number, y: number, w: number, h: number, color: string): void => {
     const x0 = b.facing === 1 ? x + 12 + dx : x - 12 - dx - w;
     p.rect(x0, y, w, h, color);
   };
+  // The limbs show the swing; speed lines trail the fist or foot for a moment.
   switch (a.slot) {
     case 'light':
-      box(reach - 18, chest, 5, 4, '#f2f2f2');
+      if (fresh) box(reach - 30, chest + 1, 8, 1, '#ffffff');
       return;
     case 'heavy':
-      box(reach - 20, chest - 3, 8, 7, '#ffe66d');
+      if (fresh) {
+        box(reach - 36, chest - 1, 12, 1, '#ffffff');
+        box(reach - 34, chest + 2, 9, 1, '#ffe66d');
+      }
       return;
     case 'kick':
-      box(reach - 20, feet - 14, 9, 4, '#f2f2f2');
+      if (fresh) {
+        box(reach - 34, feet - 16, 10, 1, '#ffffff');
+        box(reach - 32, feet - 13, 7, 1, '#9aa5b1');
+      }
       return;
     case 'special':
       if (a.move.dashSpeed) {
         for (let i = 0; i < 4; i++) box(-30 - (i % 2) * 4, chest - 8 + i * 6, 10, 1, '#ffffff');
-      } else {
-        box(reach - 20, chest - 3, 6, 6, '#ff8fb1');
+      } else if (fresh) {
+        box(reach - 34, chest, 10, 1, '#ff8fb1');
+        box(reach - 32, chest + 3, 8, 1, '#ffffff');
       }
       return;
     case 'ultimate':

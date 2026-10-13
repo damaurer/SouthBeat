@@ -1,7 +1,9 @@
 import { Painter, seeded, shade } from '../arena/painter';
 import { ARENA_HEIGHT, ARENA_WIDTH } from '../arena/props';
-import { Appearance } from '../character/character.model';
-import { SPRITE_HEIGHT, SPRITE_WIDTH, spritePixels } from '../character/sprite';
+import { Appearance, MoveSlot, findMove } from '../character/character.model';
+import { SPRITE_HEIGHT, SPRITE_WIDTH } from '../character/sprite';
+import { Animated, poseFor } from '../fight/animate';
+import { posedSprite } from '../fight/pose';
 
 /**
  * The animated title background: a night skyline scrolling in three parallax layers,
@@ -21,7 +23,6 @@ export class TitleScene {
   private readonly sky: Painter;
   private readonly layers: Layer[];
   private readonly stars: { x: number; y: number; phase: number }[];
-  private readonly sprites = new Map<Appearance, ReturnType<typeof spritePixels>>();
 
   constructor() {
     const r = seeded(7);
@@ -54,41 +55,45 @@ export class TitleScene {
     return p;
   }
 
-  /** A sparring loop: the fighters bob, take turns lunging, and the one hit flashes and slides back. */
+  /** A sparring loop: the fighters take turns with a punch, a haymaker or a kick, and the one hit reels back. */
   private fighters(p: Painter, frame: number, left: Appearance, right: Appearance): void {
     const cycle = frame % 120;
-    const leftTurn = Math.floor(frame / 120) % 2 === 0;
+    const round = Math.floor(frame / 120);
+    const leftTurn = round % 2 === 0;
+    const slot = SPARRING[Math.floor(round / 2) % SPARRING.length];
     const lunge = cycle >= 60 && cycle < 72 ? Math.min(cycle - 60, 6) : cycle >= 72 && cycle < 84 ? Math.max(0, 84 - cycle) / 2 : 0;
     const hit = cycle >= 66 && cycle < 80;
     const recoil = hit ? 3 : 0;
-    const bob = (offset: number): number => (Math.floor((frame + offset) / 20) % 2 === 0 ? 0 : 1);
+    const idle: Animated = { action: null, hitstun: 0, knockedDown: false, downFrames: 0, walkFrames: 0, hp: 1 };
+    const move = findMove(SPARRING_MOVES[slot])!;
+    const attacker: Animated = cycle >= 52 && cycle < 90 ? { ...idle, action: { slot, move, frame: cycle - 52, startup: 10, active: 6, total: 38 } } : idle;
+    const target: Animated = hit ? { ...idle, hitstun: 80 - cycle } : idle;
     const lx = 86 + (leftTurn ? lunge : -recoil);
     const rx = 154 - (leftTurn ? -recoil : lunge);
-    this.draw(p, left, lx, ROOF_Y + 14 - SPRITE_HEIGHT + bob(0), false, !leftTurn && hit && frame % 4 < 2);
-    this.draw(p, right, rx, ROOF_Y + 14 - SPRITE_HEIGHT + bob(10), true, leftTurn && hit && frame % 4 < 2);
+    this.draw(p, left, lx, ROOF_Y + 14 - SPRITE_HEIGHT, false, leftTurn ? attacker : target, frame, !leftTurn && hit && frame % 4 < 2);
+    this.draw(p, right, rx, ROOF_Y + 14 - SPRITE_HEIGHT, true, leftTurn ? target : attacker, frame + 17, leftTurn && hit && frame % 4 < 2);
     if (hit) {
-      const sx = leftTurn ? rx - 12 : lx + 12;
+      const sx = leftTurn ? rx - 10 : lx + 10;
       const rad = 3 + (cycle - 66) / 2;
+      const y = slot === 'kick' ? ROOF_Y - 2 : ROOF_Y - 16;
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2;
-        p.set(sx + Math.cos(a) * rad, ROOF_Y - 16 + Math.sin(a) * rad, frame % 4 < 2 ? '#ffffff' : '#ffe66d');
+        p.set(sx + Math.cos(a) * rad, y + Math.sin(a) * rad, frame % 4 < 2 ? '#ffffff' : '#ffe66d');
       }
     }
   }
 
-  private draw(p: Painter, look: Appearance, x: number, top: number, mirror: boolean, flash: boolean): void {
+  private draw(p: Painter, look: Appearance, x: number, top: number, mirror: boolean, state: Animated, frame: number, flash: boolean): void {
     const cx = Math.round(x);
-    let pixels = this.sprites.get(look);
-    if (!pixels) {
-      pixels = spritePixels(look);
-      this.sprites.set(look, pixels);
-    }
+    const pixels = posedSprite(look, poseFor(state, frame));
     // Shadow.
     for (let dx = -8; dx < 8; dx++) p.set(cx + dx, top + SPRITE_HEIGHT, shade(p.get(Math.max(0, Math.min(W - 1, cx + dx)), Math.min(H - 1, top + SPRITE_HEIGHT)), -0.4));
-    const left = Math.round(cx - SPRITE_WIDTH / 2);
-    for (const px of pixels) p.set(left + (mirror ? SPRITE_WIDTH - 1 - px.x : px.x), top + px.y, flash ? '#ffffff' : px.fill);
+    p.sprite(Math.round(cx - SPRITE_WIDTH / 2), top, flash ? pixels.map((px) => ({ ...px, fill: '#ffffff' })) : pixels, SPRITE_WIDTH, mirror);
   }
 }
+
+const SPARRING: MoveSlot[] = ['light', 'heavy', 'kick'];
+const SPARRING_MOVES: Record<string, string> = { light: 'keyboard-jab', heavy: 'monitor-slam', kick: 'chair-spin' };
 
 /** One layer of office towers with lit windows, twice the screen wide so it can wrap. */
 function skyline(r: () => number, color: string, minTop: number, maxTop: number, lit: number, light: string): Painter {
