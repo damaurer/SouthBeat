@@ -2,6 +2,8 @@
 
 Ein 2D-Pixel-Art-Beat-'em-up als Webanwendung, gebaut mit Angular und Server-Side Rendering (SSR).
 
+![Titelbildschirm: dein Kämpfer sparrt nachts auf dem Dach gegen Gustav Großmaul](docs/images/title.png)
+
 ## Spielidee
 
 - **Eigene Charaktere erstellen:** Im Charakter-Editor gestalten Spieler vor allem das Aussehen und die Moves ihrer Kämpfer.
@@ -9,6 +11,26 @@ Ein 2D-Pixel-Art-Beat-'em-up als Webanwendung, gebaut mit Angular und Server-Sid
 - **Kämpfer:** Alle Kämpfer sind Programmierer, ihre Moves kommen vom Schreibtisch (Tastatur-Jab, Kaffee-Wurf, Merge-Konflikt …).
 - **Schauplatz:** Gekämpft wird in Büros, vom Bunker-Office bis zur Dachterrasse.
 - **Multiplayer:** Die erstellten Charaktere treten online gegeneinander an.
+
+## Pixel-Art
+
+Alles im Spiel ist Pixel-Art, die der Code selbst zeichnet: 240×135 Pixel große Szenen und 32×48 Pixel große Kämpfer. Die Bilder hier sind direkt aus dem Spielcode gerendert und ohne Glättung vergrößert (`npm run images` erzeugt sie neu in `docs/images`).
+
+**Die Kämpfer:** dein Standard-Kämpfer, der Sparringspartner und die Einzelspieler-Leiter von Bernd Brummer bis zum Endboss Gustav Großmaul.
+
+![Die Kämpfer nebeneinander](docs/images/fighters.png)
+
+**Kampf** auf der Dachterrasse mit den Tomatenbeeten, gegen Gustav Großmaul:
+
+![Kampf auf der Dachterrasse](docs/images/fight.png)
+
+**Die 10 Arenen:** Bunker-Office, Dachterrasse, Großraumbüro, Serverraum, Startup-Loft, Teeküche, Meetingraum, Chefbüro, Garagen-Start-up und Hackathon-Nacht.
+
+![Alle Arenen](docs/images/arenas.png)
+
+**Stage-Modus** zu zweit durch die Teeküche:
+
+![Stage-Modus in der Teeküche](docs/images/stage.png)
 
 ## Stand
 

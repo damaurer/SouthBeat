@@ -11,7 +11,8 @@
     "test:server": "node scripts/test-server.mjs",
     "content": "node scripts/content.mjs",
     "lint": "eslint src scripts e2e",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "images": "node scripts/readme-images.mjs"
   },
   "prettier": {
     "printWidth": 100,
