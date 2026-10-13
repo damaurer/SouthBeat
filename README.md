@@ -22,8 +22,11 @@ Ein 2D-Pixel-Art-Beat-'em-up als Webanwendung, gebaut mit Angular und Server-Sid
 
 | | Laufen | Leicht | Schwer | Tritt | Spezial | Ultimate |
 | --- | --- | --- | --- | --- | --- | --- |
-| Spieler 1 | A / D | F | G | H | T | Leertaste |
-| Spieler 2 | ← / → | J | K | L | I | Enter |
+| Spieler 1 | A / D | J | K | L | Ö | Ä |
+| Spieler 2 | ← / → | Num 1 | Num 2 | Num 3 | Num 4 | Num 5 |
+
+W / S und ↑ / ↓ sind für Springen und Ducken reserviert. Ö und Ä beziehen sich auf die deutsche Tastatur.
+
 - **Einzelspieler** (`/singleplayer`): Eine Gegnerleiter durch die Chefetage. Jeder Sieg schaltet den nächsten Gegner frei, der Fortschritt landet in der Datendatei.
 
 | Gegner | Rolle | Stil | Arena |

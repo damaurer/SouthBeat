@@ -14,7 +14,9 @@ import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from './hit-lin
 type Mode = 'cpu' | 'local';
 
 interface KeyMap {
+  up: string;
   left: string;
+  down: string;
   right: string;
   light: string;
   heavy: string;
@@ -23,9 +25,14 @@ interface KeyMap {
   ultimate: string;
 }
 
+/**
+ * Player 1 uses WASD and J K L Ö Ä on a German keyboard (Ö and Ä sit where US layouts
+ * have ; and ', which is what KeyboardEvent.code reports). Player 2 uses the arrow keys and
+ * the number pad. Up and down are reserved for jumping and ducking.
+ */
 const KEYS: [KeyMap, KeyMap] = [
-  { left: 'KeyA', right: 'KeyD', light: 'KeyF', heavy: 'KeyG', kick: 'KeyH', special: 'KeyT', ultimate: 'Space' },
-  { left: 'ArrowLeft', right: 'ArrowRight', light: 'KeyJ', heavy: 'KeyK', kick: 'KeyL', special: 'KeyI', ultimate: 'Enter' },
+  { up: 'KeyW', left: 'KeyA', down: 'KeyS', right: 'KeyD', light: 'KeyJ', heavy: 'KeyK', kick: 'KeyL', special: 'Semicolon', ultimate: 'Quote' },
+  { up: 'ArrowUp', left: 'ArrowLeft', down: 'ArrowDown', right: 'ArrowRight', light: 'Numpad1', heavy: 'Numpad2', kick: 'Numpad3', special: 'Numpad4', ultimate: 'Numpad5' },
 ];
 const GAME_KEYS = new Set(KEYS.flatMap((k) => Object.values(k)));
 
@@ -251,6 +258,15 @@ export class FightPage {
   }
 
   protected keyName(code: string): string {
-    return code.replace(/^Key/, '').replace('Arrow', '').replace('Left', '←').replace('Right', '→').replace('Space', 'Leertaste');
+    return KEY_NAMES[code] ?? code.replace(/^Key/, '').replace(/^Numpad/, 'Num ');
   }
 }
+
+const KEY_NAMES: Record<string, string> = {
+  Semicolon: 'Ö',
+  Quote: 'Ä',
+  ArrowUp: '↑',
+  ArrowDown: '↓',
+  ArrowLeft: '←',
+  ArrowRight: '→',
+};
