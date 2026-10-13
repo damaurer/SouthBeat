@@ -39,6 +39,10 @@ export interface Move {
   hits?: number;
   /** Projectile speed in pixels per frame; the move hits when the projectile reaches the target. */
   projectileSpeed?: number;
+  /** Peak height of a lobbed projectile in pixels. */
+  arc?: number;
+  /** The fighter rushes forward this many pixels per frame while the move is active. */
+  dashSpeed?: number;
   /** Signature moves of single-player opponents can't be picked in the editor. */
   exclusive?: boolean;
 }
@@ -50,6 +54,28 @@ export interface Character {
   appearance: Appearance;
   moves: MoveSet;
   stats: Stats;
+  /** The player's own drawing for thrown special attacks (see projectile-art.ts). */
+  projectileArt?: string[];
+}
+
+export type SpecialKind = 'projectile' | 'arc' | 'dash' | 'melee';
+
+export const SPECIAL_KIND_LABELS: Record<SpecialKind, string> = {
+  projectile: 'Geschoss',
+  arc: 'Bogenwurf',
+  dash: 'Sturmangriff',
+  melee: 'Nahkampf',
+};
+
+export function specialKind(move: Move): SpecialKind {
+  if (move.projectileSpeed) return move.arc ? 'arc' : 'projectile';
+  if (move.dashSpeed) return 'dash';
+  return 'melee';
+}
+
+/** Thrown moves that show the player's own drawing; opponents' signature throws keep theirs. */
+export function usesCustomArt(move: Move): boolean {
+  return !move.exclusive && !!move.projectileSpeed;
 }
 
 export const STAT_KEYS: readonly StatKey[] = ['strength', 'speed', 'defense', 'stamina'];
@@ -136,7 +162,11 @@ export const MOVES: readonly Move[] = [
   { id: 'laptop-uppercut', name: 'Laptop-Uppercut', slot: 'heavy', damage: 10, startupFrames: 10 },
   { id: 'chair-spin', name: 'Drehstuhl-Kick', slot: 'kick', damage: 9, startupFrames: 11 },
   { id: 'cable-sweep', name: 'Kabelsalat-Feger', slot: 'kick', damage: 7, startupFrames: 8 },
-  { id: 'coffee-throw', name: 'Kaffee-Wurf', slot: 'special', damage: 8, startupFrames: 13, projectileSpeed: 4 },
+  // Special attacks come in four kinds: thrown straight, lobbed, rushing in, and close combat.
+  { id: 'coffee-throw', name: 'Kaffee-Wurf', slot: 'special', damage: 8, startupFrames: 13, reach: 120, projectileSpeed: 4 },
+  { id: 'usb-shot', name: 'USB-Stick-Schuss', slot: 'special', damage: 6, startupFrames: 9, reach: 150, projectileSpeed: 6 },
+  { id: 'keyboard-lob', name: 'Tastatur-Bogenwurf', slot: 'special', damage: 11, startupFrames: 16, reach: 110, projectileSpeed: 3, arc: 30 },
+  { id: 'deadline-dash', name: 'Deadline-Sprint', slot: 'special', damage: 9, startupFrames: 10, reach: 28, dashSpeed: 4, hitstun: 22 },
   { id: 'merge-conflict', name: 'Merge-Konflikt', slot: 'special', damage: 11, startupFrames: 16 },
   { id: 'stack-overflow', name: 'Stack Overflow', slot: 'special', damage: 10, startupFrames: 7 },
   // Ultimates only work with a full action bar.

@@ -52,6 +52,13 @@ describe('GameDataRules', () => {
     expect(() => rules.recordLadder(a.id, { opponentId: 'chef', won: true })).toThrowError(GameDataError);
   });
 
+  it('stores the drawn projectile and rejects broken drawings', () => {
+    const c = defaultCharacter();
+    const art = c.projectileArt!.map((row, y) => (y === 0 ? '444444444444' : row));
+    expect(rules.createFighter({ ...c, projectileArt: art }).projectileArt).toEqual(art);
+    expect(() => rules.createFighter({ ...c, projectileArt: ['<script>'] })).toThrowError(GameDataError);
+  });
+
   it('rejects signature moves of opponents for players', () => {
     const c = defaultCharacter();
     expect(() => rules.createFighter({ ...c, moves: { ...c.moves, special: 'tank-roll' } })).toThrowError(GameDataError);

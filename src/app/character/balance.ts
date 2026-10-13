@@ -11,6 +11,7 @@ import {
   Stats,
   findMove,
 } from './character.model';
+import { DEFAULT_ART, isValidArt } from './projectile-art';
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
@@ -73,6 +74,9 @@ export function characterErrors(character: Character): string[] {
   ) {
     errors.push('Ungültiges Aussehen.');
   }
+  if (character.projectileArt !== undefined && !isValidArt(character.projectileArt)) {
+    errors.push('Ungültige Geschoss-Zeichnung.');
+  }
   for (const slot of MOVE_SLOTS) {
     const move = findMove(character.moves[slot]);
     if (!move || move.slot !== slot || move.exclusive) {
@@ -98,5 +102,6 @@ export function defaultCharacter(): Character {
     },
     moves: { light: 'keyboard-jab', heavy: 'laptop-uppercut', kick: 'chair-spin', special: 'coffee-throw', ultimate: 'friday-deploy' },
     stats: { strength: 5, speed: 5, defense: 5, stamina: 5 },
+    projectileArt: [...DEFAULT_ART],
   };
 }

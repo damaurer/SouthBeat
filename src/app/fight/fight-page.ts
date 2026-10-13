@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, afterNextRender, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CharacterStore } from '../character/character-store';
 import { SPARRING_PARTNER } from '../character/sparring';
@@ -82,6 +82,13 @@ export class FightPage {
   constructor() {
     const destroyRef = inject(DestroyRef);
     this.reset();
+    // The player's fighter may arrive from the server just after the page opens; restart with it if the round has barely begun.
+    effect(() => {
+      const fighter = this.store.saved();
+      untracked(() => {
+        if (this.state.fighters[0].character !== fighter && this.state.frame < FPS) this.reset();
+      });
+    });
     afterNextRender(() => {
       const ctx = this.canvas().nativeElement.getContext('2d')!;
       const arena = paintArena(this.arena);

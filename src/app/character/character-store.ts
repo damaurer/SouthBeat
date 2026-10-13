@@ -90,7 +90,13 @@ export class CharacterStore {
 }
 
 /** Fighters saved before a field existed get its default. */
-function toCharacter({ name, appearance, moves, stats }: StoredFighter): Character {
+function toCharacter({ name, appearance, moves, stats, projectileArt }: StoredFighter): Character {
   const defaults = defaultCharacter();
-  return { name, appearance: { ...defaults.appearance, ...appearance }, moves: { ...defaults.moves, ...moves }, stats };
+  return {
+    name,
+    appearance: { ...defaults.appearance, ...appearance },
+    moves: { ...defaults.moves, ...moves },
+    stats,
+    projectileArt: projectileArt ?? defaults.projectileArt,
+  };
 }

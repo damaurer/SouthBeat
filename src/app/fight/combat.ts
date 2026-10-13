@@ -191,6 +191,8 @@ function startAction(state: FightState, i: number, f: FighterState, slot: MoveSl
 function advanceAction(state: FightState, i: number, f: FighterState, o: FighterState): void {
   const action = f.action!;
   action.frame++;
+  // Rushing attacks carry the fighter forward until they connect.
+  if (action.move.dashSpeed && isActive(f) && action.hitsLanded === 0) f.x += f.facing * action.move.dashSpeed;
   if (isActive(f) && landsHit(f, o, action)) {
     action.hitsLanded++;
     const move = action.move;
@@ -220,9 +222,20 @@ function landsHit(f: FighterState, o: FighterState, a: Action): boolean {
   return window >= a.hitsLanded && inReach(f, o, a.slot);
 }
 
+const DASH_FRAMES = 12;
+
 function activeFramesFor(move: Move): number {
   if (move.projectileSpeed) return Math.ceil((reachOf(move) - 12) / move.projectileSpeed);
+  if (move.dashSpeed) return DASH_FRAMES;
   return ACTIVE_FRAMES * (move.hits ?? 1);
+}
+
+/** How high a lobbed projectile currently flies above its start, in pixels. */
+export function projectileLift(f: FighterState): number {
+  const a = f.action;
+  if (!a?.move.arc || a.frame <= a.startup) return 0;
+  const t = Math.min(1, (a.frame - a.startup) / a.active);
+  return a.move.arc * 4 * t * (1 - t);
 }
 
 /** Where a thrown move's projectile currently is, or null for melee moves. */

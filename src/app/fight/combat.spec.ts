@@ -1,7 +1,7 @@
 import { defaultCharacter } from '../character/balance';
 import { SPARRING_PARTNER } from '../character/sparring';
 import { seeded } from '../arena/painter';
-import { Controls, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, canUseUltimate, cpuControls, createFight, step } from './combat';
+import { Controls, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, canUseUltimate, cpuControls, createFight, projectileLift, step } from './combat';
 
 function press(c: Partial<Controls>): Controls {
   return { ...NO_INPUT, ...c };
@@ -76,6 +76,34 @@ describe('combat', () => {
     step(s, [press({ light: true }), NO_INPUT]);
     for (let i = 0; i < 10; i++) step(s, [NO_INPUT, NO_INPUT]);
     expect(s.fighters[1].action?.slot).toBe('ultimate');
+  });
+
+  it('rushes in with a dash special and hits from mid range', () => {
+    const c = defaultCharacter();
+    const t = createFight({ ...c, moves: { ...c.moves, special: 'deadline-dash' } }, SPARRING_PARTNER, 'bunker');
+    t.fighters[0].x = 60;
+    t.fighters[1].x = 110;
+    step(t, [NO_INPUT, NO_INPUT]);
+    step(t, [press({ special: true }), NO_INPUT]);
+    settle(t);
+    expect(t.fighters[0].x).toBeGreaterThan(80);
+    expect(t.fighters[1].hp).toBeLessThan(t.fighters[1].maxHp);
+  });
+
+  it('lobs a keyboard in an arc that lands at range', () => {
+    const c = defaultCharacter();
+    const t = createFight({ ...c, moves: { ...c.moves, special: 'keyboard-lob' } }, SPARRING_PARTNER, 'bunker');
+    t.fighters[0].x = 60;
+    t.fighters[1].x = 150;
+    step(t, [NO_INPUT, NO_INPUT]);
+    step(t, [press({ special: true }), NO_INPUT]);
+    let peak = 0;
+    for (let i = 0; i < 80; i++) {
+      step(t, [NO_INPUT, NO_INPUT]);
+      peak = Math.max(peak, projectileLift(t.fighters[0]));
+    }
+    expect(peak).toBeGreaterThan(20);
+    expect(t.fighters[1].hp).toBeLessThan(t.fighters[1].maxHp);
   });
 
   it('ends the round on knockout and on time', () => {

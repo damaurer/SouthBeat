@@ -1,7 +1,9 @@
 import { Painter } from '../arena/painter';
 import { GROUND_Y } from '../arena/props';
 import { SPRITE_HEIGHT, SPRITE_WIDTH, Pixel, spritePixels } from '../character/sprite';
-import { FightState, FighterState, isActive, projectileX, reachOf } from './combat';
+import { FightState, FighterState, isActive, projectileLift, projectileX, reachOf } from './combat';
+import { usesCustomArt } from '../character/character.model';
+import { ART_PALETTE, ART_SIZE, DEFAULT_ART } from '../character/projectile-art';
 
 export interface Spark {
   x: number;
@@ -77,7 +79,15 @@ function drawAttack(p: Painter, f: FighterState, frame: number): void {
 
   const thrown = projectileX(f);
   if (thrown !== null) {
-    drawProjectile(p, a.move.id, thrown, f.facing, frame);
+    // A projectile disappears once it has hit.
+    if (a.hitsLanded >= (a.move.hits ?? 1)) return;
+    const y = CHEST_Y - Math.round(projectileLift(f));
+    if (usesCustomArt(a.move)) drawArt(p, f.character.projectileArt ?? DEFAULT_ART, thrown, y, f.facing, frame);
+    else drawProjectile(p, a.move.id, thrown, f.facing, frame);
+    return;
+  }
+  if (a.move.dashSpeed) {
+    for (let i = 0; i < 4; i++) box(-30 - (i % 2) * 4, CHEST_Y - 8 + i * 6, 10 + (i % 2) * 6, 1, '#ffffff');
     return;
   }
 
@@ -146,6 +156,18 @@ function drawAttack(p: Painter, f: FighterState, frame: number): void {
       return;
     }
   }
+}
+
+/** Draws the player's own projectile drawing, centered on (x, y) and facing the throw direction. */
+function drawArt(p: Painter, art: string[], x: number, y: number, facing: 1 | -1, frame: number): void {
+  const left = Math.round(x) - ART_SIZE / 2;
+  const top = y - ART_SIZE / 2 + (frame % 8 < 4 ? 0 : 1);
+  art.forEach((row, ay) => {
+    for (let ax = 0; ax < ART_SIZE; ax++) {
+      const color = ART_PALETTE[row[ax]];
+      if (color) p.set(left + (facing === 1 ? ax : ART_SIZE - 1 - ax), top + ay, color);
+    }
+  });
 }
 
 function drawTomato(p: Painter, x: number, y: number): void {

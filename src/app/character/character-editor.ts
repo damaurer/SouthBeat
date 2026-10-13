@@ -17,18 +17,23 @@ import {
   OUTFIT_STYLES,
   SLOT_LABELS,
   STAT_KEYS,
+  SPECIAL_KIND_LABELS,
   STAT_LABELS,
   StatKey,
   findMove,
   movesForSlot,
+  specialKind,
+  usesCustomArt,
 } from './character.model';
 import { STAT_MAX, STAT_MIN, adjustStat, canDecrease, canIncrease, characterErrors, remainingPoints } from './balance';
 import { CharacterStore } from './character-store';
 import { SpritePreview } from './sprite-preview';
+import { PixelEditor } from './pixel-editor';
+import { DEFAULT_ART } from './projectile-art';
 
 @Component({
   selector: 'app-character-editor',
-  imports: [SpritePreview, RouterLink],
+  imports: [SpritePreview, RouterLink, PixelEditor],
   templateUrl: './character-editor.html',
   styleUrl: './character-editor.scss',
 })
@@ -60,6 +65,16 @@ export class CharacterEditor {
   protected readonly statMin = STAT_MIN;
   protected readonly statMax = STAT_MAX;
   protected readonly movesForSlot = movesForSlot;
+  protected readonly kindLabel = (id: string): string => {
+    const move = findMove(id);
+    return move ? SPECIAL_KIND_LABELS[specialKind(move)] : '';
+  };
+  /** The drawing only matters for thrown specials, so the editor only shows it then. */
+  protected readonly throwsArt = computed(() => {
+    const move = findMove(this.draft().moves.special);
+    return !!move && usesCustomArt(move);
+  });
+  protected readonly art = computed(() => this.draft().projectileArt ?? DEFAULT_ART);
   protected readonly findMove = findMove;
 
   protected setName(name: string): void {
@@ -72,6 +87,10 @@ export class CharacterEditor {
 
   protected setMove(slot: MoveSlot, id: string): void {
     this.update((c) => ({ ...c, moves: { ...c.moves, [slot]: id } }));
+  }
+
+  protected setArt(art: string[]): void {
+    this.update((c) => ({ ...c, projectileArt: art }));
   }
 
   protected changeStat(key: StatKey, delta: 1 | -1): void {

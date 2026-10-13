@@ -80,13 +80,21 @@
             <select (change)="setMove(slot, $any($event.target).value)">
               @for (move of movesForSlot(slot); track move.id) {
                 <option [value]="move.id" [selected]="move.id === draft().moves[slot]">
-                  {{ move.name }} ({{ move.damage }} Schaden, {{ move.startupFrames }}f)
+                  {{ move.name }} ({{ slot === 'special' ? kindLabel(move.id) + ', ' : '' }}{{ move.damage }} Schaden, {{ move.startupFrames }}f)
                 </option>
               }
             </select>
           </label>
         }
       </fieldset>
+
+      @if (throwsArt()) {
+        <fieldset>
+          <legend>Dein Geschoss</legend>
+          <p class="hint">Zeichne, was du bei deinem Spezialangriff wirfst. So sieht es im Kampf aus.</p>
+          <app-pixel-editor [art]="art()" (artChange)="setArt($event)" />
+        </fieldset>
+      }
 
       <fieldset>
         <legend>Werte <span class="budget">{{ remaining() }} Punkte übrig</span></legend>

@@ -141,6 +141,7 @@ export class GameDataRules {
       },
       moves: Object.fromEntries(MOVE_SLOTS.map((s) => [s, raw.moves?.[s]])),
       stats: Object.fromEntries(STAT_KEYS.map((k) => [k, raw.stats?.[k]])),
+      ...(raw.projectileArt !== undefined ? { projectileArt: raw.projectileArt } : {}),
     } as Character;
     const errors = characterErrors(character);
     if (errors.length > 0) throw new GameDataError(400, errors.join(' '));
