@@ -99,7 +99,7 @@
             </label>
           }
         }
-        <button type="button" class="reset" (click)="resetShape()" [disabled]="!shaped()">Alle Regler zurücksetzen</button>
+        <button type="button" class="btn reset" (click)="resetShape()" [disabled]="!shaped()">Alle Regler zurücksetzen</button>
       </fieldset>
 
       <fieldset>
@@ -131,13 +131,13 @@
         @for (key of statKeys; track key) {
           <div class="stat">
             <span class="stat-label">{{ statLabels[key] }}</span>
-            <button type="button" (click)="changeStat(key, -1)" [disabled]="!canDecrease(key)" [attr.aria-label]="statLabels[key] + ' senken'">−</button>
+            <button type="button" class="btn step" (click)="changeStat(key, -1)" [disabled]="!canDecrease(key)" [attr.aria-label]="statLabels[key] + ' senken'">−</button>
             <span class="bar" [attr.aria-label]="draft().stats[key] + ' von ' + statMax">
               @for (i of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; track i) {
                 <span class="pip" [class.on]="i <= draft().stats[key]"></span>
               }
             </span>
-            <button type="button" (click)="changeStat(key, 1)" [disabled]="!canIncrease(key)" [attr.aria-label]="statLabels[key] + ' erhöhen'">+</button>
+            <button type="button" class="btn step" (click)="changeStat(key, 1)" [disabled]="!canIncrease(key)" [attr.aria-label]="statLabels[key] + ' erhöhen'">+</button>
           </div>
         }
         <p class="hint">Jeder Wert liegt zwischen {{ statMin }} und {{ statMax }}.</p>
@@ -151,7 +151,7 @@
         </ul>
       }
 
-      <button type="button" class="save" (click)="save()" [disabled]="errors().length > 0 || saveState() === 'saving'">Speichern</button>
+      <button type="button" class="btn primary save" (click)="save()" [disabled]="errors().length > 0 || saveState() === 'saving'">Speichern</button>
       @switch (saveState()) {
         @case ('saved') {
           <span class="saved">Gespeichert!</span>

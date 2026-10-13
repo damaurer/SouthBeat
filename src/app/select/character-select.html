@@ -47,7 +47,7 @@
         <div class="tag">
           {{ p === 0 ? 'P1' : mode() === 'cpu' ? 'CPU' : 'P2' }}
           @if (p === 1) {
-            <button type="button" class="mode" (click)="toggleMode()">{{ mode() === 'cpu' ? 'zu Spieler 2 wechseln' : 'zu CPU wechseln' }}</button>
+            <button type="button" class="btn mode" (click)="toggleMode()">{{ mode() === 'cpu' ? 'zu Spieler 2 wechseln' : 'zu CPU wechseln' }}</button>
           }
         </div>
         <div class="figure">
@@ -77,7 +77,7 @@
             <p class="title">Besiege den Endboss im Einzelspieler.</p>
           }
           @if (picks()[p] !== null) {
-            <p class="state">Gewählt <button type="button" (click)="unpick(p)">ändern</button></p>
+            <p class="state">Gewählt <button type="button" class="btn" (click)="unpick(p)">ändern</button></p>
           } @else if (p === 1 && !cursorActive(1)) {
             <p class="state">Erst wählt P1</p>
           }

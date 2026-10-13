@@ -12,11 +12,11 @@
               @if (rematchBy().includes(you())) {
                 <span>Warte auf deinen Mitspieler …</span>
               } @else {
-                <button type="button" (click)="rematch()">
+                <button type="button" class="btn primary" (click)="rematch()">
                   {{ r === 'Game Over' ? 'Stage nochmal versuchen' : 'Von vorn spielen' }}{{ rematchBy().length ? ' (Mitspieler ist bereit)' : '' }}
                 </button>
               }
-              <button type="button" (click)="leave()">Raum verlassen</button>
+              <button type="button" class="btn" (click)="leave()">Raum verlassen</button>
             </div>
           }
         </app-stage-screen>
@@ -66,7 +66,7 @@
         </div>
       }
       <div class="screen">
-        <canvas #canvas [width]="width" [height]="height" [attr.aria-label]="'Online-Kampf in ' + arenaName()"></canvas>
+        <canvas #canvas role="img" [width]="width" [height]="height" [attr.aria-label]="'Online-Kampf in ' + arenaName()"></canvas>
         @for (bubble of bubbles(); track $index) {
           @if (bubble) {
             <div class="bubble" [class.right]="$index === 1" aria-live="polite">
@@ -135,7 +135,7 @@
         <div class="chosen">
           <app-fighter-portrait [look]="c.character.appearance" />
           <span><strong>{{ c.name }}</strong> {{ c.title }}</span>
-          <button type="button" (click)="chosen.set(null)">Anderen Kämpfer wählen</button>
+          <button type="button" class="btn" (click)="chosen.set(null)">Anderen Kämpfer wählen</button>
         </div>
       }
       @if (error(); as e) {
@@ -154,7 +154,7 @@
                 <td>{{ l.host }}</td>
                 <td>{{ modes[l.mode] }}</td>
                 <td>{{ lobbyArena(l) }}</td>
-                <td><button type="button" (click)="joinLobby(l)">Beitreten</button></td>
+                <td><button type="button" class="btn primary" (click)="joinLobby(l)">Beitreten</button></td>
               </tr>
             }
           </tbody>
@@ -163,7 +163,7 @@
         <p class="empty">{{ connected() ? 'Gerade ist keine Lobby offen. Erstelle doch eine!' : 'Verbinde mit dem Spielserver …' }}</p>
       }
       @if (!connected()) {
-        <button type="button" (click)="open()">Neu verbinden</button>
+        <button type="button" class="btn" (click)="open()">Neu verbinden</button>
       }
 
       <div class="choices">
@@ -189,7 +189,7 @@
               </select>
             </label>
           }
-          <button type="submit">Lobby erstellen</button>
+          <button type="submit" class="btn primary">Lobby erstellen</button>
         </form>
         <details class="card">
           <summary>Mit Raumcode beitreten</summary>
@@ -198,7 +198,7 @@
               Raumcode
               <input class="code-input" name="code" [(ngModel)]="joinCode" maxlength="4" autocomplete="off" placeholder="ABCD" />
             </label>
-            <button type="submit">Beitreten</button>
+            <button type="submit" class="btn">Beitreten</button>
           </form>
         </details>
       </div>

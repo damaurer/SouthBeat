@@ -21,7 +21,7 @@
   }
 </div>
 <div class="screen">
-  <canvas #canvas [width]="width" [height]="height" aria-label="Stage"></canvas>
+  <canvas #canvas role="img" [width]="width" [height]="height" aria-label="Stage-Modus: von links nach rechts durchs Büro"></canvas>
   @if (bubble(); as b) {
     <div class="bubble" aria-live="polite"><strong>{{ b.speaker }}:</strong> {{ b.text }}</div>
   }

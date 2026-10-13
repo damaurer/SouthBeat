@@ -37,7 +37,7 @@
   }
 
   <div class="screen">
-    <canvas #canvas [width]="width" [height]="height" [attr.aria-label]="'Kampf in ' + arena.name"></canvas>
+    <canvas #canvas role="img" [width]="width" [height]="height" [attr.aria-label]="'Kampf in ' + arena.name + (hud() ? ': ' + hud()!.fighters[0].name + ' gegen ' + hud()!.fighters[1].name : '')"></canvas>
     @for (bubble of hud()?.bubbles ?? []; track $index) {
       @if (bubble) {
         <div class="bubble" [class.right]="$index === 1" aria-live="polite">

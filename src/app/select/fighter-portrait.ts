@@ -7,7 +7,7 @@ const FACE_ROWS = 24;
 
 @Component({
   selector: 'app-fighter-portrait',
-  template: `<canvas #canvas [width]="width" [height]="crop() === 'face' ? faceRows : fullRows"></canvas>`,
+  template: `<canvas #canvas aria-hidden="true" [width]="width" [height]="crop() === 'face' ? faceRows : fullRows"></canvas>`,
   styles: `
     :host { display: block; }
     canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; object-fit: contain; }

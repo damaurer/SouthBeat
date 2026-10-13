@@ -11,7 +11,7 @@ const FIGHTER_X = [70, 138];
 
 @Component({
   selector: 'app-arena-canvas',
-  template: `<canvas #canvas [width]="width" [height]="height" [attr.aria-label]="arena().name"></canvas>`,
+  template: `<canvas #canvas role="img" [width]="width" [height]="height" [attr.aria-label]="arena().name"></canvas>`,
   styles: `
     :host { display: block; aspect-ratio: 16 / 9; background: #0b0d1a; }
     canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }

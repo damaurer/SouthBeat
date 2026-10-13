@@ -55,7 +55,7 @@ import { ART_PALETTE, ART_PRESETS, ART_SIZE, emptyArt, paintArtCell } from './pr
               }
             </select>
           </label>
-          <button type="button" (click)="artChange.emit(clear())">Leeren</button>
+          <button type="button" class="btn" (click)="artChange.emit(clear())">Leeren</button>
         </div>
       </div>
     </div>

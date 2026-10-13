@@ -121,7 +121,7 @@ export class Effects {
 
   /** The picture moved by the current screen shake. */
   shaken(p: Painter): Painter {
-    if (this.shake <= 0) return p;
+    if (this.shake <= 0 || reducedMotion()) return p;
     const strength = Math.ceil(this.shake / 3);
     const dx = (this.frame % 2 === 0 ? 1 : -1) * strength;
     const dy = (this.frame % 4 < 2 ? 1 : -1) * Math.ceil(strength / 2);
@@ -161,4 +161,11 @@ export function drawSpark(p: Painter, s: Spark): void {
     p.rect(Math.round(s.x) - size, Math.round(s.y) - 1, size * 2 + 1, 3, '#ffffff');
     p.rect(Math.round(s.x) - 1, Math.round(s.y) - size, 3, size * 2 + 1, '#ffffff');
   }
+}
+
+/** Players who asked their system for less motion get no screen shake. */
+let motionQuery: MediaQueryList | null | undefined;
+function reducedMotion(): boolean {
+  if (motionQuery === undefined) motionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  return !!motionQuery?.matches;
 }
