@@ -14,6 +14,10 @@ interface Player {
   fighterId: string | null;
   left: boolean;
   right: boolean;
+  up: boolean;
+  /** Set by any jump press, so a quick tap between two frames is not lost. */
+  jumped: boolean;
+  down: boolean;
   /** Attack buttons pressed since the last frame. */
   pressed: Set<MoveSlot>;
   wantsRematch: boolean;
@@ -67,6 +71,9 @@ export class OnlineServer {
       } else if (msg.type === 'input' && player) {
         player.left = msg.left === true;
         player.right = msg.right === true;
+        player.up = msg.up === true;
+        if (player.up) player.jumped = true;
+        player.down = msg.down === true;
         if (MOVE_SLOTS.includes(msg.press as MoveSlot)) player.pressed.add(msg.press as MoveSlot);
       } else if (msg.type === 'rematch' && room && player && room.state?.winner != null) {
         player.wantsRematch = true;
@@ -100,6 +107,9 @@ export class OnlineServer {
       fighterId: !builtIn && typeof fighterId === 'string' ? fighterId : null,
       left: false,
       right: false,
+      up: false,
+      jumped: false,
+      down: false,
       pressed: new Set(),
       wantsRematch: false,
     };
@@ -152,6 +162,8 @@ export class OnlineServer {
     const c: Controls = {
       left: p.left,
       right: p.right,
+      up: p.up || p.jumped,
+      down: p.down,
       light: p.pressed.has('light'),
       heavy: p.pressed.has('heavy'),
       kick: p.pressed.has('kick'),
@@ -159,6 +171,7 @@ export class OnlineServer {
       ultimate: p.pressed.has('ultimate'),
     };
     p.pressed.clear();
+    p.jumped = false;
     return c;
   }
 

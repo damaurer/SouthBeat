@@ -18,7 +18,7 @@ export type ClientMessage =
   | { type: 'create'; rosterId: string; fighter: Character; fighterId: string | null; arenaId: string }
   | { type: 'join'; code: string; rosterId: string; fighter: Character; fighterId: string | null }
   /** Sent whenever a key changes: which way the player walks, and an attack button if one was just pressed. */
-  | { type: 'input'; left: boolean; right: boolean; press: MoveSlot | null }
+  | { type: 'input'; left: boolean; right: boolean; up: boolean; down: boolean; press: MoveSlot | null }
   | { type: 'rematch' };
 
 export type ServerMessage =

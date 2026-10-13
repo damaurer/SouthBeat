@@ -87,6 +87,8 @@ export class OnlinePage {
   private lastHitLine: [number, number] = [-Infinity, -Infinity];
   private left = false;
   private right = false;
+  private up = false;
+  private down = false;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -225,8 +227,11 @@ export class OnlinePage {
     for (const e of state.events) {
       if (e.type === 'hit') {
         const target = (1 - e.attacker) as 0 | 1;
-        this.sparks.push({ x: state.fighters[target].x, y: GROUND_Y - 28, life: 12, big: e.slot === 'ultimate' });
+        this.sparks.push({ x: state.fighters[target].x, y: GROUND_Y - 28 - state.fighters[target].y, life: 12, big: e.slot === 'ultimate' });
         this.reactToHit(target, e.slot);
+      } else if (e.type === 'block') {
+        const t = state.fighters[1 - e.attacker];
+        this.sparks.push({ x: t.x + t.facing * 10, y: GROUND_Y - 28 - t.y, life: 10, big: false, blocked: true });
       } else if (e.type === 'ultimate') {
         this.banner.set(`${this.characters[e.fighter].name}: ${e.move.name}!`);
         this.bannerUntil = state.frame + 90;
@@ -288,9 +293,11 @@ export class OnlinePage {
     e.preventDefault();
     if (e.code === k.left) this.left = down;
     if (e.code === k.right) this.right = down;
+    if (e.code === k.up) this.up = down;
+    if (e.code === k.down) this.down = down;
     const slot = ATTACK_SLOTS.find((s) => k[s] === e.code) ?? null;
     if (slot && (!down || e.repeat)) return;
-    this.send({ type: 'input', left: this.left, right: this.right, press: slot });
+    this.send({ type: 'input', left: this.left, right: this.right, up: this.up, down: this.down, press: slot });
   }
 
   private send(msg: ClientMessage): void {

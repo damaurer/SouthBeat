@@ -26,7 +26,16 @@ Ein 2D-Pixel-Art-Beat-'em-up als Webanwendung, gebaut mit Angular und Server-Sid
 | Spieler 1 | A / D | J | K | L | Ö | Ä |
 | Spieler 2 | ← / → | Num 1 | Num 2 | Num 3 | Num 4 | Num 5 |
 
-W / S und ↑ / ↓ sind für Springen und Ducken reserviert. Ö und Ä beziehen sich auf die deutsche Tastatur.
+Springen mit W bzw. ↑, Ducken mit S bzw. ↓. Ö und Ä beziehen sich auf die deutsche Tastatur.
+
+Das Kampfsystem orientiert sich an Street Fighter:
+
+- **Blocken**: Vom Gegner weg halten blockt. Stehend blockst du mittlere Angriffe und Sprungangriffe, geduckt (zurück + unten) mittlere Angriffe und Feger. Geblockte Normalangriffe machen keinen Schaden, Spezialangriffe und Ultimates ziehen ein Viertel ab. Nach einem Block steckt man kurz im Blockstun.
+- **Springen**: Gerade oder schräg nach vorn bzw. hinten. Geschosse lassen sich überspringen. Angriffe in der Luft sind Sprungangriffe und müssen stehend geblockt werden; die Landung beendet sie.
+- **Ducken**: Geduckt werden die Normalangriffe zu Ducktechniken. Leicht ist ein schneller Duckschlag, Schwer ein Anti-Air-Aufwärtshaken, der auch Springer trifft, und Tritt ein Feger, der nur geduckt blockbar ist und umwirft.
+- **Umwerfen**: Feger und Treffer in der Luft werfen den Gegner zu Boden. Am Boden liegend kann er nicht getroffen werden.
+- **Spezial-Eingabe**: ↓ ↘ → plus Leicht, Schwer oder Tritt löst den Spezialangriff aus, wie ein Hadouken. Die Spezialtaste geht weiterhin.
+- **CPU**: Die CPU blockt einen Teil der Angriffe (bei Fegern geduckt), springt ab und zu rein und kontert Sprünge mit dem Aufwärtshaken.
 
 - **Einzelspieler** (`/singleplayer`): Eine Gegnerleiter durch die Chefetage. Jeder Sieg schaltet den nächsten Gegner frei, der Fortschritt landet in der Datendatei.
 

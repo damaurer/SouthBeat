@@ -170,8 +170,11 @@ export class FightPage {
     for (const e of this.state.events) {
       if (e.type === 'hit') {
         const target = this.state.fighters[1 - e.attacker];
-        this.sparks.push({ x: target.x, y: GROUND_Y - 28, life: 12, big: e.slot === 'ultimate' });
+        this.sparks.push({ x: target.x, y: GROUND_Y - 28 - target.y, life: 12, big: e.slot === 'ultimate' });
         this.reactToHit((1 - e.attacker) as 0 | 1, e.slot);
+      } else if (e.type === 'block') {
+        const target = this.state.fighters[1 - e.attacker];
+        this.sparks.push({ x: target.x + target.facing * 10, y: GROUND_Y - 28 - target.y, life: 10, big: false, blocked: true });
       } else if (e.type === 'ultimate') {
         this.banner = { text: `${this.state.fighters[e.fighter].character.name}: ${e.move.name}!`, frames: 90 };
       }
@@ -214,6 +217,9 @@ export class FightPage {
     return {
       left: this.held.has(keys.left),
       right: this.held.has(keys.right),
+      // A quick tap may be released before the next frame; it still counts as a jump.
+      up: this.held.has(keys.up) || this.pressed.has(keys.up),
+      down: this.held.has(keys.down),
       light: this.pressed.has(keys.light),
       heavy: this.pressed.has(keys.heavy),
       kick: this.pressed.has(keys.kick),

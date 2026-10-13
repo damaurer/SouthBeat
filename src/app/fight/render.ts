@@ -10,6 +10,8 @@ export interface Spark {
   y: number;
   life: number;
   big: boolean;
+  /** Blocked hits get a blue guard spark instead of a hit spark. */
+  blocked?: boolean;
 }
 
 const CHEST_Y = GROUND_Y - 30;
@@ -47,12 +49,22 @@ export function renderFight(arena: Painter, state: FightState, sparks: Spark[]):
   return p;
 }
 
+/** Crouching folds the legs: rows in this band are dropped and everything above moves down. */
+const CROUCH_FROM = 30;
+const CROUCH_DROP = 10;
+
+export function isCrouched(f: FighterState): boolean {
+  if (f.action) return f.action.stance === 'crouch';
+  return f.y === 0 && (f.crouching || f.guard === 'low');
+}
+
 function drawFighter(p: Painter, f: FighterState, frame: number): void {
   let x = Math.round(f.x) - SPRITE_WIDTH / 2;
   const a = f.action;
   if (a) x += a.frame <= a.startup ? -f.facing : f.facing * 3;
   const flash = f.hitstun > 0 && f.hitstun % 6 < 3;
-  const pixels = flash ? pixelsFor(f).map((px) => ({ ...px, fill: '#ffffff' })) : pixelsFor(f);
+  let pixels = flash ? pixelsFor(f).map((px) => ({ ...px, fill: '#ffffff' })) : pixelsFor(f);
+  const top = GROUND_Y - SPRITE_HEIGHT - Math.round(f.y);
 
   if (a?.slot === 'ultimate' && a.frame <= a.startup) {
     // Charging aura around the fighter.
@@ -62,7 +74,26 @@ function drawFighter(p: Painter, f: FighterState, frame: number): void {
       p.set(f.x + Math.cos(angle) * 20, GROUND_Y - 24 + Math.sin(angle) * 28, color);
     }
   }
-  p.sprite(x, GROUND_Y - SPRITE_HEIGHT, pixels, SPRITE_WIDTH, f.facing === -1);
+  if (f.knockedDown && f.y === 0) {
+    // Lying flat, head pointing away from the opponent, squeezed to half height.
+    for (const px of pixels) {
+      const lx = f.facing === 1 ? SPRITE_HEIGHT - 1 - px.y : px.y;
+      p.set(Math.round(f.x) - SPRITE_HEIGHT / 2 + lx, GROUND_Y - 1 - Math.floor((SPRITE_WIDTH - 1 - px.x) / 2), px.fill);
+    }
+    return;
+  }
+  if (isCrouched(f)) {
+    pixels = pixels
+      .filter((px) => px.y < CROUCH_FROM || px.y >= CROUCH_FROM + CROUCH_DROP)
+      .map((px) => (px.y < CROUCH_FROM ? { ...px, y: px.y + CROUCH_DROP } : px));
+  }
+  p.sprite(x, top, pixels, SPRITE_WIDTH, f.facing === -1);
+  if (f.guard && f.blockstun > 0) {
+    // Raised forearms while blocking.
+    const gy = top + (f.guard === 'low' ? CROUCH_DROP : 0) + 18;
+    const gx = Math.round(f.x) + f.facing * 9;
+    p.rect(gx - 1, gy, 3, 8, '#9fd8ff');
+  }
 }
 
 function drawAttack(p: Painter, f: FighterState, frame: number): void {
@@ -72,10 +103,29 @@ function drawAttack(p: Painter, f: FighterState, frame: number): void {
   if (!a || !(isActive(f) || showBeam)) return;
   const front = f.x + f.facing * 12;
   const reach = reachOf(a.move);
+  // Jumping fighters attack from higher up, crouching ones from lower down.
+  const lift = -Math.round(f.y) + (a.stance === 'crouch' ? CROUCH_DROP : 0);
   const box = (dx: number, y: number, w: number, h: number, color: string): void => {
     const x0 = f.facing === 1 ? front + dx : front - dx - w;
-    p.rect(Math.round(x0), y, w, h, color);
+    p.rect(Math.round(x0), y + lift, w, h, color);
   };
+  if (a.stance === 'crouch' && a.slot === 'kick') {
+    // Sweep along the floor.
+    box(reach - 24, GROUND_Y - 4 - lift, 12, 3, '#f2f2f2');
+    box(reach - 36, GROUND_Y - 3 - lift, 11, 1, '#9aa5b1');
+    return;
+  }
+  if (a.stance === 'crouch' && a.slot === 'heavy') {
+    // Rising anti-air uppercut.
+    box(reach - 26, CHEST_Y - 22, 6, 14, '#ffe66d');
+    box(reach - 25, CHEST_Y - 6, 4, 8, '#ffffff');
+    return;
+  }
+  if (a.stance === 'air' && a.slot !== 'light') {
+    // Jump attacks aim down at the opponent.
+    for (let i = 0; i < 4; i++) box(reach - 26 + i * 2, KNEE_Y - 4 + i * 3, 5, 3, a.slot === 'heavy' ? '#ffe66d' : '#f2f2f2');
+    return;
+  }
 
   const thrown = projectileX(f);
   if (thrown !== null) {
@@ -229,7 +279,7 @@ function drawTank(p: Painter, x: number, facing: 1 | -1, frame: number): void {
 
 function drawSpark(p: Painter, s: Spark): void {
   const r = s.big ? 10 - s.life / 3 : 5 - s.life / 4;
-  const color = s.life % 4 < 2 ? '#ffffff' : '#ffe66d';
+  const color = s.blocked ? (s.life % 4 < 2 ? '#ffffff' : '#5ad1ff') : s.life % 4 < 2 ? '#ffffff' : '#ffe66d';
   for (let i = 0; i < 8; i++) {
     const angle = (i / 8) * Math.PI * 2;
     p.set(s.x + Math.cos(angle) * r, s.y + Math.sin(angle) * r, color);
