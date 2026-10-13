@@ -1,0 +1,25 @@
+import { Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
+
+@Component({
+  selector: 'app-home',
+  imports: [RouterLink],
+  template: `
+    <main class="title-screen">
+      <h1>SouthBeat</h1>
+      <p>2D Pixel Beat 'em up</p>
+      <a routerLink="/editor">Charakter erstellen</a>
+    </main>
+  `,
+  styles: `
+    .title-screen {
+      display: grid;
+      place-content: center;
+      gap: 8px;
+      min-height: 100vh;
+      text-align: center;
+    }
+    a { color: #f1c40f; font-size: 1.25rem; }
+  `,
+})
+export class Home {}

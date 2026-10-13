@@ -10,7 +10,10 @@ Ein 2D-Pixel-Art-Beat-'em-up als Webanwendung, gebaut mit Angular und Server-Sid
 
 ## Stand
 
-Aktuell ist nur das Angular-SSR-Grundgerüst angelegt. Spielfunktionen folgen.
+- **Charakter-Editor** (`/editor`): Name, Hautfarbe, Frisur, Haarfarbe, Outfit, je ein Move pro Slot (leichter Schlag, schwerer Schlag, Tritt, Spezialangriff) und vier Werte mit Live-Pixel-Vorschau. Gespeichert wird vorerst im Browser.
+- **Balance-Regeln** (`src/app/character/balance.ts`): Jeder Wert liegt zwischen 1 und 10, insgesamt dürfen 22 Punkte verteilt werden. `characterErrors()` prüft einen kompletten Charakter, damit später auch der Server manipulierte Werte ablehnen kann.
+
+Kampf und Multiplayer folgen.
 
 ## Entwicklung
 

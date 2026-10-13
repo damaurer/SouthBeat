@@ -1,0 +1,94 @@
+<section class="editor">
+  <header>
+    <a routerLink="/">← Zurück</a>
+    <h1>Charakter-Editor</h1>
+  </header>
+
+  <div class="layout">
+    <div class="preview">
+      <app-sprite-preview [appearance]="draft().appearance" />
+      <p class="fighter-name">{{ draft().name || '???' }}</p>
+    </div>
+
+    <div class="panels">
+      <fieldset>
+        <legend>Name</legend>
+        <input
+          type="text"
+          maxlength="16"
+          [value]="draft().name"
+          (input)="setName($any($event.target).value)"
+        />
+      </fieldset>
+
+      <fieldset>
+        <legend>Aussehen</legend>
+        <label>Haut <input type="color" [value]="draft().appearance.skinColor" (input)="setLook('skinColor', $any($event.target).value)" /></label>
+        <label>Haarfarbe <input type="color" [value]="draft().appearance.hairColor" (input)="setLook('hairColor', $any($event.target).value)" /></label>
+        <label>Outfit-Farbe <input type="color" [value]="draft().appearance.outfitColor" (input)="setLook('outfitColor', $any($event.target).value)" /></label>
+        <label>
+          Frisur
+          <select (change)="setLook('hairStyle', $any($event.target).value)">
+            @for (style of hairStyles; track style) {
+              <option [value]="style" [selected]="style === draft().appearance.hairStyle">{{ hairLabels[style] }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Outfit
+          <select (change)="setLook('outfitStyle', $any($event.target).value)">
+            @for (style of outfitStyles; track style) {
+              <option [value]="style" [selected]="style === draft().appearance.outfitStyle">{{ outfitLabels[style] }}</option>
+            }
+          </select>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Moves</legend>
+        @for (slot of slots; track slot) {
+          <label>
+            {{ slotLabels[slot] }}
+            <select (change)="setMove(slot, $any($event.target).value)">
+              @for (move of movesForSlot(slot); track move.id) {
+                <option [value]="move.id" [selected]="move.id === draft().moves[slot]">
+                  {{ move.name }} ({{ move.damage }} Schaden, {{ move.startupFrames }}f)
+                </option>
+              }
+            </select>
+          </label>
+        }
+      </fieldset>
+
+      <fieldset>
+        <legend>Werte <span class="budget">{{ remaining() }} Punkte übrig</span></legend>
+        @for (key of statKeys; track key) {
+          <div class="stat">
+            <span class="stat-label">{{ statLabels[key] }}</span>
+            <button type="button" (click)="changeStat(key, -1)" [disabled]="!canDecrease(key)" [attr.aria-label]="statLabels[key] + ' senken'">−</button>
+            <span class="bar" [attr.aria-label]="draft().stats[key] + ' von ' + statMax">
+              @for (i of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; track i) {
+                <span class="pip" [class.on]="i <= draft().stats[key]"></span>
+              }
+            </span>
+            <button type="button" (click)="changeStat(key, 1)" [disabled]="!canIncrease(key)" [attr.aria-label]="statLabels[key] + ' erhöhen'">+</button>
+          </div>
+        }
+        <p class="hint">Jeder Wert liegt zwischen {{ statMin }} und {{ statMax }}.</p>
+      </fieldset>
+
+      @if (errors().length > 0) {
+        <ul class="errors">
+          @for (e of errors(); track e) {
+            <li>{{ e }}</li>
+          }
+        </ul>
+      }
+
+      <button type="button" class="save" (click)="save()" [disabled]="errors().length > 0">Speichern</button>
+      @if (savedNotice()) {
+        <span class="saved">Gespeichert!</span>
+      }
+    </div>
+  </div>
+</section>
