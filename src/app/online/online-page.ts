@@ -2,7 +2,6 @@ import { Component, DestroyRef, ElementRef, NgZone, effect, inject, signal, view
 import { Sound } from '../shared/sound';
 import { Pads } from '../shared/pads';
 import { TouchControls } from '../shared/touch-controls';
-import { roundBanner } from '../fight/rounds';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CharacterStore } from '../character/character-store';
@@ -13,7 +12,8 @@ import { Painter, seeded } from '../arena/painter';
 import { Controls, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS } from '../fight/combat';
 import { ATTACK_SLOTS, KeyMap } from '../fight/controls';
 import { KeyBindings } from '../fight/key-bindings';
-import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from '../fight/hit-lines';
+import { HIT_LINES } from '../fight/hit-lines';
+import { DuelFeedback, FighterHud, fighterHud } from '../fight/feedback';
 import { Effects } from '../fight/effects';
 import { fightEffects, renderFight } from '../fight/render';
 import { CharacterSelect, FighterPicks } from '../select/character-select';
@@ -42,13 +42,6 @@ import {
 
 type Phase = 'menu' | 'connecting' | 'waiting' | 'fight' | 'left';
 
-interface FighterHud {
-  name: string;
-  hp: number;
-  maxHp: number;
-  meter: number;
-  ready: boolean;
-}
 
 interface Bubble {
   speaker: string;
@@ -149,8 +142,7 @@ export class OnlinePage {
   private readonly fx = new Effects();
   private bannerUntil = 0;
   private random = seeded(Date.now());
-  private hitDecks: [LineDeck, LineDeck] = [new LineDeck(HIT_LINES), new LineDeck(HIT_LINES)];
-  private lastHitLine: [number, number] = [-Infinity, -Infinity];
+  private feedback = new DuelFeedback(this.sound, [HIT_LINES, HIT_LINES], () => this.random());
   private left = false;
   private right = false;
   private up = false;
@@ -357,8 +349,7 @@ export class OnlinePage {
     this.shown = null;
     this.history = [];
         this.fx.clear();
-        this.hitDecks = msg.rosterIds.map((id) => new LineDeck(builtInFighter(id)?.hitLines ?? HIT_LINES)) as [LineDeck, LineDeck];
-        this.lastHitLine = [-Infinity, -Infinity];
+        this.feedback = new DuelFeedback(this.sound, msg.rosterIds.map((id) => builtInFighter(id)?.hitLines ?? HIT_LINES) as [readonly string[], readonly string[]], () => this.random());
         this.bubbles.set([null, null]);
         this.banner.set(null);
         this.result.set(null);
@@ -403,33 +394,28 @@ export class OnlinePage {
     const ahead = Math.min(MAX_PREDICTION, Math.round((this.rtt * FPS) / 1000));
     this.shown = ahead > 0 ? predict(state, this.you(), this.history.slice(-ahead)) : state;
     fightEffects(this.fx, state);
-    for (const e of state.events) {
-      if (e.type === 'hit') {
-        this.reactToHit((1 - e.attacker) as 0 | 1, e.slot);
-        this.sound.hit(e.slot);
-      } else if (e.type === 'block') {
-        this.sound.play('block');
-      } else if (e.type === 'ultimate') {
-        this.banner.set(`${this.characters[e.fighter].name}: ${e.move.name}!`);
-        this.bannerUntil = state.frame + 90;
-        this.sound.play('ultimate');
-      }
+    const said = this.feedback.frame(state);
+    if (said.ultimate) {
+      this.banner.set(said.ultimate);
+      this.bannerUntil = state.frame + 90;
     }
-    const call = roundBanner(state);
-    if (call !== this.call()) {
-      if (call === 'FIGHT!') this.sound.play('fight');
-      else if (call?.startsWith('Runde') || call === 'Finale Runde') this.sound.play('round');
-      else if (call === 'K.O.!' || call === 'Zeit!') this.sound.play('ko');
-      this.call.set(call);
+    if (said.line) {
+      const { fighter, text } = said.line;
+      this.bubbles.update((b) => {
+        const next = [...b] as [Bubble | null, Bubble | null];
+        next[fighter] = { speaker: this.characters![fighter].name, text, until: state.frame + BUBBLE_FRAMES };
+        return next;
+      });
     }
-    this.wins.set(state.wins);
+    this.call.set(said.call);
+    if (state.wins.join() !== this.wins().join()) this.wins.set(state.wins);
     if (this.banner() && state.frame >= this.bannerUntil) this.banner.set(null);
-    this.bubbles.update((b) => b.map((x) => (x && state.frame < x.until ? x : null)) as [Bubble | null, Bubble | null]);
-    const hud = (i: 0 | 1): FighterHud => {
-      const f = state.fighters[i];
-      return { name: f.character.name, hp: f.hp, maxHp: f.maxHp, meter: f.meter, ready: f.meter >= METER_MAX };
-    };
-    this.fighters.set([hud(0), hud(1)]);
+    if (this.bubbles().some((x) => x && state.frame >= x.until)) {
+      this.bubbles.update((b) => b.map((x) => (x && state.frame < x.until ? x : null)) as [Bubble | null, Bubble | null]);
+    }
+    const hud: [FighterHud, FighterHud] = [fighterHud(state.fighters[0]), fighterHud(state.fighters[1])];
+    // Frames arrive 60 times a second; the page only updates when the bars changed.
+    if (JSON.stringify(hud) !== JSON.stringify(this.fighters())) this.fighters.set(hud);
     this.seconds.set(Math.ceil((ROUND_FRAMES - state.frame) / FPS));
     if (state.winner !== null) this.finish(state);
   }
@@ -451,18 +437,6 @@ export class OnlinePage {
     }
     this.stageScreen()?.show(state, snapshot.run);
     this.result.set(state.phase === 'gameover' ? 'Game Over' : null);
-  }
-
-  private reactToHit(fighter: 0 | 1, slot: Parameters<typeof saysSomething>[0]): void {
-    const frame = this.state!.frame;
-    if (frame - this.lastHitLine[fighter] < HIT_LINE_COOLDOWN || !saysSomething(slot, this.random)) return;
-    this.lastHitLine[fighter] = frame;
-    const text = this.hitDecks[fighter].draw(this.random);
-    this.bubbles.update((b) => {
-      const next = [...b] as [Bubble | null, Bubble | null];
-      next[fighter] = { speaker: this.characters![fighter].name, text, until: frame + BUBBLE_FRAMES };
-      return next;
-    });
   }
 
   private finish(state: FightState): void {

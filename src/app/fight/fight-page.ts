@@ -4,7 +4,6 @@ import { CharacterStore } from '../character/character-store';
 import { findArena, paintArena } from '../arena/arenas';
 import { ARENA_HEIGHT, ARENA_WIDTH } from '../arena/props';
 import { seeded } from '../arena/painter';
-import { MoveSlot } from '../character/character.model';
 import { BEST_OF_THREE, Controls, DEFAULT_CPU, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS, createFight, step } from './combat';
 import { DIFFICULTIES, DIFFICULTY_LABELS, Difficulty, cpuControls, cpuFor, saveDifficulty, savedDifficulty } from './cpu';
 import { Sound } from '../shared/sound';
@@ -18,18 +17,12 @@ import { KeyMap } from './controls';
 import { KeyBindings } from './key-bindings';
 import { picksFromQuery } from '../select/select-page';
 import { OWN_FIGHTER, RosterEntry, resolvePick } from '../select/roster';
-import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from './hit-lines';
+import { HIT_LINES, LineDeck } from './hit-lines';
+import { DuelFeedback, FighterHud, fighterHud } from './feedback';
 import { Combo, DUMMY_LABELS, DUMMY_MODES, DummyMode, NO_COMBO, TRAINING_RULES, afterTrainingStep, drawBoxes, dummyControls, dummyReeling, inputEntry, logInput } from './training';
 
 type Mode = 'cpu' | 'local';
 
-interface FighterHud {
-  name: string;
-  hp: number;
-  maxHp: number;
-  meter: number;
-  ready: boolean;
-}
 
 interface Hud {
   fighters: [FighterHud, FighterHud];
@@ -99,7 +92,6 @@ export class FightPage {
   private hudKey = '';
   private readonly pads = inject(Pads);
   private readonly router = inject(Router);
-  private lastCall: string | null = null;
 
   private state!: FightState;
   private cpu = DEFAULT_CPU;
@@ -108,8 +100,7 @@ export class FightPage {
   private bubbles: [{ text: string; until: number } | null, { text: string; until: number } | null] = [null, null];
   private nextBubbleAt = 0;
   private chatter = new LineDeck([]);
-  private hitDecks: [LineDeck, LineDeck] = [new LineDeck(HIT_LINES), new LineDeck(HIT_LINES)];
-  private lastHitLine: [number, number] = [-Infinity, -Infinity];
+  private feedback = new DuelFeedback(this.sound, [HIT_LINES, HIT_LINES], () => this.random());
   private resultRecorded = false;
   private readonly held = new Set<string>();
   private readonly pressed = new Set<string>();
@@ -211,14 +202,12 @@ export class FightPage {
     this.inputs.set([]);
     this.lastInput = '';
     this.paused.set(false);
-    this.lastCall = null;
     this.fx.clear();
     this.banner = null;
     this.bubbles = [null, null];
     this.nextBubbleAt = FPS / 2;
     this.chatter = new LineDeck(this.opponent?.lines ?? []);
-    this.hitDecks = [new LineDeck(a.hitLines), new LineDeck(b.hitLines)];
-    this.lastHitLine = [-Infinity, -Infinity];
+    this.feedback = new DuelFeedback(this.sound, [a.hitLines, b.hitLines], () => this.random());
     this.resultRecorded = false;
     this.random = seeded(Date.now());
     this.updateHud();
@@ -252,24 +241,9 @@ export class FightPage {
     step(this.state, controls);
     if (this.training) this.trainingFrame(controls[0], reeling);
 
-    for (const e of this.state.events) {
-      if (e.type === 'hit') {
-        this.reactToHit((1 - e.attacker) as 0 | 1, e.slot);
-        this.sound.hit(e.slot);
-      } else if (e.type === 'block') {
-        this.sound.play('block');
-      } else if (e.type === 'ultimate') {
-        this.banner = { text: `${this.state.fighters[e.fighter].character.name}: ${e.move.name}!`, frames: 90 };
-        this.sound.play('ultimate');
-      }
-    }
-    const call = roundBanner(this.state);
-    if (call !== this.lastCall) {
-      if (call === 'FIGHT!') this.sound.play('fight');
-      else if (call?.startsWith('Runde') || call === 'Finale Runde') this.sound.play('round');
-      else if (call === 'K.O.!' || call === 'Zeit!') this.sound.play('ko');
-      this.lastCall = call;
-    }
+    const said = this.feedback.frame(this.state);
+    if (said.ultimate) this.banner = { text: said.ultimate, frames: 90 };
+    if (said.line) this.bubbles[said.line.fighter] = { text: said.line.text, until: this.state.frame + HIT_BUBBLE_FRAMES };
     fightEffects(this.fx, this.state);
     this.updateBubble();
     if (this.opponent && this.state.winner !== null && !this.resultRecorded) {
@@ -310,14 +284,6 @@ export class FightPage {
     }
   }
 
-  /** Now and then a fighter who takes a hit says something about it. */
-  private reactToHit(fighter: 0 | 1, slot: MoveSlot): void {
-    const frame = this.state.frame;
-    if (frame - this.lastHitLine[fighter] < HIT_LINE_COOLDOWN || !saysSomething(slot, this.random)) return;
-    this.lastHitLine[fighter] = frame;
-    this.bubbles[fighter] = { text: this.hitDecks[fighter].draw(this.random), until: frame + HIT_BUBBLE_FRAMES };
-  }
-
   private read(keys: KeyMap): Controls {
     if (!keys) return NO_INPUT;
     return {
@@ -336,16 +302,13 @@ export class FightPage {
 
   private updateHud(): void {
     const s = this.state;
-    const fighter = (i: 0 | 1): FighterHud => {
-      const f = s.fighters[i];
-      return { name: f.character.name, hp: Math.ceil(f.hp), maxHp: f.maxHp, meter: Math.floor(f.meter), ready: f.meter >= METER_MAX };
-    };
+
     let result: string | null = null;
     if (s.winner === 'draw') result = 'Unentschieden!';
     else if (s.winner !== null) result = `${s.fighters[s.winner].character.name} gewinnt!`;
     if (this.opponent?.boss && s.winner === 0) result = `${this.opponent.character.name} ist besiegt! Du hast das Büro erobert!`;
     const hud: Hud = {
-      fighters: [fighter(0), fighter(1)],
+      fighters: [fighterHud(s.fighters[0]), fighterHud(s.fighters[1])],
       seconds: this.training ? Infinity : Math.ceil((ROUND_FRAMES - s.frame) / FPS),
       round: s.round,
       wins: s.wins,
