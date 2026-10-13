@@ -180,7 +180,7 @@ export const OPPONENTS: readonly Opponent[] = [
   },
   {
     id: 'gustav-grossmaul',
-    title: 'Gustav · CPO · Endboss',
+    title: 'Gustav · CSO · Endboss',
     blurb: 'Der Endboss. Ein alter Mann mit langem Bart, der mit Tomaten wirft, ununterbrochen redet und Kunden Dinge verspricht, die es noch gar nicht gibt.',
     arenaId: 'rooftop',
     boss: true,

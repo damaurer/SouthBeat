@@ -77,7 +77,7 @@ const bunker: Arena = {
 const rooftop: Arena = {
   id: 'rooftop',
   name: 'Dachterrasse-Office',
-  description: 'Laptop, Sonnenuntergang, Tomatenbeete und 40 Stockwerke Luft unter den Füßen. Hier oben züchtet der CPO seine Munition.',
+  description: 'Laptop, Sonnenuntergang, Tomatenbeete und 40 Stockwerke Luft unter den Füßen. Hier oben züchtet der CSO seine Munition.',
   draw(p) {
     p.bands(0, 0, ARENA_WIDTH, FLOOR_Y, ['#2b1e4a', '#4a2a6a', '#8a3b7a', '#d0566e', '#f28a5b', '#ffc26b']);
     p.rect(150, 60, 22, 22, '#ffe08a');
@@ -110,7 +110,7 @@ const rooftop: Arena = {
     p.rect(52, 79, 14, 5, '#c9cdd3');
     monitor(p, 53, 72, 12, 7, 31);
     p.rect(64, 80, 3, 4, '#f2f2f2');
-    // The CPO's beloved tomatoes, ammunition included.
+    // The CSO's beloved tomatoes, ammunition included.
     tomatoPlanter(p, 2, 38, FLOOR_Y, 40, 51);
     tomatoPlanter(p, 92, 44, FLOOR_Y, 34, 52);
     tomatoPlanter(p, 190, 48, FLOOR_Y, 44, 53);
