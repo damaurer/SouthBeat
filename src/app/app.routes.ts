@@ -4,6 +4,7 @@ import { CharacterEditor } from './character/character-editor';
 import { ArenaSelect } from './arena/arena-select';
 import { FightPage } from './fight/fight-page';
 import { SingleplayerPage } from './singleplayer/singleplayer-page';
+import { OnlinePage } from './online/online-page';
 
 export const routes: Routes = [
   { path: '', component: Home, title: 'SouthBeat' },
@@ -11,5 +12,6 @@ export const routes: Routes = [
   { path: 'arena', component: ArenaSelect, title: 'SouthBeat · Arena' },
   { path: 'fight', component: FightPage, title: 'SouthBeat · Kampf' },
   { path: 'singleplayer', component: SingleplayerPage, title: 'SouthBeat · Einzelspieler' },
+  { path: 'online', component: OnlinePage, title: 'SouthBeat · Online-Kampf' },
   { path: '**', redirectTo: '' },
 ];

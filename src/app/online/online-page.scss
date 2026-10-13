@@ -1,0 +1,30 @@
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 16px;
+  border: 2px solid #f0f0f0;
+
+  h2 { margin: 0; font-size: 1.1rem; }
+  label { display: grid; gap: 4px; }
+  input, select { font: inherit; padding: 6px; }
+  input { text-transform: uppercase; letter-spacing: 0.3em; }
+}
+
+.code {
+  margin: 0;
+  font-size: 3rem;
+  font-weight: bold;
+  letter-spacing: 0.3em;
+  color: #f1c40f;
+}
+
+.error { color: #ff7675; }
+
+a { color: inherit; }

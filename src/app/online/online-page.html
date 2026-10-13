@@ -1,0 +1,108 @@
+<section class="fight online">
+  @switch (phase()) {
+    @case ('fight') {
+      <p class="versus">Online · {{ arenaName() }} · Du spielst {{ you() === 0 ? 'links' : 'rechts' }}</p>
+      @if (fighters(); as fs) {
+        <div class="hud">
+          @for (f of fs; track $index) {
+            <div class="panel" [class.right]="$index === 1">
+              <div class="name">{{ f.name }}{{ $index === you() ? ' (Du)' : '' }}</div>
+              <div class="bar hp" role="meter" [attr.aria-valuenow]="f.hp" [attr.aria-valuemax]="f.maxHp" aria-label="Leben">
+                <span [style.width.%]="(f.hp / f.maxHp) * 100"></span>
+              </div>
+              <div class="bar action" [class.ready]="f.ready" role="meter" [attr.aria-valuenow]="f.meter" [attr.aria-valuemax]="meterMax" aria-label="Action-Balken">
+                <span [style.width.%]="(f.meter / meterMax) * 100"></span>
+              </div>
+              <div class="action-label">{{ f.ready ? 'ULTIMATE BEREIT!' : 'Action' }}</div>
+            </div>
+            @if ($index === 0) {
+              <div class="timer">{{ seconds() }}</div>
+            }
+          }
+        </div>
+      }
+      <div class="screen">
+        <canvas #canvas [width]="width" [height]="height" [attr.aria-label]="'Online-Kampf in ' + arenaName()"></canvas>
+        @for (bubble of bubbles(); track $index) {
+          @if (bubble) {
+            <div class="bubble" [class.right]="$index === 1" aria-live="polite">
+              <strong>{{ bubble.speaker }}:</strong> {{ bubble.text }}
+            </div>
+          }
+        }
+        @if (banner(); as b) {
+          <div class="banner">{{ b }}</div>
+        }
+        @if (result(); as r) {
+          <div class="result">
+            <p>{{ r }}</p>
+            @if (rematchBy().includes(you())) {
+              <span>Warte auf deinen Gegner …</span>
+            } @else {
+              <button type="button" (click)="rematch()">{{ rematchBy().length ? 'Revanche annehmen' : 'Revanche' }}</button>
+            }
+            <button type="button" (click)="leave()">Raum verlassen</button>
+          </div>
+        }
+      </div>
+      <div class="controls">
+        <dl>
+          <div>
+            <dt>Deine Tasten</dt>
+            <dd>
+              Laufen {{ keyName(keys.left) }}/{{ keyName(keys.right) }} · Leicht {{ keyName(keys.light) }} · Schwer {{ keyName(keys.heavy) }} ·
+              Tritt {{ keyName(keys.kick) }} · Spezial {{ keyName(keys.special) }} · <strong>Ultimate {{ keyName(keys.ultimate) }}</strong>
+            </dd>
+          </div>
+        </dl>
+      </div>
+    }
+    @case ('waiting') {
+      <h1>Online-Kampf</h1>
+      <div class="card">
+        <p>Dein Raumcode:</p>
+        <p class="code" aria-live="polite">{{ code() }}</p>
+        <p>Gib den Code an deinen Gegner weiter. Er öffnet SouthBeat auf seinem PC unter „Online-Kampf“ und tritt damit bei. Der Kampf startet automatisch.</p>
+        <button type="button" (click)="leave()">Abbrechen</button>
+      </div>
+    }
+    @case ('left') {
+      <h1>Online-Kampf</h1>
+      <div class="card">
+        <p>Dein Gegner hat den Raum verlassen.</p>
+        <button type="button" (click)="leave()">Zurück</button>
+      </div>
+    }
+    @default {
+      <p><a routerLink="/">← Zurück</a></p>
+      <h1>Online-Kampf</h1>
+      <p>Kämpfe in Echtzeit gegen jemanden an einem anderen PC. Beide brauchen nur einen Browser mit SouthBeat. Du kämpfst mit deinem gespeicherten Kämpfer <strong>{{ fighterName() }}</strong>.</p>
+      @if (error(); as e) {
+        <p class="error" role="alert">{{ e }}</p>
+      }
+      <div class="choices">
+        <form class="card" (submit)="$event.preventDefault(); create()">
+          <h2>Raum erstellen</h2>
+          <label>
+            Arena
+            <select name="arena" [(ngModel)]="arenaId">
+              <option value="">Zufällig</option>
+              @for (a of arenas; track a.id) {
+                <option [value]="a.id">{{ a.name }}</option>
+              }
+            </select>
+          </label>
+          <button type="submit" [disabled]="phase() === 'connecting'">Raum erstellen</button>
+        </form>
+        <form class="card" (submit)="$event.preventDefault(); join()">
+          <h2>Raum beitreten</h2>
+          <label>
+            Raumcode
+            <input name="code" [(ngModel)]="joinCode" maxlength="4" autocomplete="off" placeholder="ABCD" />
+          </label>
+          <button type="submit" [disabled]="phase() === 'connecting'">Beitreten</button>
+        </form>
+      </div>
+    }
+  }
+</section>

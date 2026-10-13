@@ -11,6 +11,7 @@ import { RouterLink } from '@angular/router';
       <a routerLink="/singleplayer">Einzelspieler</a>
       <a routerLink="/editor">Charakter erstellen</a>
       <a routerLink="/arena">Freier Kampf</a>
+      <a routerLink="/online">Online-Kampf</a>
     </main>
   `,
   styles: `

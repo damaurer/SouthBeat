@@ -9,32 +9,10 @@ import { MoveSlot } from '../character/character.model';
 import { Controls, DEFAULT_CPU, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS, cpuControls, createFight, step } from './combat';
 import { OPPONENTS, findOpponent } from '../singleplayer/opponents';
 import { Spark, renderFight } from './render';
+import { GAME_KEYS, KEYS, KeyMap, keyName } from './controls';
 import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from './hit-lines';
 
 type Mode = 'cpu' | 'local';
-
-interface KeyMap {
-  up: string;
-  left: string;
-  down: string;
-  right: string;
-  light: string;
-  heavy: string;
-  kick: string;
-  special: string;
-  ultimate: string;
-}
-
-/**
- * Player 1 uses WASD and J K L Ö Ä on a German keyboard (Ö and Ä sit where US layouts
- * have ; and ', which is what KeyboardEvent.code reports). Player 2 uses the arrow keys and
- * the number pad. Up and down are reserved for jumping and ducking.
- */
-const KEYS: [KeyMap, KeyMap] = [
-  { up: 'KeyW', left: 'KeyA', down: 'KeyS', right: 'KeyD', light: 'KeyJ', heavy: 'KeyK', kick: 'KeyL', special: 'Semicolon', ultimate: 'Quote' },
-  { up: 'ArrowUp', left: 'ArrowLeft', down: 'ArrowDown', right: 'ArrowRight', light: 'Numpad1', heavy: 'Numpad2', kick: 'Numpad3', special: 'Numpad4', ultimate: 'Numpad5' },
-];
-const GAME_KEYS = new Set(KEYS.flatMap((k) => Object.values(k)));
 
 interface FighterHud {
   name: string;
@@ -258,15 +236,6 @@ export class FightPage {
   }
 
   protected keyName(code: string): string {
-    return KEY_NAMES[code] ?? code.replace(/^Key/, '').replace(/^Numpad/, 'Num ');
+    return keyName(code);
   }
 }
-
-const KEY_NAMES: Record<string, string> = {
-  Semicolon: 'Ö',
-  Quote: 'Ä',
-  ArrowUp: '↑',
-  ArrowDown: '↓',
-  ArrowLeft: '←',
-  ArrowRight: '→',
-};

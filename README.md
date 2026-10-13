@@ -41,6 +41,21 @@ Die Gegner sprechen in Sprechblasen am oberen Bildschirmrand. Die Sprechblasen s
 
 Online-Multiplayer folgt.
 
+## Online-Kampf
+
+Unter `/online` (Startseite: „Online-Kampf“) kämpfen zwei Spieler an zwei PCs in Echtzeit gegeneinander. Einer erstellt einen Raum, wählt die Arena und gibt den vierstelligen Raumcode weiter. Der andere tritt mit dem Code bei, und der Kampf startet sofort. Jeder spielt mit seinem gespeicherten Kämpfer und an seinem PC mit den Tasten von Spieler 1 (WASD, J K L Ö Ä). Nach dem Kampf ist eine Revanche möglich. Sind beide Kämpfer gespeichert, zählt das Ergebnis in der Statistik.
+
+Der Kampf läuft auf dem Server (`src/server/online.ts`, WebSocket unter `/online` auf demselben Port). Die Browser schicken nur ihre Tasten und zeichnen die Bilder, die der Server 60-mal pro Sekunde zurückschickt. Beide sehen dadurch immer denselben Kampf, und niemand kann am eigenen Browser schummeln. Die Verzögerung hängt von der Verbindung zum Server ab; im lokalen Netz ist sie kaum spürbar.
+
+Zum Spielen über zwei PCs im selben Netz:
+
+```bash
+npm run build
+NG_ALLOWED_HOSTS=192.168.1.20 npm run serve:ssr:southbeat   # IP des PCs, auf dem der Server läuft
+```
+
+Beide öffnen dann `http://192.168.1.20:4000/online`. Für Spiele übers Internet muss der Server öffentlich erreichbar sein. `ng serve` unterstützt den Online-Kampf nicht, dafür braucht es den gebauten Server.
+
 ## Speicherung
 
 Erstellte Kämpfer und Spielstatistiken (Matches, Siege, Niederlagen, Arenen) speichert der SSR-Server in einer JSON-Datei, standardmäßig `data/southbeat.json` (per `SOUTHBEAT_DATA_FILE` änderbar, von Git ignoriert). Der Browser merkt sich nur die ID des eigenen Kämpfers.

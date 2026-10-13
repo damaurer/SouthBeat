@@ -71,7 +71,8 @@ export class CharacterStore {
     }
   }
 
-  private fighterId(): string | null {
+  /** The id of the saved fighter, or null if it was never saved. */
+  fighterId(): string | null {
     if (!this.browser) return null;
     try {
       return localStorage.getItem(FIGHTER_ID_KEY);

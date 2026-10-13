@@ -8,6 +8,7 @@ import express from 'express';
 import { join } from 'node:path';
 import { gameApi } from './server/api';
 import { JsonFileStorage } from './server/file-storage';
+import { OnlineServer } from './server/online';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -50,13 +51,15 @@ app.use((req, res, next) => {
  */
 if (isMainModule(import.meta.url) || process.env['pm_id']) {
   const port = process.env['PORT'] || 4000;
-  app.listen(port, (error) => {
+  const server = app.listen(port, (error) => {
     if (error) {
       throw error;
     }
 
     console.log(`Node Express server listening on http://localhost:${port}`);
   });
+  // Online fights between two PCs run over a WebSocket on the same port.
+  new OnlineServer().attach(server);
 }
 
 /**
