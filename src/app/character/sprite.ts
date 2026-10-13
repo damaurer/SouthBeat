@@ -28,7 +28,9 @@ type Material =
   | 'belt'
   | 'boots'
   | 'metal'
-  | 'buckle';
+  | 'buckle'
+  | 'shirt'
+  | 'tie';
 
 /** Materials that are too small or too dark to look right with edge lighting. */
 const FLAT: ReadonlySet<Material> = new Set(['skinDark', 'eyeWhite', 'iris', 'mouth', 'buckle']);
@@ -92,6 +94,44 @@ function drawFace(c: Canvas): void {
 
 function drawOutfit(c: Canvas, style: OutfitStyle): void {
   switch (style) {
+    case 'shirt':
+      c.rows(18, [[9, 22], [8, 23], [8, 23]], 'main');
+      c.rect(9, 21, 14, 10, 'main');
+      c.mirror(5, 19, 4, 7, 'main');
+      c.mirror(5, 26, 4, 1, 'mainDark');
+      c.mirror(13, 17, 2, 2, 'mainDark');
+      drawTie(c, 18, 28);
+      c.mirror(15, 22, 1, 1, 'mainDark');
+      c.rect(10, 31, 12, 1, 'belt');
+      c.rect(15, 31, 2, 1, 'buckle');
+      drawSlacks(c, 'pants');
+      return;
+    case 'suit':
+      c.rows(18, [[9, 22], [8, 23], [8, 23]], 'main');
+      c.rect(9, 21, 14, 12, 'main');
+      c.rows(18, [[13, 18], [13, 18], [14, 17], [14, 17], [14, 17], [15, 16], [15, 16]], 'shirt');
+      c.mirror(13, 17, 2, 1, 'shirt');
+      drawTie(c, 18, 25);
+      c.rows(18, [[12, 12], [12, 12], [12, 13], [13, 13], [13, 13], [14, 14], [14, 14]], 'mainDark');
+      c.rows(18, [[19, 19], [19, 19], [18, 19], [18, 18], [18, 18], [17, 17], [17, 17]], 'mainDark');
+      c.set(16, 27, 'buckle');
+      c.set(16, 29, 'buckle');
+      c.mirror(5, 19, 4, 11, 'main');
+      c.mirror(5, 30, 4, 1, 'shirt');
+      drawSlacks(c, 'main');
+      return;
+    case 'casual':
+      c.rows(18, [[9, 22], [8, 23], [8, 23]], 'main');
+      c.rect(9, 21, 14, 10, 'main');
+      c.rows(18, [[14, 17], [15, 16]], 'shirt');
+      c.mirror(13, 17, 2, 2, 'shirt');
+      c.rect(9, 18, 1, 13, 'mainDark');
+      c.rect(9, 29, 14, 2, 'mainDark');
+      c.rect(10, 31, 12, 1, 'shirt');
+      c.mirror(5, 19, 4, 11, 'main');
+      c.mirror(5, 29, 4, 1, 'mainDark');
+      drawSlacks(c, 'pants');
+      return;
     case 'gi':
       c.rows(18, [[9, 13], [8, 14], [8, 14], [9, 14]], 'main');
       c.rows(18, [[18, 22], [17, 23], [17, 23], [17, 22]], 'main');
@@ -173,6 +213,18 @@ function drawOutfit(c: Canvas, style: OutfitStyle): void {
       c.mirror(9, 41, 6, 5, 'metal');
       return;
   }
+}
+
+function drawTie(c: Canvas, from: number, to: number): void {
+  c.rect(15, from, 2, to - from, 'tie');
+  c.rect(14, to - 2, 4, 2, 'tie');
+  c.rect(15, to, 2, 1, 'tie');
+}
+
+function drawSlacks(c: Canvas, m: Material): void {
+  c.rect(10, 32, 12, 2, m);
+  c.mirror(10, 34, 5, 10, m);
+  c.mirror(9, 44, 6, 2, 'boots');
 }
 
 function drawJeans(c: Canvas): void {
@@ -270,6 +322,12 @@ function adjust(hex: string, amount: number): string {
   return `#${channel(16)}${channel(8)}${channel(0)}`;
 }
 
+const PANTS: Partial<Record<OutfitStyle, string>> = {
+  hoodie: '#6b6f78',
+  shirt: '#3a3f4a',
+  casual: '#c2ab7f',
+};
+
 function palette(look: Appearance): Record<Material, string> {
   return {
     skin: look.skinColor,
@@ -281,11 +339,13 @@ function palette(look: Appearance): Record<Material, string> {
     main: look.outfitColor,
     mainDark: adjust(look.outfitColor, -0.35),
     accent: look.outfitStyle === 'ninja' || look.outfitStyle === 'armor' ? '#d4a017' : '#f0f0f0',
-    pants: look.outfitStyle === 'hoodie' ? '#6b6f78' : '#2f3e5c',
+    pants: PANTS[look.outfitStyle] ?? '#2f3e5c',
     belt: look.outfitStyle === 'gi' ? '#1c1c1c' : '#5a3d1e',
-    boots: '#2a2226',
+    boots: look.outfitStyle === 'casual' ? '#6b4423' : '#2a2226',
     metal: '#9aa5b1',
     buckle: '#e8c547',
+    shirt: '#eef1f5',
+    tie: look.outfitStyle === 'shirt' ? '#25365c' : '#8b1e2d',
   };
 }
 

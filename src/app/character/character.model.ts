@@ -4,7 +4,7 @@ export type Stats = Record<StatKey, number>;
 
 export type HairStyle = 'short' | 'spiky' | 'long' | 'mohawk' | 'ponytail' | 'afro' | 'bald';
 export type BeardStyle = 'none' | 'stubble' | 'mustache' | 'goatee' | 'full' | 'long';
-export type OutfitStyle = 'gi' | 'tanktop' | 'jacket' | 'hoodie' | 'ninja' | 'wrestler' | 'armor';
+export type OutfitStyle = 'shirt' | 'suit' | 'casual' | 'gi' | 'tanktop' | 'jacket' | 'hoodie' | 'ninja' | 'wrestler' | 'armor';
 
 export interface Appearance {
   skinColor: string;
@@ -60,6 +60,9 @@ export const BEARD_LABELS: Record<BeardStyle, string> = {
 };
 
 export const OUTFIT_LABELS: Record<OutfitStyle, string> = {
+  shirt: 'Hemd mit Krawatte',
+  suit: 'Anzug',
+  casual: 'Business Casual',
   gi: 'Karate-Gi',
   tanktop: 'Tanktop',
   jacket: 'Lederjacke',
