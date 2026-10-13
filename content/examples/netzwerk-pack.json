@@ -1,0 +1,65 @@
+{
+  "$schema": "../schema/content-pack.schema.json",
+  "id": "netzwerk-pack",
+  "name": "Netzwerk-Keller",
+  "author": "SouthBeat",
+  "version": 1,
+  "moves": [
+    { "id": "packet-loss", "name": "Paketverlust", "slot": "special", "damage": 6, "startupFrames": 8, "reach": 150, "projectileSpeed": 5, "exclusive": true },
+    { "id": "firewall", "name": "Firewall", "slot": "ultimate", "damage": 32, "startupFrames": 24, "reach": 120, "look": { "colors": ["#ff7b00", "#ffd000"], "label": "FIREWALL" } }
+  ],
+  "arenas": [
+    {
+      "id": "netzwerk-keller",
+      "name": "Netzwerk-Keller",
+      "description": "Zwischen blinkenden Switches und Kabelbergen. Wer hier verliert, wird ausgesteckt.",
+      "wall": "#2d3b45",
+      "ceiling": "#1c252c",
+      "floor": { "color": "#3a4048", "kind": "raised" },
+      "props": [
+        { "type": "lamp", "x": 30, "y": 9, "w": 40 },
+        { "type": "lamp", "x": 160, "y": 9, "w": 40 },
+        { "type": "server-rack", "x": 8, "y": 30, "w": 20, "h": 70, "led": "#39ff88" },
+        { "type": "server-rack", "x": 30, "y": 30, "w": 20, "h": 70, "led": "#5ad1ff" },
+        { "type": "sign", "x": 60, "y": 26, "text": "NOC", "bg": "#f2c230", "fg": "#1a1a1a" },
+        { "type": "neon", "x": 120, "y": 22, "text": "PING 1MS", "color": "#39ff88" },
+        { "type": "desk", "x": 96, "w": 54, "color": "#4a4f55", "monitors": 3 },
+        { "type": "chair", "x": 118, "color": "#2b2f3a" },
+        { "type": "string-lights", "x1": 150, "x2": 236, "y": 18, "sag": 6, "colors": ["#ff5a5a", "#39ff88", "#5ad1ff"] },
+        { "type": "server-rack", "x": 192, "y": 34, "w": 18, "h": 66, "led": "#ffb347" },
+        { "type": "plant", "x": 220, "pot": "#7a6a52" }
+      ]
+    }
+  ],
+  "fighters": [
+    {
+      "id": "nadia-netz",
+      "title": "Netzwerk-Admin",
+      "character": {
+        "name": "Nadia Netz",
+        "appearance": { "bodyType": "slim", "accessory": "headset", "skinColor": "#c68642", "eyeColor": "#2e7d32", "hairColor": "#1c1c1c", "hairStyle": "ponytail", "beardStyle": "none", "outfitColor": "#2e86c1", "outfitStyle": "hoodie", "shape": { "height": 1, "legs": 1 } },
+        "moves": { "light": "keyboard-jab", "heavy": "laptop-uppercut", "kick": "cable-sweep", "special": "packet-loss", "ultimate": "firewall" },
+        "stats": { "strength": 5, "speed": 8, "defense": 4, "stamina": 5 }
+      },
+      "hitLines": ["Timeout!", "Das war ein Paketverlust.", "Ich starte den Router neu."]
+    }
+  ],
+  "opponents": [
+    {
+      "id": "boris-backup",
+      "title": "BB · Backup-Beauftragter",
+      "blurb": "Hat von allem drei Kopien. Auch von seinen Schlägen.",
+      "arenaId": "netzwerk-keller",
+      "character": {
+        "name": "Boris Backup",
+        "appearance": { "bodyType": "heavy", "accessory": "glasses", "skinColor": "#e0ac69", "eyeColor": "#3a6ea5", "hairColor": "#8a8a8a", "hairStyle": "receding", "beardStyle": "full", "outfitColor": "#5d6d7e", "outfitStyle": "casual" },
+        "moves": { "light": "mouse-flick", "heavy": "monitor-slam", "kick": "chair-spin", "special": "packet-loss", "ultimate": "firewall" },
+        "stats": { "strength": 7, "speed": 4, "defense": 8, "stamina": 7 }
+      },
+      "cpu": { "aggression": 0.07, "specialChance": 0.03, "blockChance": 0.45 },
+      "lines": ["Hast du ein Backup? Ich schon.", "Das stelle ich aus dem Archiv wieder her.", "Drei Kopien, zwei Medien, eine außer Haus!"],
+      "hitLines": ["Wiederherstellung läuft...", "Das war nicht im Backup-Plan!"],
+      "chattiness": 8
+    }
+  ]
+}

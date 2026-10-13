@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:southbeat": "node dist/southbeat/server/server.mjs",
-    "test:server": "node scripts/test-server.mjs"
+    "test:server": "node scripts/test-server.mjs",
+    "content": "node scripts/content.mjs"
   },
   "prettier": {
     "printWidth": 100,

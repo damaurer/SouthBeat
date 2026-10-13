@@ -382,7 +382,8 @@ const hackathon: Arena = {
   },
 };
 
-export const ARENAS: readonly Arena[] = [bunker, rooftop, openSpace, serverRoom, loft, kitchen, meeting, cornerOffice, garage, hackathon];
+/** Built-in arenas; installed content packs add theirs at the end. */
+export const ARENAS: Arena[] = [bunker, rooftop, openSpace, serverRoom, loft, kitchen, meeting, cornerOffice, garage, hackathon];
 
 export function findArena(id: string): Arena {
   return ARENAS.find((a) => a.id === id) ?? ARENAS[0];

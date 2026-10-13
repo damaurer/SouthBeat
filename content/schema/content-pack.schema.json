@@ -1,0 +1,1370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://southbeat.local/content-pack.schema.json",
+  "title": "SouthBeat-Inhaltspaket",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "version"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,39}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 40
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "version": {
+      "const": 1
+    },
+    "moves": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "slot",
+          "damage",
+          "startupFrames"
+        ],
+        "description": "Ausgewogen: damage × hits − startupFrames/2 muss im erlaubten Bereich des Slots liegen (siehe AGENTS.md).",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{1,39}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 30
+          },
+          "slot": {
+            "enum": [
+              "light",
+              "heavy",
+              "kick",
+              "special",
+              "ultimate"
+            ]
+          },
+          "damage": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 36
+          },
+          "startupFrames": {
+            "type": "integer",
+            "minimum": 3,
+            "maximum": 30
+          },
+          "reach": {
+            "type": "integer",
+            "minimum": 16,
+            "maximum": 200
+          },
+          "knockback": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 40
+          },
+          "hitstun": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 40
+          },
+          "hits": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "projectileSpeed": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "arc": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 40
+          },
+          "dashSpeed": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          },
+          "exclusive": {
+            "type": "boolean",
+            "description": "Signatur-Move: nur für Kämpfer aus diesem Paket."
+          },
+          "look": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "colors": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$"
+                }
+              },
+              "label": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9 !?.\\-:/]{1,10}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "arenas": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "description",
+          "wall",
+          "floor",
+          "props"
+        ],
+        "description": "Bild 240×135 Pixel, Wand bis y=100, darunter Boden. Props werden der Reihe nach gemalt.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{1,39}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 30
+          },
+          "description": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "wall": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "ceiling": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "floor": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "color",
+              "kind"
+            ],
+            "properties": {
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "kind": {
+                "enum": [
+                  "tiles",
+                  "carpet",
+                  "wood",
+                  "concrete",
+                  "raised"
+                ]
+              }
+            }
+          },
+          "props": {
+            "type": "array",
+            "maxItems": 40,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "y",
+                    "w",
+                    "h",
+                    "sky"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "window"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 99
+                    },
+                    "w": {
+                      "type": "integer",
+                      "minimum": 8,
+                      "maximum": 120
+                    },
+                    "h": {
+                      "type": "integer",
+                      "minimum": 8,
+                      "maximum": 70
+                    },
+                    "sky": {
+                      "enum": [
+                        "day",
+                        "sunset",
+                        "night"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "y",
+                    "w"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "lamp"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 30
+                    },
+                    "w": {
+                      "type": "integer",
+                      "minimum": 6,
+                      "maximum": 60
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "w",
+                    "color",
+                    "monitors"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "desk"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "w": {
+                      "type": "integer",
+                      "minimum": 24,
+                      "maximum": 90
+                    },
+                    "color": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    },
+                    "monitors": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 4
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "color"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "chair"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "color": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "pot"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "plant"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "pot": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "y",
+                    "w",
+                    "h",
+                    "led"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "server-rack"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 99
+                    },
+                    "w": {
+                      "type": "integer",
+                      "minimum": 10,
+                      "maximum": 30
+                    },
+                    "h": {
+                      "type": "integer",
+                      "minimum": 20,
+                      "maximum": 70
+                    },
+                    "led": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "y",
+                    "w",
+                    "h",
+                    "lines"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "whiteboard"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 99
+                    },
+                    "w": {
+                      "type": "integer",
+                      "minimum": 20,
+                      "maximum": 80
+                    },
+                    "h": {
+                      "type": "integer",
+                      "minimum": 14,
+                      "maximum": 40
+                    },
+                    "lines": {
+                      "type": "array",
+                      "maxItems": 4,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 14
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "y",
+                    "text",
+                    "bg",
+                    "fg"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "sign"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 99
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 12,
+                      "pattern": "^[A-Za-z0-9 .,:!?\\-+/()#%&'*<>=_]+$"
+                    },
+                    "bg": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    },
+                    "fg": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "y",
+                    "text",
+                    "color"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "neon"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 99
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 12,
+                      "pattern": "^[A-Za-z0-9 .,:!?\\-+/()#%&'*<>=_]+$"
+                    },
+                    "color": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "bookshelf"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 99
+                    },
+                    "w": {
+                      "type": "integer",
+                      "minimum": 12,
+                      "maximum": 60
+                    },
+                    "h": {
+                      "type": "integer",
+                      "minimum": 20,
+                      "maximum": 70
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "coffee-machine"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "count"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "pizza-boxes"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 8
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x1",
+                    "x2",
+                    "y",
+                    "sag",
+                    "colors"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "string-lights"
+                    },
+                    "x1": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "x2": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 60
+                    },
+                    "sag": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 20
+                    },
+                    "colors": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 6,
+                      "items": {
+                        "type": "string",
+                        "pattern": "^#[0-9a-fA-F]{6}$"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "w",
+                    "height"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "tomato-planter"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "w": {
+                      "type": "integer",
+                      "minimum": 16,
+                      "maximum": 120
+                    },
+                    "height": {
+                      "type": "integer",
+                      "minimum": 16,
+                      "maximum": 50
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "monitor"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 99
+                    },
+                    "w": {
+                      "type": "integer",
+                      "minimum": 8,
+                      "maximum": 40
+                    },
+                    "h": {
+                      "type": "integer",
+                      "minimum": 6,
+                      "maximum": 30
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "x",
+                    "y",
+                    "w",
+                    "h",
+                    "color"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "rect"
+                    },
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 239
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 134
+                    },
+                    "w": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 240
+                    },
+                    "h": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 135
+                    },
+                    "color": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "fighters": {
+      "type": "array",
+      "maxItems": 30,
+      "description": "Zusätzliche Kämpfer in der Kämpferauswahl.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "character"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{1,39}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 40
+          },
+          "character": {
+            "type": "object",
+            "required": [
+              "name",
+              "appearance",
+              "moves",
+              "stats"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 16
+              },
+              "appearance": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "bodyType",
+                  "accessory",
+                  "skinColor",
+                  "eyeColor",
+                  "hairColor",
+                  "hairStyle",
+                  "beardStyle",
+                  "outfitColor",
+                  "outfitStyle"
+                ],
+                "properties": {
+                  "bodyType": {
+                    "enum": [
+                      "normal",
+                      "heavy",
+                      "slim"
+                    ]
+                  },
+                  "accessory": {
+                    "enum": [
+                      "none",
+                      "glasses",
+                      "sunglasses",
+                      "headset",
+                      "cap"
+                    ]
+                  },
+                  "skinColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "eyeColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "hairColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "hairStyle": {
+                    "enum": [
+                      "short",
+                      "spiky",
+                      "long",
+                      "mohawk",
+                      "ponytail",
+                      "afro",
+                      "receding",
+                      "bald"
+                    ]
+                  },
+                  "beardStyle": {
+                    "enum": [
+                      "none",
+                      "stubble",
+                      "mustache",
+                      "goatee",
+                      "full",
+                      "long"
+                    ]
+                  },
+                  "outfitColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "outfitStyle": {
+                    "enum": [
+                      "shirt",
+                      "suit",
+                      "casual",
+                      "blouse",
+                      "uniform",
+                      "gi",
+                      "tanktop",
+                      "jacket",
+                      "hoodie",
+                      "ninja",
+                      "wrestler",
+                      "armor"
+                    ]
+                  },
+                  "shape": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "height": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "build": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "shoulders": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "belly": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "head": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "arms": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "legs": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "eyes": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "nose": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "mouth": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "chin": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "beard": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "hair": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      }
+                    }
+                  }
+                }
+              },
+              "moves": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "light",
+                  "heavy",
+                  "kick",
+                  "special",
+                  "ultimate"
+                ],
+                "description": "Move-ids je Slot: eingebaute oder aus diesem Paket.",
+                "properties": {
+                  "light": {
+                    "type": "string"
+                  },
+                  "heavy": {
+                    "type": "string"
+                  },
+                  "kick": {
+                    "type": "string"
+                  },
+                  "special": {
+                    "type": "string"
+                  },
+                  "ultimate": {
+                    "type": "string"
+                  }
+                }
+              },
+              "stats": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "strength",
+                  "speed",
+                  "defense",
+                  "stamina"
+                ],
+                "description": "Je 1–10. Summe höchstens 22 (fighters) bzw. 30 (opponents).",
+                "properties": {
+                  "strength": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "speed": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "defense": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "stamina": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  }
+                }
+              }
+            }
+          },
+          "hitLines": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 90
+            }
+          }
+        }
+      }
+    },
+    "opponents": {
+      "type": "array",
+      "maxItems": 30,
+      "description": "Bonus-Gegner der Einzelspieler-Leiter nach dem Endboss.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "blurb",
+          "arenaId",
+          "character",
+          "cpu",
+          "lines",
+          "hitLines",
+          "chattiness"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{1,39}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 40
+          },
+          "blurb": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "arenaId": {
+            "type": "string"
+          },
+          "character": {
+            "type": "object",
+            "required": [
+              "name",
+              "appearance",
+              "moves",
+              "stats"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 16
+              },
+              "appearance": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "bodyType",
+                  "accessory",
+                  "skinColor",
+                  "eyeColor",
+                  "hairColor",
+                  "hairStyle",
+                  "beardStyle",
+                  "outfitColor",
+                  "outfitStyle"
+                ],
+                "properties": {
+                  "bodyType": {
+                    "enum": [
+                      "normal",
+                      "heavy",
+                      "slim"
+                    ]
+                  },
+                  "accessory": {
+                    "enum": [
+                      "none",
+                      "glasses",
+                      "sunglasses",
+                      "headset",
+                      "cap"
+                    ]
+                  },
+                  "skinColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "eyeColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "hairColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "hairStyle": {
+                    "enum": [
+                      "short",
+                      "spiky",
+                      "long",
+                      "mohawk",
+                      "ponytail",
+                      "afro",
+                      "receding",
+                      "bald"
+                    ]
+                  },
+                  "beardStyle": {
+                    "enum": [
+                      "none",
+                      "stubble",
+                      "mustache",
+                      "goatee",
+                      "full",
+                      "long"
+                    ]
+                  },
+                  "outfitColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "outfitStyle": {
+                    "enum": [
+                      "shirt",
+                      "suit",
+                      "casual",
+                      "blouse",
+                      "uniform",
+                      "gi",
+                      "tanktop",
+                      "jacket",
+                      "hoodie",
+                      "ninja",
+                      "wrestler",
+                      "armor"
+                    ]
+                  },
+                  "shape": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "height": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "build": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "shoulders": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "belly": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "head": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "arms": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "legs": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "eyes": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "nose": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "mouth": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "chin": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "beard": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      },
+                      "hair": {
+                        "type": "integer",
+                        "minimum": -3,
+                        "maximum": 3
+                      }
+                    }
+                  }
+                }
+              },
+              "moves": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "light",
+                  "heavy",
+                  "kick",
+                  "special",
+                  "ultimate"
+                ],
+                "description": "Move-ids je Slot: eingebaute oder aus diesem Paket.",
+                "properties": {
+                  "light": {
+                    "type": "string"
+                  },
+                  "heavy": {
+                    "type": "string"
+                  },
+                  "kick": {
+                    "type": "string"
+                  },
+                  "special": {
+                    "type": "string"
+                  },
+                  "ultimate": {
+                    "type": "string"
+                  }
+                }
+              },
+              "stats": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "strength",
+                  "speed",
+                  "defense",
+                  "stamina"
+                ],
+                "description": "Je 1–10. Summe höchstens 22 (fighters) bzw. 30 (opponents).",
+                "properties": {
+                  "strength": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "speed": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "defense": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "stamina": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  }
+                }
+              }
+            }
+          },
+          "cpu": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "aggression",
+              "specialChance"
+            ],
+            "properties": {
+              "aggression": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 0.2,
+                "description": "Typisch 0.05–0.12"
+              },
+              "specialChance": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 0.2,
+                "description": "Typisch 0.01–0.06"
+              },
+              "blockChance": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 0.6
+              },
+              "jumpChance": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 0.6,
+                "description": "Typisch 0.002–0.02"
+              },
+              "skill": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          "lines": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 90
+            },
+            "minItems": 1
+          },
+          "hitLines": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 90
+            },
+            "minItems": 1
+          },
+          "chattiness": {
+            "type": "number",
+            "minimum": 2,
+            "maximum": 30,
+            "description": "Sekunden zwischen zwei Sprüchen"
+          }
+        }
+      }
+    }
+  }
+}

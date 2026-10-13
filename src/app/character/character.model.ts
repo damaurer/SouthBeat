@@ -78,6 +78,8 @@ export interface Move {
   dashSpeed?: number;
   /** Signature moves of single-player opponents can't be picked in the editor. */
   exclusive?: boolean;
+  /** How a move from a content pack looks: beam colours and a word drawn with an ultimate. */
+  look?: { colors?: [string, string]; label?: string };
 }
 
 export type MoveSet = Record<MoveSlot, string>;
@@ -188,7 +190,8 @@ export const SLOT_LABELS: Record<MoveSlot, string> = {
  * Every fighter is a programmer, so the moves come from the office desk.
  * Faster moves hit softer, keeping the choice about play style rather than raw power.
  */
-export const MOVES: readonly Move[] = [
+/** Built-in moves; installed content packs add theirs at the end (see content/content.ts). */
+export const MOVES: Move[] = [
   { id: 'keyboard-jab', name: 'Tastatur-Jab', slot: 'light', damage: 4, startupFrames: 4 },
   { id: 'mouse-flick', name: 'Maus-Schnipser', slot: 'light', damage: 5, startupFrames: 6 },
   { id: 'monitor-slam', name: 'Monitor-Hammer', slot: 'heavy', damage: 12, startupFrames: 14 },

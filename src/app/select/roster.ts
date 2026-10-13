@@ -23,8 +23,13 @@ export const RANDOM_FIGHTER = 'random';
 /** The final boss is unlocked by beating him in single player. */
 export const BOSS_ID = 'gustav-grossmaul';
 
+/** Fighters from installed content packs (see content/content.ts). */
+export const CONTENT_FIGHTERS: RosterEntry[] = [];
+
 /** Fighters that are the same for everyone, so the server can look them up by id. */
 export function builtInFighter(id: string): RosterEntry | undefined {
+  const added = CONTENT_FIGHTERS.find((f) => f.id === id);
+  if (added) return added;
   if (id === 'sparring') {
     return { id, name: SPARRING_PARTNER.name, title: 'Trainingspartner', character: SPARRING_PARTNER, hitLines: HIT_LINES, cpu: DEFAULT_CPU, locked: false };
   }
@@ -35,7 +40,7 @@ export function builtInFighter(id: string): RosterEntry | undefined {
 
 export function roster(own: Character, beaten: readonly string[]): RosterEntry[] {
   const mine: RosterEntry = { id: OWN_FIGHTER, name: own.name, title: 'Dein Kämpfer', character: own, hitLines: HIT_LINES, cpu: DEFAULT_CPU, locked: false };
-  const others = ['sparring', ...OPPONENTS.map((o) => o.id)].map((id) => builtInFighter(id)!);
+  const others = ['sparring', ...OPPONENTS.map((o) => o.id), ...CONTENT_FIGHTERS.map((f) => f.id)].map((id) => builtInFighter(id)!);
   return [mine, ...others.map((e) => ({ ...e, locked: e.id === BOSS_ID && !beaten.includes(BOSS_ID) }))];
 }
 

@@ -46,7 +46,7 @@ export function adjustStat(stats: Stats, key: StatKey, delta: 1 | -1): Stats {
   return allowed ? { ...stats, [key]: stats[key] + delta } : stats;
 }
 
-export function statErrors(stats: Stats): string[] {
+export function statErrors(stats: Stats, budget = STAT_BUDGET): string[] {
   const errors: string[] = [];
   for (const key of STAT_KEYS) {
     const value = stats[key];
@@ -54,13 +54,12 @@ export function statErrors(stats: Stats): string[] {
       errors.push(`${key} muss zwischen ${STAT_MIN} und ${STAT_MAX} liegen.`);
     }
   }
-  if (totalPoints(stats) > STAT_BUDGET) {
-    errors.push(`Es dürfen höchstens ${STAT_BUDGET} Punkte verteilt werden.`);
+  if (totalPoints(stats) > budget) {
+    errors.push(`Es dürfen höchstens ${budget} Punkte verteilt werden.`);
   }
   return errors;
 }
 
-/** Full check for a character, e.g. before it may enter a multiplayer match. */
 /** Slider values: only known keys, each a whole number within the slider range. */
 export function isValidShape(shape: unknown): shape is Shape {
   if (!shape || typeof shape !== 'object' || Array.isArray(shape)) return false;
@@ -69,8 +68,21 @@ export function isValidShape(shape: unknown): shape is Shape {
   );
 }
 
-export function characterErrors(character: Character): string[] {
-  const errors = statErrors(character.stats);
+/**
+ * Content packs check their fighters with their own point budget, and they may use the
+ * signature moves defined in the same pack.
+ */
+export interface CharacterRules {
+  budget?: number;
+  allowExclusive?: (moveId: string) => boolean;
+}
+
+/** Full check for a character, e.g. before it may enter a multiplayer match. */
+export function characterErrors(character: Character, rules: CharacterRules = {}): string[] {
+  if (!character || typeof character !== 'object' || !character.stats || !character.moves || typeof character.name !== 'string') {
+    return ['Ein Charakter braucht name, appearance, moves und stats.'];
+  }
+  const errors = statErrors(character.stats, rules.budget);
   const name = character.name.trim();
   if (name.length < 2 || name.length > 16) {
     errors.push('Der Name muss 2 bis 16 Zeichen lang sein.');
@@ -94,7 +106,7 @@ export function characterErrors(character: Character): string[] {
   }
   for (const slot of MOVE_SLOTS) {
     const move = findMove(character.moves[slot]);
-    if (!move || move.slot !== slot || move.exclusive) {
+    if (!move || move.slot !== slot || (move.exclusive && !rules.allowExclusive?.(move.id))) {
       errors.push(`Ungültiger Move für ${slot}.`);
     }
   }

@@ -25,7 +25,8 @@ export interface Opponent {
 
 const look = defaultCharacter().appearance;
 
-export const OPPONENTS: readonly Opponent[] = [
+/** The ladder; opponents from content packs join after the boss as bonus fights. */
+export const OPPONENTS: Opponent[] = [
   {
     id: 'bernd-brummer',
     title: 'Bernd · Co-Teamleiter',

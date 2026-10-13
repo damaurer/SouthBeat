@@ -1,4 +1,5 @@
 import { Painter } from '../arena/painter';
+import { findMove } from '../character/character.model';
 
 /** Where an ultimate is drawn: in front of the fighter, along the ground of the fight or the stage. */
 export interface UltimateSpot {
@@ -112,7 +113,10 @@ export function drawUltimate(p: Painter, id: string, s: UltimateSpot): void {
       return;
   }
 
-  beam(BEAMS[id] ?? ['#ffe66d', '#ffffff']);
+  const look = BEAMS[id] ? undefined : findMove(id)?.look;
+  beam(BEAMS[id] ?? look?.colors ?? ['#ffe66d', '#ffffff']);
+  // Ultimates from content packs can bring a word of their own.
+  if (look?.label) label(reach - look.label.length * 4 - 6, chest - 18, look.label.toUpperCase(), '#ffffff');
   switch (id) {
     case 'blue-screen':
       box(reach - 40, chest - 12, 34, 24, '#0a3dcc');
