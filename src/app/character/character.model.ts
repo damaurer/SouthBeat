@@ -91,19 +91,19 @@ export const SLOT_LABELS: Record<MoveSlot, string> = {
 };
 
 /**
- * Every move in a slot is tuned so faster moves hit softer, keeping the
- * choice about play style rather than raw power.
+ * Every fighter is a programmer, so the moves come from the office desk.
+ * Faster moves hit softer, keeping the choice about play style rather than raw power.
  */
 export const MOVES: readonly Move[] = [
-  { id: 'jab', name: 'Jab', slot: 'light', damage: 4, startupFrames: 4 },
-  { id: 'chop', name: 'Handkantenschlag', slot: 'light', damage: 5, startupFrames: 6 },
-  { id: 'haymaker', name: 'Haymaker', slot: 'heavy', damage: 12, startupFrames: 14 },
-  { id: 'uppercut', name: 'Uppercut', slot: 'heavy', damage: 10, startupFrames: 10 },
-  { id: 'roundhouse', name: 'Roundhouse', slot: 'kick', damage: 9, startupFrames: 11 },
-  { id: 'sweep', name: 'Feger', slot: 'kick', damage: 7, startupFrames: 8 },
-  { id: 'fireball', name: 'Feuerball', slot: 'special', damage: 8, startupFrames: 13 },
-  { id: 'dash-punch', name: 'Sturmschlag', slot: 'special', damage: 11, startupFrames: 16 },
-  { id: 'grab', name: 'Wurf', slot: 'special', damage: 10, startupFrames: 7 },
+  { id: 'keyboard-jab', name: 'Tastatur-Jab', slot: 'light', damage: 4, startupFrames: 4 },
+  { id: 'mouse-flick', name: 'Maus-Schnipser', slot: 'light', damage: 5, startupFrames: 6 },
+  { id: 'monitor-slam', name: 'Monitor-Hammer', slot: 'heavy', damage: 12, startupFrames: 14 },
+  { id: 'laptop-uppercut', name: 'Laptop-Uppercut', slot: 'heavy', damage: 10, startupFrames: 10 },
+  { id: 'chair-spin', name: 'Drehstuhl-Kick', slot: 'kick', damage: 9, startupFrames: 11 },
+  { id: 'cable-sweep', name: 'Kabelsalat-Feger', slot: 'kick', damage: 7, startupFrames: 8 },
+  { id: 'coffee-throw', name: 'Kaffee-Wurf', slot: 'special', damage: 8, startupFrames: 13 },
+  { id: 'merge-conflict', name: 'Merge-Konflikt', slot: 'special', damage: 11, startupFrames: 16 },
+  { id: 'stack-overflow', name: 'Stack Overflow', slot: 'special', damage: 10, startupFrames: 7 },
 ];
 
 export function movesForSlot(slot: MoveSlot): Move[] {

@@ -1,0 +1,54 @@
+.arena-select {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+header {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+
+  a { color: inherit; }
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+
+  app-arena-canvas { border: 2px solid #f0f0f0; }
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.info h2 { margin-top: 0; }
+.matchup { color: #f1c40f; }
+
+.arena-list {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+button {
+  width: 100%;
+  padding: 4px;
+  background: #1f1f2e;
+  color: inherit;
+  font: inherit;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+
+  &:hover { border-color: #666; }
+  &.active { border-color: #f1c40f; }
+}

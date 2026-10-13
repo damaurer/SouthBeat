@@ -32,7 +32,7 @@ describe('balance', () => {
 
   it('rejects a move in the wrong slot', () => {
     const c = defaultCharacter();
-    c.moves.light = 'haymaker';
+    c.moves.light = 'monitor-slam';
     expect(characterErrors(c).length).toBe(1);
   });
 });

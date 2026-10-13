@@ -7,8 +7,9 @@ import { RouterLink } from '@angular/router';
   template: `
     <main class="title-screen">
       <h1>SouthBeat</h1>
-      <p>2D Pixel Beat 'em up</p>
+      <p>Programmierer prügeln sich durchs Büro.</p>
       <a routerLink="/editor">Charakter erstellen</a>
+      <a routerLink="/arena">Arena wählen</a>
     </main>
   `,
   styles: `
