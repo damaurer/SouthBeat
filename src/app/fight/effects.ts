@@ -128,7 +128,7 @@ export class Effects {
     const out = p.clone();
     for (let y = 0; y < p.height; y++) {
       for (let x = 0; x < p.width; x++) {
-        out.pixels[y * p.width + x] = p.get(Math.max(0, Math.min(p.width - 1, x - dx)), Math.max(0, Math.min(p.height - 1, y - dy)));
+        out.data[y * p.width + x] = p.word(Math.max(0, Math.min(p.width - 1, x - dx)), Math.max(0, Math.min(p.height - 1, y - dy)));
       }
     }
     return out;

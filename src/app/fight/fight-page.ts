@@ -96,6 +96,7 @@ export class FightPage {
   protected readonly combo = signal<Combo>(NO_COMBO);
   protected readonly inputs = signal<string[]>([]);
   private lastInput = '';
+  private hudKey = '';
   private readonly pads = inject(Pads);
   private readonly router = inject(Router);
   private lastCall: string | null = null;
@@ -337,13 +338,13 @@ export class FightPage {
     const s = this.state;
     const fighter = (i: 0 | 1): FighterHud => {
       const f = s.fighters[i];
-      return { name: f.character.name, hp: f.hp, maxHp: f.maxHp, meter: f.meter, ready: f.meter >= METER_MAX };
+      return { name: f.character.name, hp: Math.ceil(f.hp), maxHp: f.maxHp, meter: Math.floor(f.meter), ready: f.meter >= METER_MAX };
     };
     let result: string | null = null;
     if (s.winner === 'draw') result = 'Unentschieden!';
     else if (s.winner !== null) result = `${s.fighters[s.winner].character.name} gewinnt!`;
     if (this.opponent?.boss && s.winner === 0) result = `${this.opponent.character.name} ist besiegt! Du hast das Büro erobert!`;
-    this.hud.set({
+    const hud: Hud = {
       fighters: [fighter(0), fighter(1)],
       seconds: this.training ? Infinity : Math.ceil((ROUND_FRAMES - s.frame) / FPS),
       round: s.round,
@@ -355,7 +356,12 @@ export class FightPage {
         const b = this.bubbles[i];
         return b ? { speaker: s.fighters[i].character.name, text: b.text } : null;
       }) as Hud['bubbles'],
-    });
+    };
+    // The game runs outside Angular; the page only updates when something on the HUD changed.
+    const key = JSON.stringify(hud);
+    if (key === this.hudKey) return;
+    this.hudKey = key;
+    this.hud.set(hud);
   }
 
   protected won(): boolean {

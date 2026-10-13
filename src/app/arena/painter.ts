@@ -1,29 +1,66 @@
-/** A tiny pixel canvas that works the same in the browser, on the server and in tests. */
+/** Colors as packed RGBA words (little-endian, the byte order of ImageData), cached per hex string. */
+const toWord = new Map<string, number>();
+const toHex = new Map<number, string>();
+
+export function colorWord(hex: string): number {
+  let w = toWord.get(hex);
+  if (w === undefined) {
+    const n = parseInt(hex.slice(1, 7), 16);
+    w = ((0xff << 24) | ((n & 0xff) << 16) | (n & 0xff00) | ((n >> 16) & 0xff)) >>> 0;
+    toWord.set(hex, w);
+    toHex.set(w, hex.toLowerCase());
+  }
+  return w;
+}
+
+function hexOf(w: number): string {
+  let hex = toHex.get(w);
+  if (hex === undefined) {
+    hex = '#' + [w & 0xff, (w >> 8) & 0xff, (w >> 16) & 0xff].map((c) => c.toString(16).padStart(2, '0')).join('');
+    toHex.set(w, hex);
+  }
+  return hex;
+}
+
+/**
+ * A tiny pixel canvas that works the same in the browser, on the server and in tests.
+ * Pixels are kept as RGBA words, so a frame goes to the screen without any conversion.
+ */
 export class Painter {
-  readonly pixels: string[];
+  readonly data: Uint32Array;
 
   constructor(
     readonly width: number,
     readonly height: number,
     background = '#000000',
   ) {
-    this.pixels = Array<string>(width * height).fill(background);
+    this.data = new Uint32Array(width * height).fill(colorWord(background));
+  }
+
+  /** Every pixel as a hex color; slow, meant for tests and tools. */
+  get pixels(): string[] {
+    return Array.from(this.data, hexOf);
   }
 
   clone(): Painter {
     const copy = new Painter(this.width, this.height);
-    for (let i = 0; i < this.pixels.length; i++) copy.pixels[i] = this.pixels[i];
+    copy.data.set(this.data);
     return copy;
   }
 
   set(x: number, y: number, color: string): void {
     x = Math.floor(x);
     y = Math.floor(y);
-    if (x >= 0 && y >= 0 && x < this.width && y < this.height) this.pixels[y * this.width + x] = color;
+    if (x >= 0 && y >= 0 && x < this.width && y < this.height) this.data[y * this.width + x] = colorWord(color);
   }
 
   get(x: number, y: number): string {
-    return this.pixels[y * this.width + x];
+    return hexOf(this.data[y * this.width + x]);
+  }
+
+  /** The raw color word at a pixel, for copying between painters. */
+  word(x: number, y: number): number {
+    return this.data[y * this.width + x];
   }
 
   rect(x: number, y: number, w: number, h: number, color: string): void {
@@ -84,16 +121,9 @@ export class Painter {
     for (const p of pixels) this.set(x + (mirror ? width - 1 - p.x : p.x), y + p.y, p.fill);
   }
 
+  /** The pixels as ImageData bytes; a view on the same memory, valid until the next change. */
   toRgba(): Uint8ClampedArray<ArrayBuffer> {
-    const data = new Uint8ClampedArray(this.pixels.length * 4);
-    this.pixels.forEach((hex, i) => {
-      const n = parseInt(hex.slice(1), 16);
-      data[i * 4] = (n >> 16) & 0xff;
-      data[i * 4 + 1] = (n >> 8) & 0xff;
-      data[i * 4 + 2] = n & 0xff;
-      data[i * 4 + 3] = 255;
-    });
-    return data;
+    return new Uint8ClampedArray(this.data.buffer as ArrayBuffer, this.data.byteOffset, this.data.length * 4);
   }
 }
 

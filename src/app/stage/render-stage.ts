@@ -22,7 +22,7 @@ export function renderStage(world: Painter, state: StageState, fx: Effects): Pai
   const cam = Math.round(state.cameraX);
   const p = new Painter(ARENA_WIDTH, ARENA_HEIGHT);
   for (let y = 0; y < ARENA_HEIGHT; y++) {
-    for (let x = 0; x < ARENA_WIDTH; x++) p.pixels[y * ARENA_WIDTH + x] = world.get(Math.min(world.width - 1, x + cam), y);
+    for (let x = 0; x < ARENA_WIDTH; x++) p.data[y * ARENA_WIDTH + x] = world.word(Math.min(world.width - 1, x + cam), y);
   }
   // Painter's order: things further back are drawn first.
   const scene: Drawable[] = [

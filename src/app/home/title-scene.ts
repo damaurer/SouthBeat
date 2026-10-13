@@ -1,4 +1,4 @@
-import { Painter, seeded, shade } from '../arena/painter';
+import { Painter, colorWord, seeded, shade } from '../arena/painter';
 import { ARENA_HEIGHT, ARENA_WIDTH } from '../arena/props';
 import { Appearance, MoveSlot, findMove } from '../character/character.model';
 import { SPRITE_HEIGHT, SPRITE_WIDTH } from '../character/sprite';
@@ -13,6 +13,7 @@ const W = ARENA_WIDTH;
 const H = ARENA_HEIGHT;
 const ROOF_Y = 112;
 const LAYER_WIDTH = W * 2;
+const BLACK = colorWord('#000000');
 
 interface Layer {
   pixels: Painter;
@@ -45,8 +46,8 @@ export class TitleScene {
       const offset = Math.floor(frame * layer.speed) % LAYER_WIDTH;
       for (let y = 0; y < ROOF_Y; y++) {
         for (let x = 0; x < W; x++) {
-          const c = layer.pixels.get((x + offset) % LAYER_WIDTH, y);
-          if (c !== '#000000') p.set(x, y, c);
+          const c = layer.pixels.word((x + offset) % LAYER_WIDTH, y);
+          if (c !== BLACK) p.data[y * W + x] = c;
         }
       }
     }
