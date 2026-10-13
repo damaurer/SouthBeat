@@ -1,0 +1,23 @@
+<main class="title-screen">
+  <canvas #canvas [width]="width" [height]="height" aria-hidden="true"></canvas>
+  <div class="overlay">
+    <h1 class="logo">
+      <span class="south">SOUTH</span><span class="beat">BEAT</span>
+    </h1>
+    <p class="tagline">Programmierer prügeln sich durchs Büro.</p>
+
+    @if (!started()) {
+      <button type="button" class="press-start" (click)="start()">PRESS START</button>
+    } @else {
+      <nav class="menu" aria-label="Hauptmenü">
+        @for (entry of menu; track entry.link; let i = $index) {
+          <a [routerLink]="entry.link" [class.active]="cursor() === i" (mouseenter)="cursor.set(i)" (focus)="cursor.set(i)">
+            <span class="arrow">{{ cursor() === i ? '▶' : '' }}</span>{{ entry.label }}
+          </a>
+        }
+      </nav>
+      <p class="hint">{{ menu[cursor()].hint }}</p>
+    }
+    <p class="footer">SouthBeat · Ein Büro-Prügler</p>
+  </div>
+</main>

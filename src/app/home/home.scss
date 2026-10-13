@@ -1,0 +1,122 @@
+:host { display: block; }
+
+.title-screen {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #0b0b1f;
+}
+
+canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.overlay {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 12px;
+  padding: 8vh 16px 16px;
+  text-align: center;
+}
+
+.logo {
+  margin: 0;
+  font-size: clamp(2.5rem, 11vw, 7rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  transform: skew(-6deg);
+  animation: drop 0.6s steps(6) both;
+
+  span { display: inline-block; text-shadow: 4px 4px 0 #140c1c, 8px 8px 0 rgb(0 0 0 / 35%); }
+  .south { color: #ffe66d; -webkit-text-stroke: 2px #140c1c; }
+  .beat { color: #ff5a5a; -webkit-text-stroke: 2px #140c1c; animation: pulse 1.2s steps(2) infinite; }
+}
+
+.tagline {
+  margin: 0;
+  color: #fff;
+  text-shadow: 2px 2px 0 #140c1c;
+  font-size: clamp(0.85rem, 2.4vw, 1.2rem);
+}
+
+.press-start {
+  margin-top: 10vh;
+  padding: 8px 16px;
+  font: inherit;
+  font-size: clamp(1.1rem, 3.5vw, 1.8rem);
+  font-weight: bold;
+  letter-spacing: 0.2em;
+  color: #fff;
+  background: none;
+  border: none;
+  text-shadow: 3px 3px 0 #140c1c;
+  cursor: pointer;
+  animation: blink 1s steps(2) infinite;
+}
+
+.menu {
+  margin-top: 4vh;
+  display: grid;
+  gap: 4px;
+  padding: 12px 20px;
+  background: rgb(11 11 31 / 72%);
+  border: 3px solid #f0f0f0;
+  box-shadow: 4px 4px 0 #140c1c;
+  width: min(380px, 100%);
+  box-sizing: border-box;
+
+  a {
+    display: grid;
+    grid-template-columns: 1.5em 1fr;
+    padding: 4px 6px;
+    color: #f0f0f0;
+    text-align: left;
+    text-decoration: none;
+    font-size: clamp(1rem, 3vw, 1.3rem);
+    text-transform: uppercase;
+
+    &.active { color: #14141f; background: #f1c40f; }
+  }
+
+  .arrow { animation: blink 0.6s steps(2) infinite; }
+}
+
+.hint {
+  margin: 0;
+  max-width: 40ch;
+  color: #fff;
+  text-shadow: 2px 2px 0 #140c1c;
+}
+
+.footer {
+  position: fixed;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  margin: 0;
+  font-size: 0.75rem;
+  color: rgb(255 255 255 / 70%);
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+@keyframes pulse {
+  50% { color: #ff8a80; }
+}
+
+@keyframes drop {
+  from { transform: translateY(-60px) skew(-6deg); opacity: 0; }
+  to { transform: translateY(0) skew(-6deg); opacity: 1; }
+}
