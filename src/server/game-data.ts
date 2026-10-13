@@ -66,7 +66,7 @@ export class GameDataRules {
   }
 
   createFighter(input: unknown): StoredFighter {
-    const character = this.clean(input);
+    const character = cleanCharacter(input);
     const at = this.now().toISOString();
     const fighter: StoredFighter = { ...character, id: this.newId(), createdAt: at, updatedAt: at };
     this.data.fighters.push(fighter);
@@ -75,7 +75,7 @@ export class GameDataRules {
 
   updateFighter(id: string, input: unknown): StoredFighter {
     const existing = this.find(id);
-    const character = this.clean(input);
+    const character = cleanCharacter(input);
     Object.assign(existing, character, { updatedAt: this.now().toISOString() });
     return existing;
   }
@@ -121,31 +121,31 @@ export class GameDataRules {
     if (!fighter) throw new GameDataError(404, 'Kämpfer nicht gefunden.');
     return fighter;
   }
+}
 
-  /** Copies only known fields, so a client cannot smuggle extra data into the file. */
-  private clean(input: unknown): Character {
-    const raw = (input ?? {}) as Partial<Character>;
-    const look = (raw.appearance ?? {}) as Partial<Character['appearance']>;
-    const character = {
-      name: typeof raw.name === 'string' ? raw.name.trim() : '',
-      appearance: {
-        bodyType: look.bodyType,
-        accessory: look.accessory,
-        skinColor: look.skinColor,
-        eyeColor: look.eyeColor,
-        hairColor: look.hairColor,
-        hairStyle: look.hairStyle,
-        beardStyle: look.beardStyle,
-        outfitColor: look.outfitColor,
-        outfitStyle: look.outfitStyle,
-        ...(look.shape !== undefined ? { shape: look.shape } : {}),
-      },
-      moves: Object.fromEntries(MOVE_SLOTS.map((s) => [s, raw.moves?.[s]])),
-      stats: Object.fromEntries(STAT_KEYS.map((k) => [k, raw.stats?.[k]])),
-      ...(raw.projectileArt !== undefined ? { projectileArt: raw.projectileArt } : {}),
-    } as Character;
-    const errors = characterErrors(character);
-    if (errors.length > 0) throw new GameDataError(400, errors.join(' '));
-    return character;
-  }
+/** Copies only known fields, so a client cannot smuggle extra data into the file. */
+export function cleanCharacter(input: unknown): Character {
+  const raw = (input ?? {}) as Partial<Character>;
+  const look = (raw.appearance ?? {}) as Partial<Character['appearance']>;
+  const character = {
+    name: typeof raw.name === 'string' ? raw.name.trim() : '',
+    appearance: {
+      bodyType: look.bodyType,
+      accessory: look.accessory,
+      skinColor: look.skinColor,
+      eyeColor: look.eyeColor,
+      hairColor: look.hairColor,
+      hairStyle: look.hairStyle,
+      beardStyle: look.beardStyle,
+      outfitColor: look.outfitColor,
+      outfitStyle: look.outfitStyle,
+      ...(look.shape !== undefined ? { shape: look.shape } : {}),
+    },
+    moves: Object.fromEntries(MOVE_SLOTS.map((s) => [s, raw.moves?.[s]])),
+    stats: Object.fromEntries(STAT_KEYS.map((k) => [k, raw.stats?.[k]])),
+    ...(raw.projectileArt !== undefined ? { projectileArt: raw.projectileArt } : {}),
+  } as Character;
+  const errors = characterErrors(character);
+  if (errors.length > 0) throw new GameDataError(400, errors.join(' '));
+  return character;
 }

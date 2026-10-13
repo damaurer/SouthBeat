@@ -57,7 +57,7 @@ Jeder Boss hat eine eigene Ultimate, die Spieler nicht wählen können. Spieler 
 
 Die Gegner sprechen in Sprechblasen am oberen Bildschirmrand. Die Sprechblasen sind rein kosmetisch und beeinflussen das Spiel nicht. Gegner und Sprüche stehen in `src/app/singleplayer/opponents.ts`. Außerdem sagen alle Kämpfer, auch in normalen Kämpfen und im 2-Spieler-Modus, hin und wieder etwas, wenn sie getroffen werden: Spieler 1 links oben, Spieler 2 rechts oben. Jeder Gegner hat dafür eigene Sprüche, alle anderen nutzen die allgemeinen aus `src/app/fight/hit-lines.ts`.
 
-Online-Multiplayer folgt.
+Online spielen geht im Zweikampf und im Stage-Modus, siehe „Online-Kampf“ unten.
 
 ## Stage-Modus (Koop)
 
@@ -140,12 +140,13 @@ Falls Docker Hub das Herunterladen des Node-Basisimages begrenzt („429 Too Man
 
 ## Entwicklung
 
-Voraussetzung: Node.js 20 oder neuer.
+Voraussetzung: Node.js 22 oder neuer.
 
 ```bash
 npm install
 npm start            # Dev-Server auf http://localhost:4200
 npm run build        # Produktions-Build inkl. SSR
 npm run serve:ssr:southbeat   # gebaute SSR-App starten (Port 4000)
-npm test             # Unit-Tests
+npm test             # Unit-Tests (Browser)
+npm run test:server  # Server-Tests (Node, z. B. Online-Räume)
 ```

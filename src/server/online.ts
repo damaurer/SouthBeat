@@ -1,6 +1,6 @@
 import type { Server } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
-import { characterErrors, defaultCharacter } from '../app/character/balance';
+import { defaultCharacter } from '../app/character/balance';
 import { Character, MOVE_SLOTS, MoveSlot } from '../app/character/character.model';
 import { ARENAS, findArena } from '../app/arena/arenas';
 import { Controls, FPS, FightState, createFight, step } from '../app/fight/combat';
@@ -8,6 +8,10 @@ import { OWN_FIGHTER, builtInFighter } from '../app/select/roster';
 import { ClientMessage, GameMode, LOBBY_NAME_MAX, LobbyInfo, ONLINE_PATH, ServerMessage, newRoomCode, normalizeCode, snapshotOf, stageSnapshotOf } from '../app/online/protocol';
 import { Campaign, createCampaign, startStage, stepCampaign } from '../app/stage/campaign';
 import { STAGES } from '../app/stage/stages';
+import { cleanCharacter } from './game-data';
+
+/** How often the server checks that a connection is still alive. */
+export const HEARTBEAT_MS = 15_000;
 
 interface Player {
   socket: WebSocket;
@@ -55,6 +59,24 @@ export class OnlineServer {
   attach(server: Server): WebSocketServer {
     const wss = new WebSocketServer({ server, path: ONLINE_PATH, maxPayload: 16 * 1024 });
     wss.on('connection', (socket) => this.connect(socket));
+    // Connections that vanish without closing (Wi-Fi gone, laptop shut) answer no ping; they
+    // are dropped, so their lobby leaves the list and the other player is told.
+    const alive = new WeakSet<WebSocket>();
+    wss.on('connection', (socket) => {
+      alive.add(socket);
+      socket.on('pong', () => alive.add(socket));
+    });
+    const heartbeat = setInterval(() => {
+      for (const socket of wss.clients) {
+        if (!alive.has(socket)) {
+          socket.terminate();
+          continue;
+        }
+        alive.delete(socket);
+        socket.ping();
+      }
+    }, HEARTBEAT_MS);
+    wss.on('close', () => clearInterval(heartbeat));
     return wss;
   }
 
@@ -70,6 +92,15 @@ export class OnlineServer {
       } catch {
         return;
       }
+      // Anything but an object (null, numbers, lists) is ignored, like broken JSON.
+      if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return;
+      try {
+        handle(msg);
+      } catch (error) {
+        console.error('Online message failed', error);
+      }
+    });
+    const handle = (msg: ClientMessage): void => {
       if (msg.type === 'create' && !room) {
         player = this.player(socket, msg.rosterId, msg.fighter, msg.fighterId);
         room = this.create(player, msg.name, msg.mode, msg.arenaId);
@@ -98,7 +129,7 @@ export class OnlineServer {
         room.players.forEach((p) => send(p.socket, { type: 'rematch-wanted', by }));
         if (room.players.length === 2 && room.players.every((p) => p.wantsRematch)) this.start(room);
       }
-    });
+    };
     socket.on('close', () => {
       this.browsing.delete(socket);
       if (!room) return;
@@ -130,10 +161,17 @@ export class OnlineServer {
     // Built-in fighters come from the server's own list; the player's own fighter is checked
     // like a saved one, so nobody brings an overpowered fighter online.
     const builtIn = typeof rosterId === 'string' && rosterId !== OWN_FIGHTER ? builtInFighter(rosterId) : undefined;
-    const valid = fighter && typeof fighter === 'object' && characterErrors(fighter as Character).length === 0;
+    let own: Character | null = null;
+    if (!builtIn) {
+      try {
+        own = cleanCharacter(fighter);
+      } catch {
+        own = null;
+      }
+    }
     return {
       socket,
-      character: builtIn ? builtIn.character : valid ? (fighter as Character) : defaultCharacter(),
+      character: builtIn ? builtIn.character : (own ?? defaultCharacter()),
       rosterId: builtIn ? builtIn.id : OWN_FIGHTER,
       // Only the player's own fighter counts in the statistics.
       fighterId: !builtIn && typeof fighterId === 'string' ? fighterId : null,
