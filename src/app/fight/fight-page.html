@@ -24,10 +24,12 @@
 
   <div class="screen">
     <canvas #canvas [width]="width" [height]="height" [attr.aria-label]="'Kampf in ' + arena.name"></canvas>
-    @if (hud()?.bubble; as bubble) {
-      <div class="bubble" aria-live="polite">
-        <strong>{{ bubble.speaker }}:</strong> {{ bubble.text }}
-      </div>
+    @for (bubble of hud()?.bubbles ?? []; track $index) {
+      @if (bubble) {
+        <div class="bubble" [class.right]="$index === 1" aria-live="polite">
+          <strong>{{ bubble.speaker }}:</strong> {{ bubble.text }}
+        </div>
+      }
     }
     @if (hud()?.banner; as banner) {
       <div class="banner">{{ banner }}</div>

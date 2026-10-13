@@ -5,9 +5,11 @@ import { SPARRING_PARTNER } from '../character/sparring';
 import { findArena, paintArena } from '../arena/arenas';
 import { ARENA_HEIGHT, ARENA_WIDTH, GROUND_Y } from '../arena/props';
 import { seeded } from '../arena/painter';
+import { MoveSlot } from '../character/character.model';
 import { Controls, DEFAULT_CPU, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS, cpuControls, createFight, step } from './combat';
 import { OPPONENTS, findOpponent } from '../singleplayer/opponents';
 import { Spark, renderFight } from './render';
+import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from './hit-lines';
 
 type Mode = 'cpu' | 'local';
 
@@ -40,11 +42,19 @@ interface Hud {
   seconds: number;
   banner: string | null;
   result: string | null;
-  bubble: { speaker: string; text: string } | null;
+  /** One speech bubble per fighter: left for player 1, right for player 2. */
+  bubbles: [Bubble | null, Bubble | null];
+}
+
+interface Bubble {
+  speaker: string;
+  text: string;
 }
 
 /** How long a speech bubble stays on screen. */
 const BUBBLE_FRAMES = 150;
+/** Hit reactions are short, so they go away sooner. */
+const HIT_BUBBLE_FRAMES = 90;
 
 @Component({
   selector: 'app-fight-page',
@@ -71,9 +81,11 @@ export class FightPage {
   private state!: FightState;
   private sparks: Spark[] = [];
   private banner: { text: string; frames: number } | null = null;
-  private bubble: { text: string; until: number } | null = null;
+  private bubbles: [{ text: string; until: number } | null, { text: string; until: number } | null] = [null, null];
   private nextBubbleAt = 0;
-  private unsaid: string[] = [];
+  private chatter = new LineDeck([]);
+  private hitDecks: [LineDeck, LineDeck] = [new LineDeck(HIT_LINES), new LineDeck(HIT_LINES)];
+  private lastHitLine: [number, number] = [-Infinity, -Infinity];
   private resultRecorded = false;
   private readonly held = new Set<string>();
   private readonly pressed = new Set<string>();
@@ -137,8 +149,11 @@ export class FightPage {
     this.state = createFight(this.store.saved(), this.opponent?.character ?? SPARRING_PARTNER, this.arena.id);
     this.sparks = [];
     this.banner = null;
-    this.bubble = null;
+    this.bubbles = [null, null];
     this.nextBubbleAt = FPS / 2;
+    this.chatter = new LineDeck(this.opponent?.lines ?? []);
+    this.hitDecks = [new LineDeck(HIT_LINES), new LineDeck(this.opponent?.hitLines ?? HIT_LINES)];
+    this.lastHitLine = [-Infinity, -Infinity];
     this.resultRecorded = false;
     this.random = seeded(Date.now());
     this.updateHud();
@@ -158,6 +173,7 @@ export class FightPage {
       if (e.type === 'hit') {
         const target = this.state.fighters[1 - e.attacker];
         this.sparks.push({ x: target.x, y: GROUND_Y - 28, life: 12, big: e.slot === 'ultimate' });
+        this.reactToHit((1 - e.attacker) as 0 | 1, e.slot);
       } else if (e.type === 'ultimate') {
         this.banner = { text: `${this.state.fighters[e.fighter].character.name}: ${e.move.name}!`, frames: 90 };
       }
@@ -174,20 +190,25 @@ export class FightPage {
 
   /** Speech bubbles are cosmetic: they never touch the fight state. */
   private updateBubble(): void {
-    const o = this.opponent;
     const frame = this.state.frame;
-    if (!o || this.state.winner !== null) {
-      this.bubble = null;
+    if (this.state.winner !== null) {
+      this.bubbles = [null, null];
       return;
     }
-    if (this.bubble && frame >= this.bubble.until) this.bubble = null;
-    if (!this.bubble && frame >= this.nextBubbleAt) {
-      // Shuffle through all lines before any repeats.
-      if (this.unsaid.length === 0) this.unsaid = [...o.lines];
-      const text = this.unsaid.splice(Math.floor(this.random() * this.unsaid.length), 1)[0];
-      this.bubble = { text, until: frame + BUBBLE_FRAMES };
+    this.bubbles = this.bubbles.map((b) => (b && frame < b.until ? b : null)) as typeof this.bubbles;
+    const o = this.opponent;
+    if (o && !this.bubbles[1] && frame >= this.nextBubbleAt) {
+      this.bubbles[1] = { text: this.chatter.draw(this.random), until: frame + BUBBLE_FRAMES };
       this.nextBubbleAt = frame + BUBBLE_FRAMES + Math.round(o.chattiness * FPS * (0.5 + this.random()));
     }
+  }
+
+  /** Now and then a fighter who takes a hit says something about it. */
+  private reactToHit(fighter: 0 | 1, slot: MoveSlot): void {
+    const frame = this.state.frame;
+    if (frame - this.lastHitLine[fighter] < HIT_LINE_COOLDOWN || !saysSomething(slot, this.random)) return;
+    this.lastHitLine[fighter] = frame;
+    this.bubbles[fighter] = { text: this.hitDecks[fighter].draw(this.random), until: frame + HIT_BUBBLE_FRAMES };
   }
 
   private read(keys: KeyMap): Controls {
@@ -218,7 +239,10 @@ export class FightPage {
       seconds: Math.ceil((ROUND_FRAMES - s.frame) / FPS),
       banner: this.banner?.text ?? null,
       result,
-      bubble: this.bubble && this.opponent ? { speaker: this.opponent.character.name, text: this.bubble.text } : null,
+      bubbles: [0, 1].map((i) => {
+        const b = this.bubbles[i];
+        return b ? { speaker: s.fighters[i].character.name, text: b.text } : null;
+      }) as Hud['bubbles'],
     });
   }
 

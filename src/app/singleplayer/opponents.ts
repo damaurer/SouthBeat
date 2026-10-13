@@ -16,6 +16,8 @@ export interface Opponent {
   cpu: CpuProfile;
   /** Speech bubbles shown at the top of the screen. Purely cosmetic. */
   lines: string[];
+  /** What they say now and then after taking a hit. */
+  hitLines: string[];
   /** Average seconds between two speech bubbles. */
   chattiness: number;
   boss?: boolean;
@@ -52,6 +54,14 @@ export const OPPONENTS: readonly Opponent[] = [
       'Ich drück dich mal kurz an die Wand.',
       'Kein Stress, ich hab Zeit. Und Masse.',
     ],
+    hitLines: [
+      'Uff, mein Bauch!',
+      'Das war mein Mittagessen!',
+      'Brille sitzt noch. Glück gehabt.',
+      'Das bespreche ich mit dem Teamleiter!',
+      'Hey, ich bin nur Co!',
+      'Masse federt das ab.',
+    ],
     chattiness: 9,
   },
   {
@@ -81,6 +91,14 @@ export const OPPONENTS: readonly Opponent[] = [
       'Rückzug ist keine Option.',
       'Die Retro findet heute im Schützengraben statt.',
       'Feuer frei auf alle offenen Bugs!',
+    ],
+    hitLines: [
+      'Das ist Befehlsverweigerung!',
+      'Sanitäter!',
+      'Panzerung hält!',
+      'Das gibt einen Eintrag ins Sprint-Protokoll!',
+      'Nur ein Kratzer im Lack.',
+      'Rückzug? Niemals!',
     ],
     chattiness: 8,
   },
@@ -112,6 +130,14 @@ export const OPPONENTS: readonly Opponent[] = [
       'Du blockst wie ein Legacy-System.',
       'Kurz und schmerzhaft, wie ein gutes Meeting.',
     ],
+    hitLines: [
+      'Hey, ich hab gleich einen Termin!',
+      'Das war nicht abgesprochen!',
+      'Zu schnell? Für mich doch nicht!',
+      'Autsch, meine Frisur!',
+      'Das trag ich mir in den Kalender ein.',
+      'Kurze Pause, dann geht’s weiter!',
+    ],
     chattiness: 9,
   },
   {
@@ -141,6 +167,14 @@ export const OPPONENTS: readonly Opponent[] = [
       'Monitoring sagt: Du verlierst.',
       'Das migrieren wir am Wochenende.',
       'Mehr RAM hilft immer. Auch beim Zuschlagen.',
+    ],
+    hitLines: [
+      'Kernel Panic!',
+      'Mein Uptime-Rekord!',
+      'Das war ein Hardwaredefekt.',
+      'Ich starte mich kurz neu.',
+      'Failover aktiviert!',
+      'Das landet im Incident-Report!',
     ],
     chattiness: 8,
   },
@@ -182,6 +216,16 @@ export const OPPONENTS: readonly Opponent[] = [
       'Ich hab da letzte Woche mal was angeteasert …',
       'Das Release-Datum steht. Den Umfang klären wir später.',
       'Ich hab gesagt, das dauert nur zwei Tage. Viel Glück!',
+    ],
+    hitLines: [
+      'Ich hab dem Kunden versprochen, dass das nicht weh tut!',
+      'Das ist kein Treffer, das ist ein Feature!',
+      'Meine Tomaten!',
+      'Zu meiner Zeit hat man noch Respekt vor dem Alter gehabt!',
+      'Das klären wir im nächsten Steering!',
+      'Mein Bart!',
+      'Das hab ich so nie freigegeben!',
+      'Der Kunde wird das lieben. Ich nicht.',
     ],
     chattiness: 3,
   },
