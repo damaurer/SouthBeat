@@ -1,5 +1,5 @@
 import { Character, MOVES, MoveSlot, findMove } from '../character/character.model';
-import { BEST_OF_THREE, FightEvent, FightState, FighterState } from '../fight/combat';
+import { BEST_OF_THREE, Controls, FightEvent, FightState, FighterState, NO_INPUT, step } from '../fight/combat';
 import { Brawler, Projectile, StageState } from '../stage/brawl';
 import { Campaign } from '../stage/campaign';
 import { STAGES } from '../stage/stages';
@@ -42,7 +42,9 @@ export type ClientMessage =
   /** After a dropped connection: take the old seat again with the secret from 'room' or 'start'. */
   | { type: 'resume'; code: string; token: string }
   /** Leaves the game on purpose, so the other player does not wait for a comeback. */
-  | { type: 'leave' };
+  | { type: 'leave' }
+  /** Measures the round trip; the server answers with the same number. */
+  | { type: 'ping'; t: number };
 
 /** An open lobby waiting for a second player, as shown in the lobby table. */
 export interface LobbyInfo {
@@ -66,6 +68,7 @@ export type ServerMessage =
   /** The other player's connection dropped; the game is paused for up to this many seconds. */
   | { type: 'opponent-away'; seconds: number }
   | { type: 'opponent-back' }
+  | { type: 'pong'; t: number }
   | { type: 'error'; message: string };
 
 export function snapshotOf(state: FightState): FightSnapshot {
@@ -102,6 +105,34 @@ export function stateFrom(snapshot: FightSnapshot, characters: [Character, Chara
       { ...snapshot.fighters[1], character: characters[1] },
     ],
   };
+}
+
+/** The most frames the client runs ahead of the server; beyond that guesses get too wild. */
+export const MAX_PREDICTION = 10;
+
+/**
+ * Client-side prediction for the duel: the server's state is a round trip old for your own
+ * presses, so the client replays the presses the server has not seen yet on a copy. You see
+ * your own fighter react at once; the opponent is shown standing still for those frames, and
+ * the next server frame corrects any wrong guess. Events of the guessed frames are dropped.
+ */
+export function predict(state: FightState, you: 0 | 1, inputs: readonly Controls[]): FightState {
+  const ahead = inputs.slice(-MAX_PREDICTION);
+  if (ahead.length === 0 || state.winner !== null) return state;
+  const copy = cloneState(state);
+  for (const c of ahead) step(copy, you === 0 ? [c, NO_INPUT] : [NO_INPUT, c]);
+  copy.events = [];
+  return copy;
+}
+
+/** A deep copy of the fight; characters and moves are shared, they never change in a fight. */
+function cloneState(state: FightState): FightState {
+  const copy = (value: unknown, key = ''): unknown => {
+    if (value === null || typeof value !== 'object' || key === 'character' || key === 'move' || key === 'rules') return value;
+    if (Array.isArray(value)) return value.map((v) => copy(v));
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, copy(v, k)]));
+  };
+  return copy(state) as FightState;
 }
 
 /**

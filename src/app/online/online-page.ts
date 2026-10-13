@@ -10,7 +10,7 @@ import { Character } from '../character/character.model';
 import { ARENAS, findArena, paintArena } from '../arena/arenas';
 import { ARENA_HEIGHT, ARENA_WIDTH } from '../arena/props';
 import { Painter, seeded } from '../arena/painter';
-import { FightState, METER_MAX, ROUND_FRAMES, FPS } from '../fight/combat';
+import { Controls, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS } from '../fight/combat';
 import { ATTACK_SLOTS, KeyMap } from '../fight/controls';
 import { KeyBindings } from '../fight/key-bindings';
 import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from '../fight/hit-lines';
@@ -28,12 +28,14 @@ import {
   GameMode,
   LOBBY_NAME_MAX,
   LobbyInfo,
+  MAX_PREDICTION,
   ONLINE_PATH,
   RECONNECT_MS,
   ServerMessage,
   StageSnapshot,
   decodeMessage,
   normalizeCode,
+  predict,
   stageFrom,
   stateFrom,
 } from './protocol';
@@ -114,6 +116,15 @@ export class OnlinePage {
   private retry: ReturnType<typeof setTimeout> | null = null;
   private giveUpAt = 0;
   private gone = false;
+  /** Round trip to the server in ms, smoothed; decides how far the duel is predicted. */
+  private rtt = 0;
+  private pinger: ReturnType<typeof setInterval> | null = null;
+  /** Your own controls, one per drawn frame, newest last. */
+  private history: Controls[] = [];
+  private pressed: (typeof ATTACK_SLOTS)[number] | null = null;
+  private lastFrameAt = 0;
+  /** What is drawn: the server's state with your newest presses played ahead. */
+  private shown: FightState | null = null;
 
   /** The fighter picked on the select screen; null until one is picked. */
   protected readonly chosen = signal<RosterEntry | null>(null);
@@ -154,6 +165,7 @@ export class OnlinePage {
     let raf = 0;
     const loop = (): void => {
       this.readPads();
+      this.remember();
       this.draw();
       raf = requestAnimationFrame(loop);
     };
@@ -166,6 +178,7 @@ export class OnlinePage {
     destroyRef.onDestroy(() => {
       this.gone = true;
       if (this.retry) clearTimeout(this.retry);
+      if (this.pinger) clearInterval(this.pinger);
       this.send({ type: 'leave' });
       this.socket?.close();
       if (typeof window === 'undefined') return;
@@ -229,6 +242,8 @@ export class OnlinePage {
     this.socket?.close();
     this.socket = null;
     this.state = null;
+    this.shown = null;
+    this.history = [];
     this.phase.set('menu');
     this.open();
   }
@@ -252,6 +267,12 @@ export class OnlinePage {
     this.socket = socket;
     socket.onopen = () => {
       this.connected.set(true);
+      if (this.pinger) clearInterval(this.pinger);
+      const ping = (): void => {
+        if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'ping', t: performance.now() }));
+      };
+      ping();
+      this.pinger = setInterval(ping, 2000);
       if (this.pending) socket.send(JSON.stringify(this.pending));
       this.pending = null;
     };
@@ -331,6 +352,8 @@ export class OnlinePage {
         this.arena = paintArena(arena);
         this.arenaName.set(arena.name);
         this.state = null;
+    this.shown = null;
+    this.history = [];
         this.fx.clear();
         this.hitDecks = msg.rosterIds.map((id) => new LineDeck(builtInFighter(id)?.hitLines ?? HIT_LINES)) as [LineDeck, LineDeck];
         this.lastHitLine = [-Infinity, -Infinity];
@@ -356,6 +379,11 @@ export class OnlinePage {
       case 'opponent-back':
         this.notice.set(null);
         break;
+      case 'pong': {
+        const rtt = performance.now() - msg.t;
+        this.rtt = this.rtt ? this.rtt * 0.7 + rtt * 0.3 : rtt;
+        break;
+      }
       case 'opponent-left':
         this.resume = null;
         this.notice.set(null);
@@ -370,6 +398,8 @@ export class OnlinePage {
     if (!this.characters || !this.arena) return;
     const state = stateFrom(snapshot, this.characters, this.matchArena);
     this.state = state;
+    const ahead = Math.min(MAX_PREDICTION, Math.round((this.rtt * FPS) / 1000));
+    this.shown = ahead > 0 ? predict(state, this.you(), this.history.slice(-ahead)) : state;
     fightEffects(this.fx, state);
     for (const e of state.events) {
       if (e.type === 'hit') {
@@ -443,7 +473,7 @@ export class OnlinePage {
   private draw(): void {
     const canvas = this.canvas()?.nativeElement;
     if (!canvas || !this.state || !this.arena) return;
-    const frame = renderFight(this.arena, this.state, this.fx);
+    const frame = renderFight(this.arena, this.shown ?? this.state, this.fx);
     canvas.getContext('2d')!.putImageData(new ImageData(frame.toRgba(), frame.width, frame.height), 0, 0);
   }
 
@@ -461,6 +491,7 @@ export class OnlinePage {
     if (e.code === k.down) this.down = down;
     const slot = ATTACK_SLOTS.find((s) => k[s] === e.code) ?? null;
     if (slot && (!down || e.repeat)) return;
+    if (slot) this.pressed = slot;
     this.sendInput(slot);
   }
 
@@ -478,8 +509,24 @@ export class OnlinePage {
     const changed = (Object.keys(dirs) as (keyof typeof dirs)[]).some((k) => dirs[k] !== this.padDirs[k]);
     this.padDirs = dirs;
     const press = ATTACK_SLOTS.find((s) => c[s]) ?? null;
+    if (press) this.pressed = press;
     if (changed || press) this.sendInput(press);
     this.pads.consumed();
+  }
+
+  /** Notes this frame's controls for the prediction. */
+  private remember(): void {
+    if (this.phase() !== 'fight' || this.matchMode() !== 'duel') return;
+    // Screens refresh at 60 Hz or faster, the game steps at 60 frames a second.
+    const now = performance.now();
+    if (now - this.lastFrameAt < 1000 / FPS - 2) return;
+    this.lastFrameAt = now;
+    const d = this.padDirs;
+    const c: Controls = { ...NO_INPUT, left: this.left || d.left, right: this.right || d.right, up: this.up || d.up, down: this.down || d.down };
+    if (this.pressed) c[this.pressed] = true;
+    this.pressed = null;
+    this.history.push(c);
+    if (this.history.length > MAX_PREDICTION * 2) this.history.splice(0, this.history.length - MAX_PREDICTION);
   }
 
   private send(msg: ClientMessage): void {

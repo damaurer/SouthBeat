@@ -4,7 +4,7 @@ import { SPARRING_PARTNER } from '../character/sparring';
 import { seeded } from '../arena/painter';
 import { Character } from '../character/character.model';
 import { createCampaign, stepCampaign } from '../stage/campaign';
-import { newRoomCode, normalizeCode, snapshotOf, stageFrom, stageSnapshotOf, stateFrom } from './protocol';
+import { decodeMessage, encodeMessage, newRoomCode, normalizeCode, predict, snapshotOf, stageFrom, stageSnapshotOf, stateFrom } from './protocol';
 
 describe('online protocol', () => {
   it('sends fighters without their characters and rebuilds the same state', () => {
@@ -42,5 +42,31 @@ describe('online protocol', () => {
     const random = seeded(1);
     for (let i = 0; i < 100; i++) expect(newRoomCode(random)).toMatch(/^[A-HJ-NP-Z]{4}$/);
     expect(normalizeCode(' abcd ')).toBe('ABCD');
+  });
+
+  it('predicts your own presses exactly as the server will play them, without touching its state', () => {
+    const me = defaultCharacter();
+    const server = createFight(me, SPARRING_PARTNER, 'bunker', BEST_OF_THREE);
+    for (let i = 0; i < 140; i++) step(server, [NO_INPUT, { ...NO_INPUT, left: true }]);
+    const seen = stateFrom(JSON.parse(JSON.stringify(snapshotOf(server))), [me, SPARRING_PARTNER], 'bunker');
+    const before = JSON.stringify(seen);
+    const inputs = [{ ...NO_INPUT, left: true }, { ...NO_INPUT, light: true }, NO_INPUT, NO_INPUT, NO_INPUT, NO_INPUT];
+    const guess = predict(seen, 1, inputs);
+    for (const c of inputs) step(server, [NO_INPUT, c]);
+    expect(JSON.stringify(seen)).toBe(before);
+    expect(guess.fighters[1].x).toBe(server.fighters[1].x);
+    expect(guess.fighters[1].action?.move.id).toBe(server.fighters[1].action?.move.id);
+    expect(guess.events).toEqual([]);
+  });
+
+  it('sends moves as ids and rounds fractions on the wire', () => {
+    const me = defaultCharacter();
+    const state = createFight(me, SPARRING_PARTNER, 'bunker', BEST_OF_THREE);
+    for (let i = 0; i < 130; i++) step(state, [{ ...NO_INPUT, right: true }, NO_INPUT]);
+    step(state, [{ ...NO_INPUT, heavy: true }, NO_INPUT]);
+    const text = encodeMessage({ type: 'state', snapshot: snapshotOf(state) });
+    expect(text).not.toMatch(/\.\d{3,}/);
+    const back = decodeMessage(text);
+    expect(back.type === 'state' && back.snapshot.fighters[0].action?.move).toBe(state.fighters[0].action!.move);
   });
 });

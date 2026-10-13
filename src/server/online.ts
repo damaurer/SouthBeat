@@ -188,6 +188,8 @@ export class OnlineServer {
         if (player.up) player.jumped = true;
         player.down = msg.down === true;
         if (MOVE_SLOTS.includes(msg.press as MoveSlot)) player.pressed.add(msg.press as MoveSlot);
+      } else if (msg.type === 'ping' && typeof msg.t === 'number' && Number.isFinite(msg.t)) {
+        send(socket, { type: 'pong', t: msg.t });
       } else if (msg.type === 'leave' && room) {
         // Leaving on purpose: the other player need not wait.
         const left = room;
