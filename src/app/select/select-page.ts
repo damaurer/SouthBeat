@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CharacterStore } from '../character/character-store';
 import { seeded } from '../arena/painter';
 import { CharacterSelect, FighterPicks } from './character-select';
-import { resolvePick, roster } from './roster';
+import { resolvePick } from './roster';
 
 /** Free fight, step 1: pick the fighters, then go on to the arena select. */
 @Component({
@@ -18,7 +18,7 @@ export class SelectPage {
 
   protected next(picks: FighterPicks): void {
     // Random picks are settled here, so the arena preview already shows who fights.
-    const entries = roster(this.store.saved(), this.store.ladderBeaten());
+    const entries = this.store.roster();
     const random = seeded(Date.now());
     const p1 = resolvePick(picks.p1, entries, random).id;
     const p2 = resolvePick(picks.p2 ?? 'sparring', entries, random).id;

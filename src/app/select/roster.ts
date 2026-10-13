@@ -38,10 +38,22 @@ export function builtInFighter(id: string): RosterEntry | undefined {
   return { id, name: o.character.name, title: o.title, character: o.character, hitLines: o.hitLines, cpu: o.cpu, locked: false };
 }
 
-export function roster(own: Character, beaten: readonly string[]): RosterEntry[] {
+/** Fighters of other players start with this before their id. */
+export const RIVAL_PREFIX = 'fighter:';
+
+/**
+ * Everyone on the select screen: your own fighter, the fighters of other players you picked
+ * as rivals, then the built-in ones and those from content packs.
+ */
+export function roster(own: Character, beaten: readonly string[], rivals: readonly RosterEntry[] = []): RosterEntry[] {
   const mine: RosterEntry = { id: OWN_FIGHTER, name: own.name, title: 'Dein Kämpfer', character: own, hitLines: HIT_LINES, cpu: DEFAULT_CPU, locked: false };
   const others = ['sparring', ...OPPONENTS.map((o) => o.id), ...CONTENT_FIGHTERS.map((f) => f.id)].map((id) => builtInFighter(id)!);
-  return [mine, ...others.map((e) => ({ ...e, locked: e.id === BOSS_ID && !beaten.includes(BOSS_ID) }))];
+  return [mine, ...rivals, ...others.map((e) => ({ ...e, locked: e.id === BOSS_ID && !beaten.includes(BOSS_ID) }))];
+}
+
+/** Another player's fighter as a roster entry; the computer plays it like any other. */
+export function rivalEntry(id: string, character: Character, title = 'Community'): RosterEntry {
+  return { id: RIVAL_PREFIX + id, name: character.name, title, character, hitLines: HIT_LINES, cpu: DEFAULT_CPU, locked: false };
 }
 
 /** Turns a pick into a fighter; random picks draw from the unlocked fighters. */

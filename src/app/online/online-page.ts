@@ -18,7 +18,7 @@ import { Effects } from '../fight/effects';
 import { fightEffects, renderFight } from '../fight/render';
 import { CharacterSelect, FighterPicks } from '../select/character-select';
 import { FighterPortrait } from '../select/fighter-portrait';
-import { RosterEntry, builtInFighter, resolvePick, roster } from '../select/roster';
+import { OWN_FIGHTER, RosterEntry, builtInFighter, resolvePick } from '../select/roster';
 import { StageScreen } from '../stage/stage-screen';
 import { STAGES } from '../stage/stages';
 import {
@@ -194,7 +194,7 @@ export class OnlinePage {
   }
 
   protected choose(picks: FighterPicks): void {
-    const entries = roster(this.store.saved(), this.store.ladderBeaten());
+    const entries = this.store.roster();
     this.chosen.set(resolvePick(picks.p1, entries, seeded(Date.now())));
     this.open();
   }
@@ -218,7 +218,9 @@ export class OnlinePage {
 
   private myFighter(): { rosterId: string; fighter: Character; fighterId: string | null; editToken: string | null } {
     const c = this.chosen()!;
-    return { rosterId: c.id, fighter: c.character, fighterId: this.store.fighterId(), editToken: this.store.editToken() };
+    // Only your own fighter collects wins and losses; a rival's is played like a built-in one.
+    const own = c.id === OWN_FIGHTER;
+    return { rosterId: c.id, fighter: c.character, fighterId: own ? this.store.fighterId() : null, editToken: own ? this.store.editToken() : null };
   }
 
   protected join(): void {

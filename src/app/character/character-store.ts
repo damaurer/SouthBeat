@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { Character } from './character.model';
 import { characterErrors, defaultCharacter } from './balance';
 import { EDIT_TOKEN_HEADER, FighterStats, FighterWithStats, OwnedFighter, StoredFighter } from '../shared/api';
+import { RosterEntry, rivalEntry, roster } from '../select/roster';
 
 /**
  * The browser remembers which fighters it created, with the edit token for each, and which
@@ -12,6 +13,9 @@ import { EDIT_TOKEN_HEADER, FighterStats, FighterWithStats, OwnedFighter, Stored
  */
 const FIGHTER_ID_KEY = 'southbeat.fighterId';
 const OWNED_KEY = 'southbeat.fighters';
+/** Fighters of other players picked to show up on the select screen. */
+const RIVALS_KEY = 'southbeat.rivals';
+export const MAX_RIVALS = 8;
 
 /** A fighter this browser created: only with its token can it be changed. */
 export interface OwnedEntry {
@@ -34,9 +38,12 @@ export class CharacterStore {
 
   /** All fighters made in this browser. */
   readonly owned = signal<OwnedEntry[]>([]);
+  /** Other players' fighters on the select screen, newest first. */
+  readonly rivals = signal<RosterEntry[]>([]);
 
   constructor() {
     this.owned.set(this.readOwned());
+    void this.loadRivals();
     const id = this.fighterId();
     if (id) void this.load(id).finally(() => this.loaded.set(true));
     else this.loaded.set(this.browser);
@@ -61,6 +68,54 @@ export class CharacterStore {
     this.stats.set(null);
     this.ladderBeaten.set([]);
     this.isSaved.set(false);
+  }
+
+  /** Everyone who can be picked: own fighter, rivals, built-in and content fighters. */
+  roster(): RosterEntry[] {
+    return roster(this.saved(), this.ladderBeaten(), this.rivals());
+  }
+
+  isRival(id: string): boolean {
+    return this.rivals().some((r) => r.id === rivalEntry(id, this.saved()).id);
+  }
+
+  /** Puts another player's fighter on the select screen; the oldest drops off past the limit. */
+  addRival(fighter: StoredFighter): void {
+    const entry = rivalEntry(fighter.id, toCharacter(fighter));
+    this.rivals.update((list) => [entry, ...list.filter((r) => r.id !== entry.id)].slice(0, MAX_RIVALS));
+    this.writeRivals();
+  }
+
+  removeRival(id: string): void {
+    const key = rivalEntry(id, this.saved()).id;
+    this.rivals.update((list) => list.filter((r) => r.id !== key));
+    this.writeRivals();
+  }
+
+  private async loadRivals(): Promise<void> {
+    if (!this.browser) return;
+    let ids: string[] = [];
+    try {
+      const raw = JSON.parse(localStorage.getItem(RIVALS_KEY) ?? '[]');
+      ids = Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string').slice(0, MAX_RIVALS) : [];
+    } catch {
+      return;
+    }
+    const found = await Promise.all(
+      ids.map((id) =>
+        firstValueFrom(this.http.get<FighterWithStats>(`/api/fighters/${encodeURIComponent(id)}`)).then(
+          (r) => rivalEntry(r.fighter.id, toCharacter(r.fighter)),
+          () => null,
+        ),
+      ),
+    );
+    // Picked while loading wins; deleted fighters drop out.
+    const loaded = found.filter((r): r is RosterEntry => r !== null);
+    this.rivals.update((now) => [...now, ...loaded.filter((r) => !now.some((n) => n.id === r.id))].slice(0, MAX_RIVALS));
+  }
+
+  private writeRivals(): void {
+    this.writeKey(RIVALS_KEY, JSON.stringify(this.rivals().map((r) => r.id.slice(r.id.indexOf(':') + 1))));
   }
 
   /** The edit token of the current fighter, for the online server to count results. */
@@ -171,7 +226,7 @@ export class CharacterStore {
 }
 
 /** Fighters saved before a field existed get its default. */
-function toCharacter({ name, appearance, moves, stats, projectileArt }: StoredFighter): Character {
+export function toCharacter({ name, appearance, moves, stats, projectileArt }: StoredFighter): Character {
   const defaults = defaultCharacter();
   return {
     name,

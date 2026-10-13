@@ -17,7 +17,7 @@ import { fightEffects, renderFight } from './render';
 import { KeyMap } from './controls';
 import { KeyBindings } from './key-bindings';
 import { picksFromQuery } from '../select/select-page';
-import { OWN_FIGHTER, RosterEntry, resolvePick, roster } from '../select/roster';
+import { OWN_FIGHTER, RosterEntry, resolvePick } from '../select/roster';
 import { HIT_LINES, HIT_LINE_COOLDOWN, LineDeck, saysSomething } from './hit-lines';
 import { Combo, DUMMY_LABELS, DUMMY_MODES, DummyMode, NO_COMBO, TRAINING_RULES, afterTrainingStep, drawBoxes, dummyControls, dummyReeling, inputEntry, logInput } from './training';
 
@@ -126,10 +126,14 @@ export class FightPage {
       }
     });
     // The player's fighter may arrive from the server just after the page opens; restart with it if the round has barely begun.
+    // Rivals (other players' fighters) are fetched the same way.
     effect(() => {
-      const fighter = this.store.saved();
+      this.store.saved();
+      this.store.rivals();
       untracked(() => {
-        if (this.state.fighters[0].character !== fighter && this.state.frame < FPS) this.reset();
+        const [a, b] = this.lineup();
+        const changed = this.state.fighters[0].character !== a.character || this.state.fighters[1].character !== b.character;
+        if (changed && this.state.frame < FPS) this.reset();
       });
     });
     afterNextRender(() => {
@@ -187,7 +191,7 @@ export class FightPage {
 
   /** The two fighters: in single player the ladder opponent, otherwise whoever was picked. */
   private lineup(): [RosterEntry, RosterEntry] {
-    const entries = roster(this.store.saved(), this.store.ladderBeaten());
+    const entries = this.store.roster();
     const random = seeded(1);
     const me = resolvePick(this.opponent ? OWN_FIGHTER : this.picks.p1, entries, random);
     if (this.opponent) {

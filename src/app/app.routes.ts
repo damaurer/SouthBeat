@@ -9,6 +9,7 @@ export const routes: Routes = [
   { path: 'arena', loadComponent: () => import('./arena/arena-select').then((m) => m.ArenaSelect), title: 'SouthBeat · Arena' },
   { path: 'fight', loadComponent: () => import('./fight/fight-page').then((m) => m.FightPage), title: 'SouthBeat · Kampf' },
   { path: 'training', loadComponent: () => import('./fight/fight-page').then((m) => m.FightPage), data: { training: true }, title: 'SouthBeat · Training' },
+  { path: 'fighters', loadComponent: () => import('./fighters/fighters-page').then((m) => m.FightersPage), title: 'SouthBeat · Kämpfer' },
   { path: 'singleplayer', loadComponent: () => import('./singleplayer/singleplayer-page').then((m) => m.SingleplayerPage), title: 'SouthBeat · Einzelspieler' },
   { path: 'online', loadComponent: () => import('./online/online-page').then((m) => m.OnlinePage), title: 'SouthBeat · Online-Kampf' },
   { path: 'stages', loadComponent: () => import('./stage/stage-page').then((m) => m.StagePage), title: 'SouthBeat · Stage-Modus' },

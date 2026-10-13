@@ -1,7 +1,7 @@
 import { characterErrors } from '../app/character/balance';
 import { Character, MOVE_SLOTS, STAT_KEYS } from '../app/character/character.model';
 import { findArena } from '../app/arena/arenas';
-import { FighterStats, FighterWithStats, LadderResult, MatchRecord, NewMatch, OwnedFighter, StatsSummary, StoredFighter } from '../app/shared/api';
+import { FighterStats, FighterWithStats, LadderResult, ListedFighter, MatchRecord, NewMatch, OwnedFighter, StatsSummary, StoredFighter } from '../app/shared/api';
 import { OPPONENTS, findOpponent } from '../app/singleplayer/opponents';
 
 /**
@@ -54,8 +54,9 @@ export class GameDataRules {
     return this.data;
   }
 
-  listFighters(): StoredFighter[] {
-    return this.data.fighters.map(publicFighter);
+  listFighters(): ListedFighter[] {
+    const stats = this.allStats();
+    return this.data.fighters.map((f) => ({ ...publicFighter(f), record: stats.get(f.id) ?? { matches: 0, wins: 0, losses: 0 } }));
   }
 
   getFighter(id: string): FighterWithStats {
@@ -133,11 +134,31 @@ export class GameDataRules {
     return { matches: wins + losses, wins, losses };
   }
 
+  /** Wins and losses of every fighter in one pass over the matches. */
+  private allStats(): Map<string, FighterStats> {
+    const stats = new Map<string, FighterStats>();
+    const of = (id: string): FighterStats => {
+      let s = stats.get(id);
+      if (!s) stats.set(id, (s = { matches: 0, wins: 0, losses: 0 }));
+      return s;
+    };
+    for (const m of this.data.matches) {
+      const w = of(m.winnerId);
+      w.wins++;
+      w.matches++;
+      const l = of(m.loserId);
+      l.losses++;
+      l.matches++;
+    }
+    return stats;
+  }
+
   summary(): StatsSummary {
     const byArena: Record<string, number> = {};
     for (const m of this.data.matches) byArena[m.arenaId] = (byArena[m.arenaId] ?? 0) + 1;
+    const stats = this.allStats();
     const leaderboard = this.data.fighters
-      .map((f) => ({ id: f.id, name: f.name, ...this.statsFor(f.id) }))
+      .map((f) => ({ id: f.id, name: f.name, ...(stats.get(f.id) ?? { matches: 0, wins: 0, losses: 0 }) }))
       .filter((f) => f.matches > 0)
       .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
       .slice(0, 10)

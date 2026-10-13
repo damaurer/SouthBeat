@@ -1,0 +1,128 @@
+<main class="fighters">
+  <header>
+    <a routerLink="/">← Hauptmenü</a>
+    <h1>Kämpfer</h1>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Kämpferlisten">
+    @for (t of tabs; track t) {
+      <button type="button" role="tab" class="btn" [class.primary]="tab() === t" [attr.aria-selected]="tab() === t" (click)="show(t)">{{ tabLabels[t] }}</button>
+    }
+  </div>
+
+  @if (error(); as e) {
+    <p class="error" role="alert">{{ e }}</p>
+  }
+
+  @switch (tab()) {
+    @case ('mine') {
+      <section role="tabpanel" aria-label="Meine Kämpfer">
+        <p class="hint">Alle Kämpfer, die du in diesem Browser erstellt hast. Nur hier kannst du sie bearbeiten.</p>
+        <p><button type="button" class="btn primary" (click)="newFighter()">+ Neuer Kämpfer</button></p>
+        @if (mine(); as rows) {
+          @if (rows.length === 0) {
+            <p>Noch keiner. Erstell dir im Editor deinen ersten Kämpfer.</p>
+          }
+          <ul class="cards">
+            @for (r of rows; track r.id) {
+              <li [class.active]="r.id === current()">
+                @if (r.character) {
+                  <app-fighter-portrait class="portrait" [look]="r.character.appearance" crop="full" />
+                }
+                <div class="info">
+                  <strong>{{ r.character?.name }}</strong>
+                  @if (r.id === current()) {
+                    <span class="tag">Aktiv</span>
+                  }
+                  <span>Online: {{ r.record.wins }} Siege, {{ r.record.losses }} Niederlagen</span>
+                  <span>Einzelspieler: {{ r.beaten }} Gegner besiegt</span>
+                </div>
+                <div class="actions">
+                  @if (r.id !== current()) {
+                    <button type="button" class="btn primary" (click)="play(r.id)">Spielen</button>
+                  }
+                  <button type="button" class="btn" (click)="play(r.id, true)">Bearbeiten</button>
+                </div>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p>Lade …</p>
+        }
+      </section>
+    }
+    @case ('all') {
+      <section role="tabpanel" aria-label="Alle Kämpfer">
+        <p class="hint">
+          Kämpfer aller Spieler auf diesem Server. „In die Auswahl“ setzt sie auf den Auswahlbildschirm (bis zu {{ maxRivals }}), dort spielt sie der Computer.
+        </p>
+        <label class="search">Suchen <input type="search" [value]="search()" (input)="search.set($any($event.target).value); shown.set(40)" placeholder="Name" /></label>
+        @if (all()) {
+          <p class="count">{{ filtered().length }} Kämpfer</p>
+          <ul class="cards">
+            @for (f of filtered().slice(0, shown()); track f.id) {
+              <li>
+                <app-fighter-portrait class="portrait" [look]="look(f)" crop="full" />
+                <div class="info">
+                  <strong>{{ f.name }}</strong>
+                  @if (isOwn(f.id)) {
+                    <span class="tag">Deiner</span>
+                  }
+                  <span>Online: {{ f.record.wins }} Siege, {{ f.record.losses }} Niederlagen</span>
+                </div>
+                @if (!isOwn(f.id)) {
+                  <div class="actions">
+                    <button type="button" class="btn primary" (click)="fight(f)">Kämpfen</button>
+                    <button type="button" class="btn" [attr.aria-pressed]="store.isRival(f.id)" (click)="toggleRival(f)">
+                      {{ store.isRival(f.id) ? 'Aus der Auswahl' : 'In die Auswahl' }}
+                    </button>
+                  </div>
+                }
+              </li>
+            }
+          </ul>
+          @if (filtered().length > shown()) {
+            <button type="button" class="btn" (click)="more()">Mehr zeigen</button>
+          }
+        } @else if (!error()) {
+          <p>Lade …</p>
+        }
+      </section>
+    }
+    @case ('best') {
+      <section role="tabpanel" aria-label="Bestenliste">
+        @if (summary(); as s) {
+          <p class="hint">Die meisten Online-Siege. {{ s.fighters }} Kämpfer, {{ s.matches }} Online-Kämpfe bisher.</p>
+          @if (s.leaderboard.length === 0) {
+            <p>Noch keine Online-Kämpfe. Der erste Sieg landet hier.</p>
+          } @else {
+            <table class="board">
+              <caption class="sr-only">Top 10 nach Online-Siegen</caption>
+              <thead>
+                <tr><th scope="col">Platz</th><th scope="col"><span class="sr-only">Bild</span></th><th scope="col">Name</th><th scope="col">Siege</th><th scope="col">Niederlagen</th><th scope="col">Quote</th></tr>
+              </thead>
+              <tbody>
+                @for (row of s.leaderboard; track row.id; let i = $index) {
+                  <tr [class.mine]="isOwn(row.id)">
+                    <td class="rank">{{ i + 1 }}</td>
+                    <td>
+                      @if (byId().get(row.id); as f) {
+                        <app-fighter-portrait class="face" [look]="look(f)" />
+                      }
+                    </td>
+                    <td>{{ row.name }}@if (isOwn(row.id)) { <span class="tag">Deiner</span> }</td>
+                    <td>{{ row.wins }}</td>
+                    <td>{{ row.losses }}</td>
+                    <td>{{ quote(row) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        } @else if (!error()) {
+          <p>Lade …</p>
+        }
+      </section>
+    }
+  }
+</main>

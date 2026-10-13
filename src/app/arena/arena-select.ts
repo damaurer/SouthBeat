@@ -6,7 +6,7 @@ import { ARENAS, Arena } from './arenas';
 import { ArenaCanvas } from './arena-canvas';
 import { KeyMap } from '../fight/controls';
 import { KeyBindings } from '../fight/key-bindings';
-import { OWN_FIGHTER, resolvePick, roster } from '../select/roster';
+import { OWN_FIGHTER, resolvePick } from '../select/roster';
 import { picksFromQuery } from '../select/select-page';
 
 /** Tiles per row in the stage grid. */
@@ -40,7 +40,7 @@ export class ArenaSelect {
   protected readonly selected = computed<Arena | null>(() => ARENAS[this.cursor()] ?? null);
   protected readonly preview = computed(() => this.selected() ?? ARENAS[Math.floor(Date.now() / 1500) % ARENAS.length]);
   protected readonly fighters = computed(() => {
-    const entries = roster(this.store.saved(), this.store.ladderBeaten());
+    const entries = this.store.roster();
     const random = seeded(1);
     return [resolvePick(this.picks.p1, entries, random), resolvePick(this.picks.p2 ?? 'sparring', entries, random)];
   });

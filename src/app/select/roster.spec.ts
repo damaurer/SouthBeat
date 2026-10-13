@@ -1,6 +1,6 @@
 import { defaultCharacter } from '../character/balance';
 import { seeded } from '../arena/painter';
-import { BOSS_ID, OWN_FIGHTER, RANDOM_FIGHTER, builtInFighter, resolvePick, roster } from './roster';
+import { BOSS_ID, OWN_FIGHTER, RANDOM_FIGHTER, RIVAL_PREFIX, builtInFighter, resolvePick, rivalEntry, roster } from './roster';
 
 describe('roster', () => {
   const me = { ...defaultCharacter(), name: 'Paula' };
@@ -26,5 +26,12 @@ describe('roster', () => {
   it('knows built-in fighters by id but not the own fighter', () => {
     expect(builtInFighter('bernd-brummer')!.name).toBe('Bernd Brummer');
     expect(builtInFighter(OWN_FIGHTER)).toBeUndefined();
+  });
+
+  it('puts rivals right after your own fighter and picks them by id', () => {
+    const rival = rivalEntry('abc', { ...defaultCharacter(), name: 'Rivale' });
+    const entries = roster(defaultCharacter(), [], [rival]);
+    expect(entries[1].id).toBe(RIVAL_PREFIX + 'abc');
+    expect(resolvePick(RIVAL_PREFIX + 'abc', entries, () => 0).name).toBe('Rivale');
   });
 });

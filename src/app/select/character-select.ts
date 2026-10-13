@@ -5,7 +5,7 @@ import { STAT_KEYS, STAT_LABELS } from '../character/character.model';
 import { KeyMap } from '../fight/controls';
 import { KeyBindings } from '../fight/key-bindings';
 import { FighterPortrait } from './fighter-portrait';
-import { RANDOM_FIGHTER, RosterEntry, roster } from './roster';
+import { RANDOM_FIGHTER, RosterEntry } from './roster';
 
 export type OpponentMode = 'cpu' | 'local';
 
@@ -53,7 +53,7 @@ export class CharacterSelect {
   protected readonly keyName = (code: string): string => this.bindings.name(code);
   protected readonly random = RANDOM_FIGHTER;
 
-  protected readonly entries = computed(() => roster(this.store.saved(), this.store.ladderBeaten()));
+  protected readonly entries = computed(() => this.store.roster());
   protected readonly tiles = computed<Tile[]>(() => [
     ...this.entries().map((e) => ({ id: e.id, entry: e })),
     { id: RANDOM_FIGHTER, entry: null },

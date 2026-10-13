@@ -10,7 +10,7 @@ import { Controls, NO_INPUT, FPS } from '../fight/combat';
 import { KeyMap } from '../fight/controls';
 import { KeyBindings } from '../fight/key-bindings';
 import { CharacterSelect, FighterPicks } from '../select/character-select';
-import { resolvePick, roster } from '../select/roster';
+import { resolvePick } from '../select/roster';
 import { StagePlayer } from './brawl';
 import { Campaign, createCampaign, startStage, stepCampaign } from './campaign';
 import { StageScreen } from './stage-screen';
@@ -103,7 +103,7 @@ export class StagePage {
   }
 
   protected begin(picks: FighterPicks): void {
-    const entries = roster(this.store.saved(), this.store.ladderBeaten());
+    const entries = this.store.roster();
     const random = seeded(Date.now());
     const team: StagePlayer[] = [{ character: resolvePick(picks.p1, entries, random).character, brain: 'human' }];
     if (picks.p2) {

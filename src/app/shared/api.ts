@@ -44,6 +44,11 @@ export interface LadderResult {
   playedAt: string;
 }
 
+/** A fighter in the list of all fighters, with how they did online. */
+export interface ListedFighter extends StoredFighter {
+  record: FighterStats;
+}
+
 export interface FighterWithStats {
   fighter: StoredFighter;
   stats: FighterStats;
