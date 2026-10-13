@@ -8,6 +8,7 @@ import { Effects } from '../fight/effects';
 import { Brawler, StageState } from './brawl';
 import { renderStage, stageEffects } from './render-stage';
 import { GRUNT_TYPES, ITEM_NAMES, STAGES, paintStage } from './stages';
+import { Sound } from '../shared/sound';
 
 interface BrawlerHud {
   name: string;
@@ -67,6 +68,7 @@ export class StageScreen {
   private playerHit = new LineDeck(HIT_LINES);
   private gruntHit = new Map<string, LineDeck>();
   private lastLine = -Infinity;
+  private readonly sound = inject(Sound);
 
   constructor() {
     if (typeof window === 'undefined') return;
@@ -76,7 +78,10 @@ export class StageScreen {
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
-    inject(DestroyRef).onDestroy(() => cancelAnimationFrame(raf));
+    inject(DestroyRef).onDestroy(() => {
+      cancelAnimationFrame(raf);
+      this.sound.stopMusic();
+    });
   }
 
   /** Call once per stage frame. `run` changes whenever a new stage (or a retry) starts. */
@@ -88,14 +93,18 @@ export class StageScreen {
         const t = s.brawlers.find((b) => b.id === e.target);
         if (!t) continue;
         this.react(s, t, e.slot);
+        this.sound.play(e.armored ? 'block' : e.slot === 'light' ? 'hit' : 'heavy');
       } else if (e.type === 'pickup') {
         const who = s.brawlers.find((b) => b.id === e.who);
         if (who) this.flash(s, `${who.name}: ${ITEM_NAMES[e.kind]}!`, 60);
+        this.sound.play('pickup');
       } else if (e.type === 'ultimate') {
         const who = s.brawlers.find((b) => b.id === e.who);
         if (who) this.flash(s, `${who.name}: ${e.move.name}!`, 80);
+        this.sound.play('ultimate');
       } else if (e.type === 'boss') {
         this.flash(s, `Boss: ${s.stage.boss.character.name}!`, 120);
+        this.sound.play('round');
       }
     }
     if (s.phase === 'cleared' && !this.clearedShown) {
@@ -113,6 +122,7 @@ export class StageScreen {
   private begin(s: StageState, run: number): void {
     this.run = run;
     this.world = paintStage(s.stage);
+    this.sound.startMusic(s.stage.arenaId);
     this.fx.clear();
     this.clearedShown = false;
     this.bubble.set(null);

@@ -17,6 +17,7 @@
             </div>
           }
         </app-stage-screen>
+        <app-touch-controls [pause]="false" />
         <div class="controls">
           <dl>
             <div>
@@ -45,7 +46,18 @@
               <div class="action-label">{{ f.ready ? 'ULTIMATE BEREIT!' : 'Action' }}</div>
             </div>
             @if ($index === 0) {
-              <div class="timer">{{ seconds() }}</div>
+              <div class="timer">
+                {{ seconds() }}
+                <div class="rounds" [attr.aria-label]="'Stand ' + wins()[0] + ':' + wins()[1]">
+                  @for (side of [0, 1]; track side) {
+                    <span class="pips">
+                      @for (n of [0, 1]; track n) {
+                        <span class="pip" [class.won]="wins()[side] > n"></span>
+                      }
+                    </span>
+                  }
+                </div>
+              </div>
             }
           }
         </div>
@@ -59,7 +71,9 @@
             </div>
           }
         }
-        @if (banner(); as b) {
+        @if (call(); as c) {
+          <div class="call" [class.fight]="c === 'FIGHT!'" [class.ko]="c === 'K.O.!'" aria-live="assertive">{{ c }}</div>
+        } @else if (banner(); as b) {
           <div class="banner">{{ b }}</div>
         }
         @if (result(); as r) {
@@ -68,16 +82,17 @@
             @if (rematchBy().includes(you())) {
               <span>Warte auf deinen Gegner …</span>
             } @else {
-              <button type="button" (click)="rematch()">{{ rematchBy().length ? 'Revanche annehmen' : 'Revanche' }}</button>
+              <button type="button" class="btn primary" (click)="rematch()">{{ rematchBy().length ? 'Revanche annehmen' : 'Revanche' }}</button>
             }
-            <button type="button" (click)="leave()">Raum verlassen</button>
+            <button type="button" class="btn" (click)="leave()">Raum verlassen</button>
           </div>
         }
       </div>
+      <app-touch-controls [pause]="false" />
       <div class="controls">
         <dl>
           <div>
-            <dt>Deine Tasten <a routerLink="/controls">ändern</a></dt>
+            <dt>Deine Tasten <a routerLink="/controls">ändern</a> · Gamepad 1 geht auch</dt>
             <dd>
               Laufen {{ keyName(keys.left) }}/{{ keyName(keys.right) }} · Springen {{ keyName(keys.up) }} · Ducken {{ keyName(keys.down) }} · Leicht {{ keyName(keys.light) }} · Schwer {{ keyName(keys.heavy) }} ·
               Tritt {{ keyName(keys.kick) }} · Spezial {{ keyName(keys.special) }} · <strong>Ultimate {{ keyName(keys.ultimate) }}</strong>
@@ -93,14 +108,14 @@
         <p>Deine Lobby <strong>{{ roomName() }}</strong> ist offen. {{ modes[matchMode()] }} · {{ matchMode() === 'stage' ? arenaName() : 'Arena: ' + arenaName() }}</p>
         <p>Sie steht jetzt in der Lobby-Tabelle. {{ matchMode() === 'stage' ? 'Dein Mitspieler' : 'Dein Gegner' }} tritt dort mit einem Klick bei, das Spiel startet dann automatisch.</p>
         <p class="small">Oder gib den Raumcode weiter: <span class="code-inline">{{ code() }}</span></p>
-        <button type="button" (click)="leave()">Lobby schließen</button>
+        <button type="button" class="btn" (click)="leave()">Lobby schließen</button>
       </div>
     }
     @case ('left') {
       <h1>Online-Kampf</h1>
       <div class="card">
         <p>{{ matchMode() === 'stage' ? 'Dein Mitspieler' : 'Dein Gegner' }} hat den Raum verlassen.</p>
-        <button type="button" (click)="leave()">Zurück</button>
+        <button type="button" class="btn" (click)="leave()">Zurück</button>
       </div>
     }
     @default {

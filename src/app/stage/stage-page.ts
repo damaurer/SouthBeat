@@ -1,5 +1,9 @@
-import { Component, DestroyRef, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, NgZone, inject, signal, viewChild } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { Sound } from '../shared/sound';
+import { Pads, merge } from '../shared/pads';
+import { TouchControls } from '../shared/touch-controls';
 import { CharacterStore } from '../character/character-store';
 import { seeded } from '../arena/painter';
 import { Controls, NO_INPUT, FPS } from '../fight/combat';
@@ -20,7 +24,7 @@ type Phase = 'select' | 'play' | 'won';
  */
 @Component({
   selector: 'app-stage-page',
-  imports: [RouterLink, CharacterSelect, StageScreen],
+  imports: [RouterLink, CharacterSelect, StageScreen, NgTemplateOutlet, TouchControls],
   templateUrl: './stage-page.html',
   styleUrls: ['../fight/fight-page.scss', './stage-page.scss'],
 })
@@ -35,6 +39,9 @@ export class StagePage {
   protected readonly together = signal(true);
   protected readonly teamSize = signal(1);
   protected readonly over = signal(false);
+  protected readonly paused = signal(false);
+  protected readonly sound = inject(Sound);
+  private readonly pads = inject(Pads);
 
   private campaign: Campaign | null = null;
   private random = seeded(Date.now());
@@ -45,6 +52,11 @@ export class StagePage {
     const destroyRef = inject(DestroyRef);
     if (typeof window === 'undefined') return;
     const onDown = (e: KeyboardEvent): void => {
+      if (this.phase() === 'play' && (e.code === 'Escape' || e.code === 'KeyP') && !e.repeat) {
+        e.preventDefault();
+        this.togglePause();
+        return;
+      }
       if (this.phase() !== 'play' || !this.bindings.isGameKey(e.code)) return;
       e.preventDefault();
       if (!e.repeat) this.pressed.add(e.code);
@@ -62,17 +74,28 @@ export class StagePage {
       carry = Math.min(carry + (now - last) / 1000, 5 / FPS);
       last = now;
       while (carry >= 1 / FPS) {
-        this.tick();
+        this.pads.poll();
+        if (this.phase() === 'play' && (this.pads.tapped(0, 'pause') || this.pads.tapped(1, 'pause'))) this.togglePause();
+        if (!this.paused()) this.tick();
+        this.pads.consumed();
         carry -= 1 / FPS;
       }
       raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
+    inject(NgZone).runOutsideAngular(() => (raf = requestAnimationFrame(loop)));
     destroyRef.onDestroy(() => {
       cancelAnimationFrame(raf);
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
     });
+  }
+
+  protected togglePause(): void {
+    if (this.over()) return;
+    this.paused.update((p) => !p);
+    this.held.clear();
+    this.pads.releaseAll();
+    this.sound.play('menu');
   }
 
   protected setTogether(value: boolean): void {
@@ -89,6 +112,7 @@ export class StagePage {
     this.campaign = createCampaign(team);
     this.teamSize.set(team.length);
     this.over.set(false);
+    this.paused.set(false);
     this.phase.set('play');
   }
 
@@ -100,6 +124,8 @@ export class StagePage {
 
   protected restart(): void {
     this.campaign = null;
+    this.paused.set(false);
+    this.sound.stopMusic();
     this.phase.set('select');
   }
 
@@ -107,7 +133,7 @@ export class StagePage {
     const c = this.campaign;
     if (this.phase() !== 'play' || !c) return;
     const keys = this.bindings.keys();
-    const controls = [this.read(keys[0]), this.read(keys[1])];
+    const controls = [merge(this.read(keys[0]), this.pads.controls(0)), merge(this.read(keys[1]), this.pads.controls(1))];
     this.pressed.clear();
     const cleared = stepCampaign(c, controls, this.random);
     if (cleared) void this.store.recordLadder(cleared, true);

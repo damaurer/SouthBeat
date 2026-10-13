@@ -1,23 +1,29 @@
 <section class="fight stage">
   @switch (phase()) {
     @case ('select') {
-      <div class="who">
-        <span>Stage-Modus:</span>
-        <button type="button" [class.active]="!together()" (click)="setTogether(false)">Allein</button>
-        <button type="button" [class.active]="together()" (click)="setTogether(true)">Zu zweit oder mit CPU-Partner</button>
-      </div>
       @if (together()) {
-        <app-character-select [initial]="{ p1: 'me', p2: null, mode: 'local' }" (confirmed)="begin($event)" />
+        <app-character-select [initial]="{ p1: 'me', p2: null, mode: 'local' }" (confirmed)="begin($event)">
+          <ng-container *ngTemplateOutlet="who" />
+        </app-character-select>
       } @else {
-        <app-character-select [solo]="true" (confirmed)="begin($event)" />
+        <app-character-select [solo]="true" (confirmed)="begin($event)">
+          <ng-container *ngTemplateOutlet="who" />
+        </app-character-select>
       }
+      <ng-template #who>
+        <div class="who">
+          <span>Stage-Modus:</span>
+          <button type="button" class="btn" [class.active]="!together()" (click)="setTogether(false)">Allein</button>
+          <button type="button" class="btn" [class.active]="together()" (click)="setTogether(true)">Zu zweit oder mit CPU-Partner</button>
+        </div>
+      </ng-template>
     }
     @case ('won') {
       <div class="card done">
         <h1>Alle {{ stageCount }} Stages geschafft!</h1>
         <p>Das ganze Büro ist erobert. Gustav Großmaul verspricht dem Kunden schon die Fortsetzung.</p>
-        <button type="button" (click)="restart()">Nochmal spielen</button>
-        <a routerLink="/">Zur Startseite</a>
+        <button type="button" class="btn primary" (click)="restart()">Nochmal spielen</button>
+        <a class="btn" routerLink="/">Zur Startseite</a>
       </div>
     }
     @default {
@@ -25,12 +31,24 @@
         @if (over()) {
           <div class="result">
             <p>Game Over</p>
-            <button type="button" (click)="retry()">Stage nochmal versuchen</button>
-            <button type="button" (click)="restart()">Andere Kämpfer</button>
-            <a routerLink="/">Zur Startseite</a>
+            <button type="button" class="btn primary" (click)="retry()">Stage nochmal versuchen</button>
+            <button type="button" class="btn" (click)="restart()">Andere Kämpfer</button>
+            <a class="btn" routerLink="/">Zur Startseite</a>
+          </div>
+        } @else if (paused()) {
+          <div class="pause-menu" role="dialog" aria-label="Pause">
+            <p class="title">Pause</p>
+            <button type="button" class="btn primary" (click)="togglePause()">Weiter</button>
+            <button type="button" class="btn" (click)="retry(); togglePause()">Stage neu starten</button>
+            <a class="btn" routerLink="/controls">Tasten ändern</a>
+            <button type="button" class="btn" (click)="sound.toggleMute()">Ton: {{ sound.muted() ? 'aus' : 'an' }}</button>
+            <button type="button" class="btn" (click)="sound.toggleMusic()">Musik: {{ sound.music() ? 'an' : 'aus' }}</button>
+            <button type="button" class="btn" (click)="restart()">Andere Kämpfer</button>
+            <a class="btn" routerLink="/">Beenden</a>
           </div>
         }
       </app-stage-screen>
+      <app-touch-controls />
       <div class="controls">
         <dl>
           @for (k of keys; track $index) {
@@ -46,7 +64,8 @@
             }
           }
         </dl>
-        <p class="hint">Besiege alle Gegner, dann geht es mit „GO →“ nach rechts weiter. Am Ende jeder Stage wartet ein Boss. Über Kaffee und Pizza läufst du für Leben, eine Tastatur macht deine Schläge 10 Treffer lang stärker. Jeder hat drei Leben. <a routerLink="/controls">Tasten ändern</a></p>
+        <p><button type="button" class="btn" (click)="togglePause()">Pause (Esc)</button> <a class="btn" routerLink="/controls">Tasten ändern</a></p>
+        <p class="hint">Besiege alle Gegner, dann geht es mit „GO →“ nach rechts weiter. Am Ende jeder Stage wartet ein Boss. Über Kaffee und Pizza läufst du für Leben, eine Tastatur macht deine Schläge 10 Treffer lang stärker. Jeder hat drei Leben. Gamepads gehen auch (Pad 1 für Spieler 1, Pad 2 für Spieler 2).</p>
       </div>
     }
   }

@@ -66,8 +66,10 @@ export function fightEffects(fx: Effects, state: FightState): void {
 }
 
 function outcomeOf(state: FightState, i: number): Outcome {
-  if (state.winner === null || state.winner === 'draw') return null;
-  return state.winner === i ? 'won' : 'lost';
+  // A won round already gets the victory pose while its KO plays out.
+  const w = state.winner ?? (state.ko < state.rules.koFrames * 0.45 ? state.roundWinner : null);
+  if (w === null || w === 'draw') return null;
+  return w === i ? 'won' : 'lost';
 }
 
 /** A soft dark patch on the floor under a fighter. */

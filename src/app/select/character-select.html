@@ -3,6 +3,7 @@
     <a routerLink="/">← Zurück</a>
     <h1>Kämpferauswahl</h1>
   </header>
+  <ng-content />
 
   <ul class="grid" role="listbox" aria-label="Kämpfer">
     @for (tile of tiles(); track tile.id; let i = $index) {

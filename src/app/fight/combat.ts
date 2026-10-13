@@ -110,12 +110,37 @@ export type FightEvent =
   | { type: 'block'; attacker: number; slot: MoveSlot; damage: number }
   | { type: 'ultimate'; fighter: number; move: Move };
 
+/** How a match is played: rounds to win, the intro before each round and the slow-motion KO. */
+export interface MatchRules {
+  roundsToWin: number;
+  introFrames: number;
+  koFrames: number;
+}
+
+/** One round, straight into the fight; used by tests and quick simulations. */
+export const SINGLE_ROUND: MatchRules = { roundsToWin: 1, introFrames: 0, koFrames: 0 };
+/** Best of three, with "Runde 1 … FIGHT!" before each round and a slow-motion KO, as in the arcades. */
+export const BEST_OF_THREE: MatchRules = { roundsToWin: 2, introFrames: 100, koFrames: 110 };
+/** During the KO the fight runs at a third of its speed. */
+const KO_SLOWDOWN = 3;
+
 export interface FightState {
   arenaId: string;
+  /** Frames into the current round; the round clock. */
   frame: number;
   fighters: [FighterState, FighterState];
-  /** Index of the winning fighter, 'draw', or null while the round runs. */
+  /** Winner of the whole match: a fighter's index, 'draw', or null while it runs. */
   winner: 0 | 1 | 'draw' | null;
+  rules: MatchRules;
+  round: number;
+  /** Rounds won by each fighter. */
+  wins: [number, number];
+  /** Frames left of the round intro; nobody moves until it is over. */
+  intro: number;
+  /** Who took the current round, while its KO plays out. */
+  roundWinner: 0 | 1 | 'draw' | null;
+  /** Frames left of the KO slow motion. */
+  ko: number;
   events: FightEvent[];
   /** Frames the fight freezes after a hit, so every hit lands with weight. */
   hitstop: number;
@@ -139,8 +164,25 @@ export function damageFor(attacker: Character, defender: Character, move: Move):
   return Math.max(1, Math.round(move.damage * power * guard));
 }
 
-export function createFight(a: Character, b: Character, arenaId: string): FightState {
-  const fighter = (c: Character, x: number, facing: 1 | -1): FighterState => ({
+export function createFight(a: Character, b: Character, arenaId: string, rules: MatchRules = SINGLE_ROUND): FightState {
+  return {
+    arenaId,
+    frame: 0,
+    fighters: [freshFighter(a, 86, 1), freshFighter(b, 154, -1)],
+    winner: null,
+    events: [],
+    hitstop: 0,
+    rules,
+    round: 1,
+    wins: [0, 0],
+    intro: rules.introFrames,
+    roundWinner: null,
+    ko: 0,
+  };
+}
+
+function freshFighter(c: Character, x: number, facing: 1 | -1): FighterState {
+  return {
     character: c,
     x,
     facing,
@@ -161,8 +203,28 @@ export function createFight(a: Character, b: Character, arenaId: string): FightS
     buffered: null,
     walkFrames: 0,
     downFrames: 0,
-  });
-  return { arenaId, frame: 0, fighters: [fighter(a, 86, 1), fighter(b, 154, -1)], winner: null, events: [], hitstop: 0 };
+  };
+}
+
+/** Scores the finished round and either ends the match or sets up the next round. */
+function endRound(state: FightState): void {
+  const w = state.roundWinner;
+  if (w === 'draw') state.wins = [state.wins[0] + 1, state.wins[1] + 1];
+  else if (w !== null) state.wins[w]++;
+  const [a, b] = state.wins;
+  const need = state.rules.roundsToWin;
+  // Endless draws stop after a few rounds.
+  if (a >= need || b >= need || state.round >= need * 2 + 1) {
+    state.winner = a === b ? 'draw' : a > b ? 0 : 1;
+    return;
+  }
+  const [fa, fb] = state.fighters;
+  state.fighters = [{ ...freshFighter(fa.character, 86, 1), meter: fa.meter }, { ...freshFighter(fb.character, 154, -1), meter: fb.meter }];
+  state.round++;
+  state.frame = 0;
+  state.hitstop = 0;
+  state.intro = state.rules.introFrames;
+  state.roundWinner = null;
 }
 
 export function canUseUltimate(f: FighterState): boolean {
@@ -191,6 +253,25 @@ export function isAirborne(f: FighterState): boolean {
 export function step(state: FightState, controls: [Controls, Controls]): void {
   state.events = [];
   if (state.winner !== null) return;
+  if (state.intro > 0) {
+    state.intro--;
+    return;
+  }
+  if (state.roundWinner !== null) {
+    // The KO plays out in slow motion, nobody in control any more.
+    state.ko--;
+    if (state.ko % KO_SLOWDOWN === 0) advance(state, [NO_INPUT, NO_INPUT]);
+    if (state.ko <= 0) endRound(state);
+    return;
+  }
+  advance(state, controls);
+  if (state.roundWinner !== null) {
+    state.ko = state.rules.koFrames;
+    if (state.ko <= 0) endRound(state);
+  }
+}
+
+function advance(state: FightState, controls: [Controls, Controls]): void {
   state.frame++;
   if (state.hitstop > 0) {
     // Frozen for a moment after a hit; buttons pressed meanwhile still count afterwards.
@@ -269,12 +350,13 @@ export function step(state: FightState, controls: [Controls, Controls]): void {
   if (!a.action && a.y === 0) a.facing = b.x >= a.x ? 1 : -1;
   if (!b.action && b.y === 0) b.facing = a.x >= b.x ? 1 : -1;
 
+  if (state.roundWinner !== null) return;
   if (a.hp <= 0 || b.hp <= 0) {
-    state.winner = a.hp <= 0 && b.hp <= 0 ? 'draw' : a.hp <= 0 ? 1 : 0;
+    state.roundWinner = a.hp <= 0 && b.hp <= 0 ? 'draw' : a.hp <= 0 ? 1 : 0;
   } else if (state.frame >= ROUND_FRAMES) {
     const ra = a.hp / a.maxHp;
     const rb = b.hp / b.maxHp;
-    state.winner = ra === rb ? 'draw' : ra > rb ? 0 : 1;
+    state.roundWinner = ra === rb ? 'draw' : ra > rb ? 0 : 1;
   }
 }
 
@@ -491,64 +573,9 @@ export interface CpuProfile {
   blockChance?: number;
   /** Chance per frame to jump in from mid range. */
   jumpChance?: number;
+  /** 0 to 1: how well the computer reads and punishes the player (see cpu.ts). */
+  skill?: number;
 }
 
 export const DEFAULT_CPU: CpuProfile = { aggression: 0.08, specialChance: 0.015, blockChance: 0.35, jumpChance: 0.006 };
 
-/** A simple computer opponent: walks in, attacks in range, blocks now and then and fires its ultimate when ready. */
-export function cpuControls(state: FightState, i: number, random: () => number, profile: CpuProfile = DEFAULT_CPU): Controls {
-  const f = state.fighters[i];
-  const o = state.fighters[1 - i];
-  const c: Controls = { ...NO_INPUT };
-  if (state.winner !== null) return c;
-  const dist = Math.abs(o.x - f.x);
-  const toward: 'left' | 'right' = o.x > f.x ? 'right' : 'left';
-  const away: 'left' | 'right' = toward === 'right' ? 'left' : 'right';
-
-  // Guarding: decide once per incoming attack, then hold the guard while it lasts.
-  const threat = o.action && o.action.frame <= o.action.startup + o.action.active && (dist <= reachOf(o.action.move) + 6 || o.action.move.projectileSpeed);
-  if (threat && f.y === 0 && !f.action && f.hitstun === 0) {
-    const decided = cpuGuards.get(o.action!);
-    const guard = decided ?? random() < (profile.blockChance ?? DEFAULT_CPU.blockChance!);
-    cpuGuards.set(o.action!, guard);
-    if (guard) {
-      c[away] = true;
-      c.down = o.action!.level === 'low';
-      return c;
-    }
-  }
-  if (f.action || f.hitstun > 0 || f.blockstun > 0 || f.y > 0) return c;
-  const move = (slot: MoveSlot): Move | undefined => findMove(f.character.moves[slot]);
-  const reaches = (slot: MoveSlot): boolean => {
-    const m = move(slot);
-    return !!m && dist <= reachOf(m) - 4;
-  };
-
-  if (o.y > 12 && dist <= reachOf('heavy') + 8 && random() < 0.2) {
-    // Anti-air: crouching heavy against a jump-in.
-    c.down = true;
-    c.heavy = true;
-  } else if (canUseUltimate(f) && reaches('ultimate')) {
-    c.ultimate = true;
-  } else if (reaches('special') && random() < profile.specialChance) {
-    c.special = true;
-  } else if (dist <= reachOf('light')) {
-    const r = random() / profile.aggression;
-    if (r < 0.45) c.light = true;
-    else if (r < 0.7) c.heavy = true;
-    else if (r < 0.85) c.kick = true;
-    else if (r < 1) {
-      c.down = true;
-      c.kick = true;
-    } else if (r < 1.25) c[away] = true;
-  } else if (dist > 50 && dist < 110 && random() < (profile.jumpChance ?? DEFAULT_CPU.jumpChance!)) {
-    c.up = true;
-    c[toward] = true;
-  } else {
-    c[toward] = random() < 0.9;
-  }
-  return c;
-}
-
-/** Whether the CPU chose to guard against a given attack, so it does not re-roll every frame. */
-const cpuGuards = new WeakMap<Action, boolean>();

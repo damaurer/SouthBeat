@@ -19,10 +19,18 @@ export class CharacterStore {
   /** Single-player opponents beaten so far. Kept in memory only until the fighter is saved. */
   readonly ladderBeaten = signal<string[]>([]);
   readonly isSaved = signal(false);
+  /** True once the saved fighter has been fetched, or there is none to fetch. */
+  readonly loaded = signal(false);
 
   constructor() {
     const id = this.fighterId();
-    if (id) void this.load(id);
+    if (id) void this.load(id).finally(() => this.loaded.set(true));
+    else this.loaded.set(this.browser);
+  }
+
+  /** A ladder opponent can be fought once everyone before them is beaten. */
+  unlocked(opponentIndex: number, order: readonly { id: string }[]): boolean {
+    return order.slice(0, opponentIndex).every((o) => this.ladderBeaten().includes(o.id));
   }
 
   /** Creates or updates the player's fighter in the data file. */

@@ -1,5 +1,5 @@
 import { Character, MoveSlot } from '../character/character.model';
-import { FightEvent, FightState, FighterState } from '../fight/combat';
+import { BEST_OF_THREE, FightEvent, FightState, FighterState } from '../fight/combat';
 import { Brawler, Projectile, StageState } from '../stage/brawl';
 import { Campaign } from '../stage/campaign';
 import { STAGES } from '../stage/stages';
@@ -13,6 +13,11 @@ export type FighterSnapshot = Omit<FighterState, 'character'>;
 export interface FightSnapshot {
   frame: number;
   winner: FightState['winner'];
+  round: number;
+  wins: [number, number];
+  intro: number;
+  roundWinner: FightState['roundWinner'];
+  ko: number;
   events: FightEvent[];
   fighters: [FighterSnapshot, FighterSnapshot];
 }
@@ -56,7 +61,17 @@ export type ServerMessage =
 
 export function snapshotOf(state: FightState): FightSnapshot {
   const strip = ({ character: _, ...rest }: FighterState): FighterSnapshot => rest;
-  return { frame: state.frame, winner: state.winner, events: state.events, fighters: [strip(state.fighters[0]), strip(state.fighters[1])] };
+  return {
+    frame: state.frame,
+    winner: state.winner,
+    round: state.round,
+    wins: state.wins,
+    intro: state.intro,
+    roundWinner: state.roundWinner,
+    ko: state.ko,
+    events: state.events,
+    fighters: [strip(state.fighters[0]), strip(state.fighters[1])],
+  };
 }
 
 /** Rebuilds a full fight state on the client from a snapshot and the two characters. */
@@ -65,6 +80,12 @@ export function stateFrom(snapshot: FightSnapshot, characters: [Character, Chara
     arenaId,
     frame: snapshot.frame,
     winner: snapshot.winner,
+    rules: BEST_OF_THREE,
+    round: snapshot.round,
+    wins: snapshot.wins,
+    intro: snapshot.intro,
+    roundWinner: snapshot.roundWinner,
+    ko: snapshot.ko,
     events: snapshot.events,
     hitstop: 0,
     fighters: [

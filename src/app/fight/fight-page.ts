@@ -1,11 +1,16 @@
-import { Component, DestroyRef, ElementRef, afterNextRender, effect, inject, signal, untracked, viewChild } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Component, DestroyRef, ElementRef, NgZone, afterNextRender, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CharacterStore } from '../character/character-store';
 import { findArena, paintArena } from '../arena/arenas';
 import { ARENA_HEIGHT, ARENA_WIDTH } from '../arena/props';
 import { seeded } from '../arena/painter';
 import { MoveSlot } from '../character/character.model';
-import { Controls, DEFAULT_CPU, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS, cpuControls, createFight, step } from './combat';
+import { BEST_OF_THREE, Controls, DEFAULT_CPU, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, FPS, createFight, step } from './combat';
+import { DIFFICULTIES, DIFFICULTY_LABELS, Difficulty, cpuControls, cpuFor, saveDifficulty, savedDifficulty } from './cpu';
+import { Sound } from '../shared/sound';
+import { Pads, merge } from '../shared/pads';
+import { TouchControls } from '../shared/touch-controls';
+import { roundBanner } from './rounds';
 import { OPPONENTS, findOpponent } from '../singleplayer/opponents';
 import { Effects } from './effects';
 import { fightEffects, renderFight } from './render';
@@ -28,6 +33,10 @@ interface FighterHud {
 interface Hud {
   fighters: [FighterHud, FighterHud];
   seconds: number;
+  round: number;
+  wins: [number, number];
+  /** "Runde 2", "FIGHT!" or "K.O.!" across the screen. */
+  call: string | null;
   banner: string | null;
   result: string | null;
   /** One speech bubble per fighter: left for player 1, right for player 2. */
@@ -46,7 +55,7 @@ const HIT_BUBBLE_FRAMES = 90;
 
 @Component({
   selector: 'app-fight-page',
-  imports: [RouterLink],
+  imports: [RouterLink, TouchControls],
   templateUrl: './fight-page.html',
   styleUrl: './fight-page.scss',
 })
@@ -70,6 +79,14 @@ export class FightPage {
   protected readonly picks = picksFromQuery(this.query) ?? { p1: OWN_FIGHTER, p2: 'sparring', mode: 'cpu' as Mode };
   protected readonly mode = signal<Mode>(this.opponent ? 'cpu' : this.picks.mode);
   protected readonly hud = signal<Hud | null>(null);
+  protected readonly paused = signal(false);
+  protected readonly difficulty = signal<Difficulty>('normal');
+  protected readonly difficulties = DIFFICULTIES;
+  protected readonly difficultyLabels = DIFFICULTY_LABELS;
+  protected readonly sound = inject(Sound);
+  private readonly pads = inject(Pads);
+  private readonly router = inject(Router);
+  private lastCall: string | null = null;
 
   private state!: FightState;
   private cpu = DEFAULT_CPU;
@@ -87,7 +104,15 @@ export class FightPage {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
+    const zone = inject(NgZone);
     this.reset();
+    // Ladder opponents are only open once everyone before them is beaten.
+    effect(() => {
+      const o = this.opponent;
+      if (o && this.store.loaded() && !this.store.unlocked(OPPONENTS.indexOf(o), OPPONENTS)) {
+        void this.router.navigate(['/singleplayer']);
+      }
+    });
     // The player's fighter may arrive from the server just after the page opens; restart with it if the round has barely begun.
     effect(() => {
       const fighter = this.store.saved();
@@ -98,7 +123,15 @@ export class FightPage {
     afterNextRender(() => {
       const ctx = this.canvas().nativeElement.getContext('2d')!;
       const arena = paintArena(this.arena);
+      this.difficulty.set(savedDifficulty());
+      this.reset();
+      this.sound.startMusic(this.arena.id);
       const onDown = (e: KeyboardEvent): void => {
+        if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat) {
+          e.preventDefault();
+          this.togglePause();
+          return;
+        }
         if (!this.bindings.isGameKey(e.code)) return;
         e.preventDefault();
         if (!e.repeat) this.pressed.add(e.code);
@@ -117,16 +150,21 @@ export class FightPage {
         carry = Math.min(carry + (now - last) / 1000, 5 / FPS);
         last = now;
         while (carry >= 1 / FPS) {
-          this.tick();
+          this.pads.poll();
+          if (this.pads.tapped(0, 'pause') || this.pads.tapped(1, 'pause')) this.togglePause();
+          if (!this.paused()) this.tick();
+          this.pads.consumed();
           carry -= 1 / FPS;
         }
         const frame = renderFight(arena, this.state, this.fx);
         ctx.putImageData(new ImageData(frame.toRgba(), frame.width, frame.height), 0, 0);
         raf = requestAnimationFrame(loop);
       };
-      raf = requestAnimationFrame(loop);
+      // The game loop runs outside Angular; only the HUD signal triggers change detection.
+      zone.runOutsideAngular(() => (raf = requestAnimationFrame(loop)));
 
       destroyRef.onDestroy(() => {
+        this.sound.stopMusic();
         cancelAnimationFrame(raf);
         window.removeEventListener('keydown', onDown);
         window.removeEventListener('keyup', onUp);
@@ -148,8 +186,11 @@ export class FightPage {
 
   protected reset(): void {
     const [a, b] = this.lineup();
-    this.cpu = b.cpu;
-    this.state = createFight(a.character, b.character, this.arena.id);
+    const rank = this.opponent ? OPPONENTS.indexOf(this.opponent) : 1;
+    this.cpu = cpuFor(b.cpu, this.difficulty(), rank);
+    this.state = createFight(a.character, b.character, this.arena.id, BEST_OF_THREE);
+    this.paused.set(false);
+    this.lastCall = null;
     this.fx.clear();
     this.banner = null;
     this.bubbles = [null, null];
@@ -162,12 +203,26 @@ export class FightPage {
     this.updateHud();
   }
 
+  protected togglePause(): void {
+    if (this.state.winner !== null) return;
+    this.paused.update((p) => !p);
+    this.held.clear();
+    this.pads.releaseAll();
+    this.sound.play('menu');
+  }
+
+  protected setDifficulty(d: Difficulty): void {
+    this.difficulty.set(d);
+    saveDifficulty(d);
+    this.reset();
+  }
+
   private tick(): void {
     const controls: [Controls, Controls] = [
-      this.read(this.keys[0]),
+      merge(this.read(this.keys[0]), this.pads.controls(0)),
       this.opponent || this.mode() === 'cpu'
         ? cpuControls(this.state, 1, this.random, this.cpu)
-        : this.read(this.keys[1]),
+        : merge(this.read(this.keys[1]), this.pads.controls(1)),
     ];
     this.pressed.clear();
     step(this.state, controls);
@@ -175,9 +230,20 @@ export class FightPage {
     for (const e of this.state.events) {
       if (e.type === 'hit') {
         this.reactToHit((1 - e.attacker) as 0 | 1, e.slot);
+        this.sound.hit(e.slot);
+      } else if (e.type === 'block') {
+        this.sound.play('block');
       } else if (e.type === 'ultimate') {
         this.banner = { text: `${this.state.fighters[e.fighter].character.name}: ${e.move.name}!`, frames: 90 };
+        this.sound.play('ultimate');
       }
+    }
+    const call = roundBanner(this.state);
+    if (call !== this.lastCall) {
+      if (call === 'FIGHT!') this.sound.play('fight');
+      else if (call?.startsWith('Runde') || call === 'Finale Runde') this.sound.play('round');
+      else if (call === 'K.O.!' || call === 'Zeit!') this.sound.play('ko');
+      this.lastCall = call;
     }
     fightEffects(this.fx, this.state);
     this.updateBubble();
@@ -241,6 +307,9 @@ export class FightPage {
     this.hud.set({
       fighters: [fighter(0), fighter(1)],
       seconds: Math.ceil((ROUND_FRAMES - s.frame) / FPS),
+      round: s.round,
+      wins: s.wins,
+      call: roundBanner(s),
       banner: this.banner?.text ?? null,
       result,
       bubbles: [0, 1].map((i) => {

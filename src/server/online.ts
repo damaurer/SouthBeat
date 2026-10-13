@@ -3,7 +3,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { defaultCharacter } from '../app/character/balance';
 import { Character, MOVE_SLOTS, MoveSlot } from '../app/character/character.model';
 import { ARENAS, findArena } from '../app/arena/arenas';
-import { Controls, FPS, FightState, createFight, step } from '../app/fight/combat';
+import { BEST_OF_THREE, Controls, FPS, FightState, createFight, step } from '../app/fight/combat';
 import { OWN_FIGHTER, builtInFighter } from '../app/select/roster';
 import { ClientMessage, GameMode, LOBBY_NAME_MAX, LobbyInfo, ONLINE_PATH, ServerMessage, newRoomCode, normalizeCode, snapshotOf, stageSnapshotOf } from '../app/online/protocol';
 import { Campaign, createCampaign, startStage, stepCampaign } from '../app/stage/campaign';
@@ -228,7 +228,7 @@ export class OnlineServer {
       if (c && !c.won) startStage(c, c.state.stage.index);
       else room.campaign = createCampaign([a, b].map((p) => ({ character: p.character, brain: 'human' as const })));
     } else {
-      room.state = createFight(a.character, b.character, room.arenaId);
+      room.state = createFight(a.character, b.character, room.arenaId, BEST_OF_THREE);
     }
     room.players.forEach((p, i) => {
       p.wantsRematch = false;
@@ -246,11 +246,14 @@ export class OnlineServer {
     if (room.mode === 'stage') return this.runStage(room);
     // Frames are stepped by elapsed time, so a late timer catches up instead of slowing the fight.
     const startedAt = Date.now();
+    // The round clock restarts every round, so the server counts its own frames.
+    let frames = 0;
     room.timer = setInterval(() => {
       const state = room.state!;
       const due = Math.floor(((Date.now() - startedAt) * FPS) / 1000);
       let events = [] as typeof state.events;
-      while (state.frame < due && state.winner === null) {
+      while (frames < due && state.winner === null) {
+        frames++;
         step(state, [this.controls(a), this.controls(b)]);
         events = events.concat(state.events);
       }

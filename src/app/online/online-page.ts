@@ -1,4 +1,8 @@
-import { Component, DestroyRef, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, NgZone, effect, inject, signal, viewChild } from '@angular/core';
+import { Sound } from '../shared/sound';
+import { Pads } from '../shared/pads';
+import { TouchControls } from '../shared/touch-controls';
+import { roundBanner } from '../fight/rounds';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CharacterStore } from '../character/character-store';
@@ -57,7 +61,7 @@ const BUBBLE_FRAMES = 90;
  */
 @Component({
   selector: 'app-online-page',
-  imports: [RouterLink, FormsModule, CharacterSelect, FighterPortrait, StageScreen],
+  imports: [RouterLink, FormsModule, CharacterSelect, FighterPortrait, StageScreen, TouchControls],
   templateUrl: './online-page.html',
   styleUrls: ['../fight/fight-page.scss', './online-page.scss'],
 })
@@ -91,6 +95,12 @@ export class OnlinePage {
   protected readonly you = signal<0 | 1>(0);
   protected readonly fighters = signal<[FighterHud, FighterHud] | null>(null);
   protected readonly seconds = signal(99);
+  protected readonly wins = signal<[number, number]>([0, 0]);
+  protected readonly call = signal<string | null>(null);
+  private readonly sound = inject(Sound);
+  private readonly pads = inject(Pads);
+  /** Directions held on a gamepad or the touch controls. */
+  private padDirs = { left: false, right: false, up: false, down: false };
   protected readonly bubbles = signal<[Bubble | null, Bubble | null]>([null, null]);
   protected readonly banner = signal<string | null>(null);
   protected readonly result = signal<string | null>(null);
@@ -134,13 +144,14 @@ export class OnlinePage {
     const onUp = (e: KeyboardEvent): void => this.key(e, false);
     let raf = 0;
     const loop = (): void => {
+      this.readPads();
       this.draw();
       raf = requestAnimationFrame(loop);
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('keydown', onDown);
       window.addEventListener('keyup', onUp);
-      raf = requestAnimationFrame(loop);
+      inject(NgZone).runOutsideAngular(() => (raf = requestAnimationFrame(loop)));
     }
     destroyRef.onDestroy(() => {
       this.socket?.close();
@@ -304,11 +315,23 @@ export class OnlinePage {
     for (const e of state.events) {
       if (e.type === 'hit') {
         this.reactToHit((1 - e.attacker) as 0 | 1, e.slot);
+        this.sound.hit(e.slot);
+      } else if (e.type === 'block') {
+        this.sound.play('block');
       } else if (e.type === 'ultimate') {
         this.banner.set(`${this.characters[e.fighter].name}: ${e.move.name}!`);
         this.bannerUntil = state.frame + 90;
+        this.sound.play('ultimate');
       }
     }
+    const call = roundBanner(state);
+    if (call !== this.call()) {
+      if (call === 'FIGHT!') this.sound.play('fight');
+      else if (call?.startsWith('Runde') || call === 'Finale Runde') this.sound.play('round');
+      else if (call === 'K.O.!' || call === 'Zeit!') this.sound.play('ko');
+      this.call.set(call);
+    }
+    this.wins.set(state.wins);
     if (this.banner() && state.frame >= this.bannerUntil) this.banner.set(null);
     this.bubbles.update((b) => b.map((x) => (x && state.frame < x.until ? x : null)) as [Bubble | null, Bubble | null]);
     const hud = (i: 0 | 1): FighterHud => {
@@ -388,7 +411,25 @@ export class OnlinePage {
     if (e.code === k.down) this.down = down;
     const slot = ATTACK_SLOTS.find((s) => k[s] === e.code) ?? null;
     if (slot && (!down || e.repeat)) return;
-    this.send({ type: 'input', left: this.left, right: this.right, up: this.up, down: this.down, press: slot });
+    this.sendInput(slot);
+  }
+
+  private sendInput(press: (typeof ATTACK_SLOTS)[number] | null): void {
+    const d = this.padDirs;
+    this.send({ type: 'input', left: this.left || d.left, right: this.right || d.right, up: this.up || d.up, down: this.down || d.down, press });
+  }
+
+  /** Gamepad 1 and the touch controls play for you online. */
+  private readPads(): void {
+    if (this.phase() !== 'fight') return;
+    this.pads.poll();
+    const c = this.pads.controls(0);
+    const dirs = { left: c.left, right: c.right, up: c.up, down: c.down };
+    const changed = (Object.keys(dirs) as (keyof typeof dirs)[]).some((k) => dirs[k] !== this.padDirs[k]);
+    this.padDirs = dirs;
+    const press = ATTACK_SLOTS.find((s) => c[s]) ?? null;
+    if (changed || press) this.sendInput(press);
+    this.pads.consumed();
   }
 
   private send(msg: ClientMessage): void {

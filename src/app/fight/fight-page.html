@@ -16,7 +16,18 @@
           <div class="action-label">{{ f.ready ? 'ULTIMATE BEREIT!' : 'Action' }}</div>
         </div>
         @if ($index === 0) {
-          <div class="timer">{{ h.seconds }}</div>
+          <div class="timer">
+            {{ h.seconds }}
+            <div class="rounds" [attr.aria-label]="'Runde ' + h.round + ', Stand ' + h.wins[0] + ':' + h.wins[1]">
+              @for (side of [0, 1]; track side) {
+                <span class="pips">
+                  @for (n of [0, 1]; track n) {
+                    <span class="pip" [class.won]="h.wins[side] > n"></span>
+                  }
+                </span>
+              }
+            </div>
+          </div>
         }
       }
     </div>
@@ -31,36 +42,61 @@
         </div>
       }
     }
-    @if (hud()?.banner; as banner) {
+    @if (hud()?.call; as call) {
+      <div class="call" [class.fight]="call === 'FIGHT!'" [class.ko]="call === 'K.O.!'" aria-live="assertive">{{ call }}</div>
+    } @else if (hud()?.banner; as banner) {
       <div class="banner">{{ banner }}</div>
+    }
+    @if (paused()) {
+      <div class="pause-menu" role="dialog" aria-label="Pause">
+        <p class="title">Pause</p>
+        <button type="button" class="btn primary" (click)="togglePause()">Weiter</button>
+        <button type="button" class="btn" (click)="reset()">{{ opponent ? 'Kampf neu starten' : 'Revanche' }}</button>
+        <a class="btn" routerLink="/controls">Tasten ändern</a>
+        <button type="button" class="btn" (click)="sound.toggleMute()">Ton: {{ sound.muted() ? 'aus' : 'an' }}</button>
+        <button type="button" class="btn" (click)="sound.toggleMusic(); sound.startMusic(arena.id)">Musik: {{ sound.music() ? 'an' : 'aus' }}</button>
+        <a class="btn" [routerLink]="opponent ? '/singleplayer' : '/'">Beenden</a>
+      </div>
     }
     @if (hud()?.result; as result) {
       <div class="result">
         <p>{{ result }}</p>
         @if (opponent) {
           @if (won() && nextOpponent) {
-            <a class="next" routerLink="/fight" [queryParams]="{ opponent: nextOpponent.id }">Nächster Gegner: {{ nextOpponent.character.name }}</a>
+            <a class="btn primary next" routerLink="/fight" [queryParams]="{ opponent: nextOpponent.id }">Nächster Gegner: {{ nextOpponent.character.name }}</a>
           }
-          <button type="button" (click)="reset()">{{ won() ? 'Nochmal' : 'Revanche' }}</button>
-          <a routerLink="/singleplayer">Zur Gegnerliste</a>
+          <button type="button" class="btn primary" (click)="reset()">{{ won() ? 'Nochmal' : 'Revanche' }}</button>
+          <a class="btn" routerLink="/singleplayer">Zur Gegnerliste</a>
         } @else {
-          <button type="button" (click)="reset()">Nochmal</button>
-          <a routerLink="/arena" [queryParams]="picks">Andere Arena</a>
-          <a routerLink="/select" [queryParams]="picks">Andere Kämpfer</a>
+          <button type="button" class="btn primary" (click)="reset()">Revanche</button>
+          <a class="btn" routerLink="/arena" [queryParams]="picks">Andere Arena</a>
+          <a class="btn" routerLink="/select" [queryParams]="picks">Andere Kämpfer</a>
         }
       </div>
     }
   </div>
+  <app-touch-controls />
 
   <div class="controls">
     <div class="mode">
       @if (opponent) {
-        <a routerLink="/singleplayer">← Gegnerliste</a>
+        <a class="btn" routerLink="/singleplayer">← Gegnerliste</a>
       } @else {
         <span class="mode-label">{{ mode() === 'cpu' ? 'Gegen CPU' : '2 Spieler' }}</span>
-        <a routerLink="/select" [queryParams]="picks">← Kämpferauswahl</a>
-        <a routerLink="/arena" [queryParams]="picks">Arena wählen</a>
+        <a class="btn" routerLink="/select" [queryParams]="picks">← Kämpferauswahl</a>
+        <a class="btn" routerLink="/arena" [queryParams]="picks">Arena wählen</a>
       }
+      @if (opponent || mode() === 'cpu') {
+        <label class="difficulty">
+          CPU
+          <select (change)="setDifficulty($any($event.target).value)">
+            @for (d of difficulties; track d) {
+              <option [value]="d" [selected]="d === difficulty()">{{ difficultyLabels[d] }}</option>
+            }
+          </select>
+        </label>
+      }
+      <button type="button" class="btn" (click)="togglePause()">Pause (Esc)</button>
     </div>
     <dl>
       @for (k of keys; track $index) {
@@ -75,7 +111,11 @@
         }
       }
     </dl>
-    <p><a routerLink="/controls">Tasten ändern</a></p>
-    <p class="hint">Blocken: vom Gegner weg halten, geduckt blockt auch Feger. Sprungangriffe musst du stehend blocken. ↓ ↘ → plus Angriff löst den Spezialangriff aus. Der Action-Balken lädt sich mit der Zeit, durch Treffer und durch eingesteckte Treffer auf. Ist er voll, startest du deinen ultimativen Angriff. Er lässt sich nicht unterbrechen.</p>
+    <p><a class="btn" routerLink="/controls">Tasten ändern</a></p>
+    <details class="help">
+      <summary>Steuerung und Tipps</summary>
+      <p class="hint">Gamepads gehen auch: Steuerkreuz oder Stick laufen, A leicht, X schwer, B Tritt, Y Spezial, RB/RT Ultimate, Start Pause. Pad 1 spielt für Spieler 1, Pad 2 für Spieler 2.</p>
+      <p class="hint">Blocken: vom Gegner weg halten, geduckt blockt auch Feger. Sprungangriffe musst du stehend blocken. ↓ ↘ → plus Angriff löst den Spezialangriff aus. Der Action-Balken lädt sich mit der Zeit, durch Treffer und durch eingesteckte Treffer auf. Ist er voll, startest du deinen ultimativen Angriff. Er lässt sich nicht unterbrechen. Wer zuerst zwei Runden gewinnt, gewinnt den Kampf.</p>
+    </details>
   </div>
 </section>

@@ -6,3 +6,33 @@ body {
   color: #f0f0f0;
   font-family: monospace;
 }
+
+a { color: #5ad1ff; }
+
+/* One button look for buttons and button-like links, in the game's pixel style. */
+.btn {
+  display: inline-block;
+  font: inherit;
+  font-weight: bold;
+  padding: 6px 14px;
+  color: #f0f0f0;
+  background: #2a2d3e;
+  border: 2px solid #f0f0f0;
+  box-shadow: 3px 3px 0 #000;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover { background: #3a3f55; }
+  &:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
+  &.primary { color: #14141f; background: #f1c40f; border-color: #14141f; }
+  &.primary:hover { background: #ffe66d; }
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+
+/* Keyboard users see where they are. */
+:focus-visible {
+  outline: 3px solid #f1c40f;
+  outline-offset: 2px;
+}
+
+details.help > summary { cursor: pointer; font-weight: bold; margin: 8px 0; }

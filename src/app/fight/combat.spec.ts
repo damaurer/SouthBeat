@@ -2,7 +2,9 @@ import { defaultCharacter } from '../character/balance';
 import { SPARRING_PARTNER } from '../character/sparring';
 import { seeded } from '../arena/painter';
 import { OPPONENTS } from '../singleplayer/opponents';
-import { Controls, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, canUseUltimate, cpuControls, createFight, projectileLift, step } from './combat';
+import { BEST_OF_THREE, Controls, DEFAULT_CPU, FightState, METER_MAX, NO_INPUT, ROUND_FRAMES, canUseUltimate, createFight, projectileLift, step } from './combat';
+import { cpuControls, cpuFor } from './cpu';
+import { roundBanner } from './rounds';
 
 function press(c: Partial<Controls>): Controls {
   return { ...NO_INPUT, ...c };
@@ -138,5 +140,69 @@ describe('combat', () => {
     const rnd = seeded(42);
     for (let i = 0; i < ROUND_FRAMES && s.winner === null; i++) step(s, [NO_INPUT, cpuControls(s, 1, rnd)]);
     expect(s.winner).toBe(1);
+  });
+});
+
+describe('rounds', () => {
+  it('plays best of three with an intro in which nobody can move', () => {
+    const s = createFight(defaultCharacter(), SPARRING_PARTNER, 'bunker', BEST_OF_THREE);
+    const x = s.fighters[0].x;
+    for (let i = 0; i < BEST_OF_THREE.introFrames - 1; i++) step(s, [press({ right: true }), NO_INPUT]);
+    expect(s.fighters[0].x).toBe(x);
+    expect(roundBanner(s)).toBe('FIGHT!');
+    step(s, [NO_INPUT, NO_INPUT]);
+    // Round 1 to player 2.
+    s.fighters[0].hp = 0;
+    step(s, [NO_INPUT, NO_INPUT]);
+    expect(s.roundWinner).toBe(1);
+    expect(roundBanner(s)).toBe('K.O.!');
+    expect(s.winner).toBeNull();
+    for (let i = 0; i < BEST_OF_THREE.koFrames; i++) step(s, [NO_INPUT, NO_INPUT]);
+    expect(s.wins).toEqual([0, 1]);
+    expect(s.round).toBe(2);
+    expect(s.fighters[0].hp).toBe(s.fighters[0].maxHp);
+    expect(roundBanner(s)).toBe('Runde 2');
+    // Round 2 to player 1, round 3 to player 1: player 1 wins the match.
+    for (const loser of [1, 1]) {
+      for (let i = 0; i < BEST_OF_THREE.introFrames; i++) step(s, [NO_INPUT, NO_INPUT]);
+      s.fighters[loser].hp = 0;
+      for (let i = 0; i <= BEST_OF_THREE.koFrames; i++) step(s, [NO_INPUT, NO_INPUT]);
+    }
+    expect(s.wins).toEqual([2, 1]);
+    expect(s.winner).toBe(0);
+  });
+});
+
+describe('computer opponent', () => {
+  it('learns to block an attack the player keeps repeating', () => {
+    const s = createFight(defaultCharacter(), SPARRING_PARTNER, 'bunker');
+    const rnd = seeded(3);
+    const cpu = cpuFor(DEFAULT_CPU, 'normal', 1);
+    const blocked: boolean[] = [];
+    for (let n = 0; n < 24; n++) {
+      s.fighters[0].x = 100;
+      s.fighters[1].x = 122;
+      s.fighters[0].hp = s.fighters[1].hp = 200;
+      for (let i = 0; i < 40; i++) {
+        step(s, [press({ heavy: i === 0 }), cpuControls(s, 1, rnd, cpu)]);
+        const e = s.events.find((ev) => (ev.type === 'hit' || ev.type === 'block') && ev.attacker === 0);
+        if (e) blocked.push(e.type === 'block');
+      }
+      settle(s);
+    }
+    const rate = (xs: boolean[]) => xs.filter(Boolean).length / xs.length;
+    expect(blocked.length).toBeGreaterThan(10);
+    expect(rate(blocked.slice(-10))).toBeGreaterThan(rate(blocked.slice(0, 3)));
+    expect(rate(blocked.slice(-10))).toBeGreaterThanOrEqual(0.7);
+  });
+
+  it('plays harder on higher difficulty and further up the ladder', () => {
+    const easy = cpuFor(DEFAULT_CPU, 'easy', 0).skill!;
+    const normal = cpuFor(DEFAULT_CPU, 'normal', 0).skill!;
+    const boss = cpuFor(DEFAULT_CPU, 'normal', 4).skill!;
+    const hard = cpuFor(DEFAULT_CPU, 'hard', 4).skill!;
+    expect(easy).toBeLessThan(normal);
+    expect(normal).toBeLessThan(boss);
+    expect(boss).toBeLessThan(hard);
   });
 });
