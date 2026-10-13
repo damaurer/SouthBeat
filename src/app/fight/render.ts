@@ -2,7 +2,7 @@ import { Painter } from '../arena/painter';
 import { GROUND_Y } from '../arena/props';
 import { SPRITE_HEIGHT, SPRITE_WIDTH, Pixel, spritePixels } from '../character/sprite';
 import { FightState, FighterState, isActive, projectileLift, projectileX, reachOf } from './combat';
-import { usesCustomArt } from '../character/character.model';
+import { Appearance, usesCustomArt } from '../character/character.model';
 import { ART_PALETTE, ART_SIZE, DEFAULT_ART } from '../character/projectile-art';
 
 export interface Spark {
@@ -33,10 +33,14 @@ const ULTIMATE_COLORS: Record<string, [string, string]> = {
 /** Caches sprite pixels per fighter so they are not rebuilt every frame. */
 const spriteCache = new WeakMap<object, Pixel[]>();
 function pixelsFor(f: FighterState): Pixel[] {
-  let pixels = spriteCache.get(f.character.appearance);
+  return cachedSprite(f.character.appearance);
+}
+
+export function cachedSprite(look: Appearance): Pixel[] {
+  let pixels = spriteCache.get(look);
   if (!pixels) {
-    pixels = spritePixels(f.character.appearance);
-    spriteCache.set(f.character.appearance, pixels);
+    pixels = spritePixels(look);
+    spriteCache.set(look, pixels);
   }
   return pixels;
 }
@@ -209,7 +213,7 @@ function drawAttack(p: Painter, f: FighterState, frame: number): void {
 }
 
 /** Draws the player's own projectile drawing, centered on (x, y) and facing the throw direction. */
-function drawArt(p: Painter, art: string[], x: number, y: number, facing: 1 | -1, frame: number): void {
+export function drawArt(p: Painter, art: string[], x: number, y: number, facing: 1 | -1, frame: number): void {
   const left = Math.round(x) - ART_SIZE / 2;
   const top = y - ART_SIZE / 2 + (frame % 8 < 4 ? 0 : 1);
   art.forEach((row, ay) => {
@@ -220,7 +224,7 @@ function drawArt(p: Painter, art: string[], x: number, y: number, facing: 1 | -1
   });
 }
 
-function drawTomato(p: Painter, x: number, y: number): void {
+export function drawTomato(p: Painter, x: number, y: number): void {
   p.rect(x - 4, y - 2, 9, 6, '#140c1c');
   p.rect(x - 3, y - 3, 7, 8, '#140c1c');
   p.rect(x - 3, y - 2, 7, 6, '#d62828');
@@ -231,43 +235,44 @@ function drawTomato(p: Painter, x: number, y: number): void {
   p.set(x, y - 5, '#2b9348');
 }
 
-function drawProjectile(p: Painter, id: string, x: number, facing: 1 | -1, frame: number): void {
+export function drawProjectile(p: Painter, id: string, x: number, facing: 1 | -1, frame: number, ground = GROUND_Y): void {
   const px = Math.round(x);
+  const chest = ground - 30;
   switch (id) {
     case 'tomato-throw':
-      drawTomato(p, px, CHEST_Y - 2 + Math.round(Math.sin(frame * 0.4) * 2));
+      drawTomato(p, px, chest - 2 + Math.round(Math.sin(frame * 0.4) * 2));
       return;
     case 'hdd-throw': {
       const spin = frame % 8 < 4;
       const w = spin ? 12 : 8;
       const h = spin ? 8 : 11;
-      p.rect(px - w / 2 - 1, CHEST_Y - h / 2 - 1, w + 2, h + 2, '#140c1c');
-      p.rect(px - w / 2, CHEST_Y - h / 2, w, h, '#9aa5b1');
-      p.rect(px - 2, CHEST_Y - 2, 4, 4, '#5a6470');
-      p.set(px + w / 2 - 2, CHEST_Y + h / 2 - 2, '#39ff88');
+      p.rect(px - w / 2 - 1, chest - h / 2 - 1, w + 2, h + 2, '#140c1c');
+      p.rect(px - w / 2, chest - h / 2, w, h, '#9aa5b1');
+      p.rect(px - 2, chest - 2, 4, 4, '#5a6470');
+      p.set(px + w / 2 - 2, chest + h / 2 - 2, '#39ff88');
       return;
     }
     case 'tank-roll':
-      drawTank(p, px, facing, frame);
+      drawTank(p, px, facing, frame, ground);
       return;
     case 'coffee-throw':
-      p.rect(px - 2, CHEST_Y - 3, 5, 6, '#f2f2f2');
-      p.rect(px - 1, CHEST_Y - 3, 3, 1, '#6f3b1a');
-      p.rect(px - 2 - facing * 4, CHEST_Y - 1, 3, 1, '#6f3b1a');
+      p.rect(px - 2, chest - 3, 5, 6, '#f2f2f2');
+      p.rect(px - 1, chest - 3, 3, 1, '#6f3b1a');
+      p.rect(px - 2 - facing * 4, chest - 1, 3, 1, '#6f3b1a');
       return;
     default: {
       const [c1, c2] = SPECIAL_COLORS[id] ?? ['#ffffff', '#cccccc'];
-      p.rect(px - 3, CHEST_Y - 3, 6, 6, c1);
-      p.rect(px - 2, CHEST_Y - 2, 2, 2, c2);
+      p.rect(px - 3, chest - 3, 6, 6, c1);
+      p.rect(px - 2, chest - 2, 2, 2, c2);
     }
   }
 }
 
 /** A small tank that rolls along the floor. */
-function drawTank(p: Painter, x: number, facing: 1 | -1, frame: number): void {
+function drawTank(p: Painter, x: number, facing: 1 | -1, frame: number, ground: number): void {
   const hull = '#4b5320';
   const dark = '#2f3514';
-  const g = GROUND_Y;
+  const g = ground;
   p.rect(x - 16, g - 8, 32, 8, '#1c1c1c');
   for (let i = 0; i < 6; i++) p.rect(x - 14 + i * 5 + (frame % 2), g - 6, 3, 4, '#555555');
   p.rect(x - 15, g - 16, 30, 8, hull);
@@ -277,7 +282,7 @@ function drawTank(p: Painter, x: number, facing: 1 | -1, frame: number): void {
   p.rect(x - 4, g - 13, 4, 3, '#e8c547');
 }
 
-function drawSpark(p: Painter, s: Spark): void {
+export function drawSpark(p: Painter, s: Spark): void {
   const r = s.big ? 10 - s.life / 3 : 5 - s.life / 4;
   const color = s.blocked ? (s.life % 4 < 2 ? '#ffffff' : '#5ad1ff') : s.life % 4 < 2 ? '#ffffff' : '#ffe66d';
   for (let i = 0; i < 8; i++) {

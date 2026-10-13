@@ -1,0 +1,53 @@
+.who {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+
+  button { font: inherit; padding: 6px 14px; cursor: pointer; }
+  .active { background: #f1c40f; }
+}
+
+.team {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.member {
+  display: grid;
+  gap: 4px;
+
+  &.out { opacity: 0.4; }
+  &.boss .bar.hp span { background: #e74c3c; }
+}
+
+.lives { color: #ff5a5a; letter-spacing: 2px; }
+
+.go {
+  position: absolute;
+  right: 4%;
+  top: 40%;
+  font-size: clamp(1.5rem, 5vw, 3rem);
+  font-weight: bold;
+  font-style: italic;
+  color: #ffe66d;
+  text-shadow: 3px 3px 0 #140c1c;
+  animation: go 0.5s steps(2) infinite;
+}
+
+.card {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+  padding: 32px 16px;
+
+  a { color: inherit; }
+}
+
+@keyframes go {
+  50% { opacity: 0.2; }
+}

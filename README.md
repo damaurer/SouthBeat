@@ -53,6 +53,18 @@ Die Gegner sprechen in Sprechblasen am oberen Bildschirmrand. Die Sprechblasen s
 
 Online-Multiplayer folgt.
 
+## Stage-Modus (Koop)
+
+Unter `/stages` (Startseite: „Stage-Modus (Koop)“) geht es wie in klassischen Beat 'em ups von links nach rechts durch fünf Stages: Teeküche, Bunker-Office, Meetingraum, Serverraum und Dachterrasse-Office. Gespielt wird allein, zu zweit an einer Tastatur oder mit einem CPU-Partner; jeder wählt seinen Kämpfer in der Kämpferauswahl.
+
+- **2,5D**: Die Arenen sind auf drei Bildschirme verlängert und haben Bodentiefe. Mit Springen/Ducken-Tasten (W/S bzw. ↑/↓) läuft man nach hinten und vorn. Figuren werden nach Tiefe sortiert gezeichnet, und Angriffe treffen nur Gegner auf ungefähr derselben Tiefe.
+- **Wellen**: Pro Bildschirm kommen Gegnerwellen (Praktikanten, Berater, Scrum Master) von beiden Seiten. Sind alle besiegt, erscheint „GO →“ und die Kamera scrollt weiter. Spätere Stages schicken mehr und zähere Gegner.
+- **Bosse**: Am Ende jeder Stage wartet der Einzelspieler-Gegner dieser Arena mit seinen Spezialangriffen und Sprüchen, als letzter Gustav Großmaul.
+- **Gegenstände**: Kaffee (+20 Leben) und Pizza (+50) liegen auf der Karte, besiegte Gegner lassen manchmal Kaffee fallen. Eine Tastatur als Waffe macht die nächsten 10 Schläge um 60 % stärker. Aufgehoben wird durch Drüberlaufen.
+- **Leben**: Jeder Spieler hat drei Leben; Leben und Action-Balken gehen in die nächste Stage mit. Sind alle raus, ist Game Over, die Stage lässt sich neu starten.
+
+Die Regeln stecken in `src/app/stage/brawl.ts`, die Stages und Gegnertypen in `src/app/stage/stages.ts`. Der Stage-Modus ist vorerst nur lokal spielbar, nicht online.
+
 ## Online-Kampf
 
 Unter `/online` (Startseite: „Online-Kampf“) kämpfen zwei Spieler an zwei PCs in Echtzeit gegeneinander. Jeder wählt zuerst seinen Kämpfer in der Kämpferauswahl. Danach zeigt eine Lobby-Tabelle alle offenen Lobbys mit Name, Host und Arena; sie aktualisiert sich live. Ein Klick auf „Beitreten“ startet den Kampf sofort. Wer selbst hostet, gibt der Lobby einen Namen und wählt die Arena (oder „Zufällig“); der Gast bringt nur seinen Kämpfer mit. Als Ausweichweg geht weiterhin der vierstellige Raumcode. Gespielt wird an jedem PC mit den Tasten von Spieler 1. Nach dem Kampf ist eine Revanche möglich. Sind beide Kämpfer selbst erstellt und gespeichert, zählt das Ergebnis in der Statistik.
