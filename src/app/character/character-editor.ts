@@ -29,11 +29,12 @@ import { STAT_MAX, STAT_MIN, adjustStat, canDecrease, canIncrease, characterErro
 import { CharacterStore } from './character-store';
 import { SpritePreview } from './sprite-preview';
 import { PixelEditor } from './pixel-editor';
+import { PhotoImport } from './photo-import';
 import { DEFAULT_ART } from './projectile-art';
 
 @Component({
   selector: 'app-character-editor',
-  imports: [SpritePreview, RouterLink, PixelEditor],
+  imports: [SpritePreview, RouterLink, PixelEditor, PhotoImport],
   templateUrl: './character-editor.html',
   styleUrl: './character-editor.scss',
 })
@@ -87,6 +88,11 @@ export class CharacterEditor {
 
   protected setMove(slot: MoveSlot, id: string): void {
     this.update((c) => ({ ...c, moves: { ...c.moves, [slot]: id } }));
+  }
+
+  /** Applies a look guessed from a photo; name, moves and stats stay as they are. */
+  protected applyPhoto(look: Partial<Appearance>): void {
+    this.update((c) => ({ ...c, appearance: { ...c.appearance, ...look } }));
   }
 
   protected setArt(art: string[]): void {
