@@ -73,6 +73,7 @@ export class FightPage {
   private banner: { text: string; frames: number } | null = null;
   private bubble: { text: string; until: number } | null = null;
   private nextBubbleAt = 0;
+  private unsaid: string[] = [];
   private resultRecorded = false;
   private readonly held = new Set<string>();
   private readonly pressed = new Set<string>();
@@ -174,7 +175,9 @@ export class FightPage {
     }
     if (this.bubble && frame >= this.bubble.until) this.bubble = null;
     if (!this.bubble && frame >= this.nextBubbleAt) {
-      const text = o.lines[Math.floor(this.random() * o.lines.length)];
+      // Shuffle through all lines before any repeats.
+      if (this.unsaid.length === 0) this.unsaid = [...o.lines];
+      const text = this.unsaid.splice(Math.floor(this.random() * this.unsaid.length), 1)[0];
       this.bubble = { text, until: frame + BUBBLE_FRAMES };
       this.nextBubbleAt = frame + BUBBLE_FRAMES + Math.round(o.chattiness * FPS * (0.5 + this.random()));
     }

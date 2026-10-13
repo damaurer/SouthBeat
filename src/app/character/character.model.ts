@@ -2,7 +2,7 @@ export type StatKey = 'strength' | 'speed' | 'defense' | 'stamina';
 
 export type Stats = Record<StatKey, number>;
 
-export type HairStyle = 'short' | 'spiky' | 'long' | 'mohawk' | 'ponytail' | 'afro' | 'bald';
+export type HairStyle = 'short' | 'spiky' | 'long' | 'mohawk' | 'ponytail' | 'afro' | 'receding' | 'bald';
 export type BeardStyle = 'none' | 'stubble' | 'mustache' | 'goatee' | 'full' | 'long';
 export type OutfitStyle = 'shirt' | 'suit' | 'casual' | 'blouse' | 'uniform' | 'gi' | 'tanktop' | 'jacket' | 'hoodie' | 'ninja' | 'wrestler' | 'armor';
 
@@ -76,6 +76,7 @@ export const HAIR_LABELS: Record<HairStyle, string> = {
   mohawk: 'Irokese',
   ponytail: 'Zopf',
   afro: 'Afro',
+  receding: 'Halbglatze',
   bald: 'Glatze',
 };
 

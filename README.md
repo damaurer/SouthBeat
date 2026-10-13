@@ -30,7 +30,7 @@ Ein 2D-Pixel-Art-Beat-'em-up als Webanwendung, gebaut mit Angular und Server-Sid
 | Konrad | Teamleiter | Panzer-General, Spezialattacke Panzer-Walze rollt über die ganze Arena | Bunker-Office |
 | Lena | HO | Sehr schnell, Kombo-Angriffe mit mehreren Treffern pro Taste | Meetingraum |
 | Ralf | CTO | Rack-Schlag mit Server-Bauteilen, wirft Festplatten | Serverraum |
-| Gustav Großmaul | CPO, Endboss | Wirft Tomaten, Ultimate Tomatenhagel, redet ununterbrochen | Dachterrasse-Office |
+| Gustav Großmaul | CPO, Endboss | Alter Mann mit langem Bart, wirft Tomaten (Ultimate Tomatenhagel), redet ununterbrochen und verspricht Kunden Features, die weder abgestimmt noch implementiert sind | Dachterrasse-Office mit Tomatenbeeten |
 
 Die Gegner sprechen in Sprechblasen am oberen Bildschirmrand. Die Sprechblasen sind rein kosmetisch und beeinflussen das Spiel nicht. Gegner und Sprüche stehen in `src/app/singleplayer/opponents.ts`.
 

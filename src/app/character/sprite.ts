@@ -375,6 +375,16 @@ function drawHair(c: Canvas, style: HairStyle): void {
       c.rows(0, [[13, 18], [11, 20], [10, 21], [9, 22], [9, 22], [9, 22], [9, 22]], 'hair');
       c.mirror(9, 7, 2, 4, 'hair');
       return;
+    case 'receding':
+      c.mirror(11, 5, 1, 5, 'hair');
+      c.mirror(10, 6, 1, 3, 'hair');
+      c.mirror(12, 4, 1, 2, 'hair');
+      c.set(15, 3, 'hair');
+      c.set(17, 3, 'hair');
+      // Forehead wrinkles.
+      c.rect(14, 6, 4, 1, 'skinDark');
+      c.mirror(13, 12, 1, 1, 'skinDark');
+      return;
     case 'bald':
       return;
   }

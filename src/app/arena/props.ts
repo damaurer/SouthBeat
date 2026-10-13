@@ -235,3 +235,34 @@ export function stringLights(p: Painter, x1: number, x2: number, y: number, sag:
     }
   }
 }
+
+/** A raised wooden planter with tomato plants climbing up stakes. */
+export function tomatoPlanter(p: Painter, x: number, w: number, base: number, height: number, seed: number): void {
+  const rnd = seeded(seed);
+  const leaf = '#3f8f3a';
+  const leafLight = '#6cc551';
+  const leafDark = '#2a6b2a';
+  for (let sx = x + 4; sx < x + w - 3; sx += 9) {
+    const top = base - height + Math.floor(rnd() * 6);
+    p.vline(sx, top, base - top, '#8b5a2b');
+    p.set(sx, top, '#a0673a');
+    for (let y = top + 2; y < base - 6; y += 2) {
+      const side = (y + sx) % 4 === 0 ? -1 : 1;
+      p.rect(sx + side * 1 - (side < 0 ? 2 : 0), y, 3, 2, rnd() < 0.3 ? leafLight : leaf);
+      if (rnd() < 0.5) p.set(sx - side * 2, y + 1, leafDark);
+    }
+    for (let i = 0; i < 4; i++) {
+      const ty = top + 4 + Math.floor(rnd() * (height - 14));
+      const tx = sx + (rnd() < 0.5 ? -3 : 2);
+      const ripe = rnd() < 0.75;
+      p.rect(tx, ty, 3, 3, ripe ? '#d62828' : '#9bc53d');
+      p.rect(tx - 1, ty + 1, 1, 1, ripe ? '#a61b1b' : '#6a8f2a');
+      p.set(tx, ty, ripe ? '#ff8a80' : '#c5e384');
+      p.set(tx + 1, ty - 1, leafDark);
+    }
+  }
+  p.rect(x, base - 7, w, 7, '#8b5a2b');
+  p.hline(x, base - 7, w, '#a0673a');
+  for (let px = x + 6; px < x + w; px += 8) p.vline(px, base - 6, 6, '#6b4423');
+  p.rect(x + 1, base - 8, w - 2, 1, '#4a2f17');
+}
