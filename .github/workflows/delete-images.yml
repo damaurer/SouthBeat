@@ -1,0 +1,50 @@
+# Deletes published Docker images by tag, together with the platform and attestation
+# manifests that belong to them. Run it by hand with the tags to remove; on a push that
+# changes this file it removes the tags in DEFAULT_TAGS.
+name: Delete images
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: Tags to delete, separated by spaces (e.g. sha-1234567)
+        required: true
+  push:
+    branches: [main]
+    paths: [.github/workflows/delete-images.yml]
+
+permissions:
+  packages: write
+
+env:
+  # Images built from the history before the opponents were renamed.
+  DEFAULT_TAGS: sha-df02af8 sha-5bc640a sha-cfd9332
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAGS: ${{ inputs.tags }}
+        run: |
+          set -euo pipefail
+          owner='${{ github.repository_owner }}'
+          name='${{ github.event.repository.name }}'
+          image="${owner,,}/${name,,}"
+          kind=$(gh api "/users/$owner" --jq .type)
+          base=$([ "$kind" = Organization ] && echo "/orgs/$owner" || echo "/users/$owner")
+          versions="$base/packages/container/${name,,}/versions"
+          token=$(curl -fsS -u "$owner:$GH_TOKEN" "https://ghcr.io/token?scope=repository:$image:pull" | jq -r .token)
+          accept='application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.manifest.v1+json'
+          digests=()
+          for tag in ${TAGS:-$DEFAULT_TAGS}; do
+            manifest=$(curl -fsS -H "Authorization: Bearer $token" -H "Accept: $accept" "https://ghcr.io/v2/$image/manifests/$tag") || { echo "$tag: not found"; continue; }
+            digests+=($(curl -fsSI -H "Authorization: Bearer $token" -H "Accept: $accept" "https://ghcr.io/v2/$image/manifests/$tag" | tr -d '\r' | awk 'tolower($1)=="docker-content-digest:"{print $2}'))
+            digests+=($(jq -r '.manifests[]?.digest' <<<"$manifest"))
+          done
+          gh api --paginate "$versions?per_page=100" --jq '.[] | "\(.id) \(.name)"' > all.txt
+          for d in "${digests[@]}"; do
+            id=$(awk -v d="$d" '$2==d{print $1}' all.txt)
+            if [ -n "$id" ]; then gh api -X DELETE "$versions/$id" && echo "deleted $d"; fi
+          done
