@@ -1,5 +1,5 @@
 import { defaultCharacter } from '../app/character/balance';
-import { GameData, GameDataError, GameDataRules, emptyGameData } from './game-data';
+import { GameData, GameDataError, GameDataRules, emptyGameData, fnv1a, migrateOpponentIds } from './game-data';
 
 describe('GameDataRules', () => {
   let n: number;
@@ -135,5 +135,20 @@ describe('GameDataRules', () => {
     rules.compact(100, 2);
     expect(data.ladder?.length).toBe(1);
     expect(rules.ladderBeaten(a.id)).toEqual(['bernd-brummer']);
+  });
+
+  it('hashes old opponent ids with 32-bit FNV-1a', () => {
+    expect(fnv1a('')).toBe('811c9dc5');
+    expect(fnv1a('a')).toBe('e40c292c');
+  });
+
+  it('keeps current and unknown opponent ids when migrating', () => {
+    const old = emptyGameData();
+    old.ladder = [
+      { fighterId: 'a', opponentId: 'bernd-brummer', won: true, playedAt: '' },
+      { fighterId: 'a', opponentId: 'nobody', won: true, playedAt: '' },
+    ];
+    expect(migrateOpponentIds(old)).toBeFalse();
+    expect(old.ladder.map((r) => r.opponentId)).toEqual(['bernd-brummer', 'nobody']);
   });
 });

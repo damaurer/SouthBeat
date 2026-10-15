@@ -29,7 +29,7 @@ const look = defaultCharacter().appearance;
 export const OPPONENTS: Opponent[] = [
   {
     id: 'bernd-brummer',
-    title: 'Bernd · Co-Teamleiter',
+    title: 'Co-Teamleiter',
     blurb: 'Kräftig gebaut, mit Bart und Brille. Schubst dich mit seinem Bauch quer durchs Büro.',
     arenaId: 'kitchen',
     character: {
@@ -67,7 +67,7 @@ export const OPPONENTS: Opponent[] = [
   },
   {
     id: 'konrad-kettner',
-    title: 'Konrad · Teamleiter',
+    title: 'Teamleiter',
     blurb: 'Der Panzer-General. Mit seiner Spezialattacke rollt ein Panzer über dich hinweg.',
     arenaId: 'bunker',
     character: {
@@ -105,7 +105,7 @@ export const OPPONENTS: Opponent[] = [
   },
   {
     id: 'lena-flink',
-    title: 'Lena · HO',
+    title: 'HO',
     blurb: 'Blitzschnell. Glänzt mit schnellen Angriffen und Kombos, die kaum Pausen lassen.',
     arenaId: 'meeting-room',
     character: {
@@ -143,7 +143,7 @@ export const OPPONENTS: Opponent[] = [
   },
   {
     id: 'ralf-rackwitz',
-    title: 'Ralf · CTO',
+    title: 'CTO',
     blurb: 'Schlägt mit Server-Bauteilen zu und wirft hin und wieder eine Festplatte nach dir.',
     arenaId: 'server-room',
     character: {
@@ -181,7 +181,7 @@ export const OPPONENTS: Opponent[] = [
   },
   {
     id: 'gustav-grossmaul',
-    title: 'Gustav · CSO · Endboss',
+    title: 'CSO · Endboss',
     blurb: 'Der Endboss. Ein alter Mann mit langem Bart, der mit Tomaten wirft, ununterbrochen redet und Kunden Dinge verspricht, die es noch gar nicht gibt.',
     arenaId: 'rooftop',
     boss: true,

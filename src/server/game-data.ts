@@ -42,6 +42,37 @@ export function emptyGameData(): GameData {
   return { version: 1, fighters: [], matches: [], ladder: [] };
 }
 
+/**
+ * Ladder results saved before the opponents were renamed carry their old ids. Only a hash
+ * (32-bit FNV-1a) of each old id is kept here, so the old names stay out of the code.
+ */
+const RENAMED_OPPONENTS: Record<string, string> = {
+  '563d18db': 'bernd-brummer',
+  '46521a63': 'konrad-kettner',
+  '593661cf': 'lena-flink',
+  '4a250111': 'ralf-rackwitz',
+  '790d3f52': 'gustav-grossmaul',
+};
+
+export function fnv1a(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
+  return h.toString(16).padStart(8, '0');
+}
+
+/** Moves ladder results from old opponent ids to the current ones. True if anything changed. */
+export function migrateOpponentIds(data: GameData): boolean {
+  let changed = false;
+  for (const r of data.ladder ?? []) {
+    const id = findOpponent(r.opponentId) ? undefined : RENAMED_OPPONENTS[fnv1a(r.opponentId)];
+    if (id) {
+      r.opponentId = id;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 export class GameDataError extends Error {
   constructor(
     readonly status: number,
@@ -62,7 +93,9 @@ export class GameDataRules {
     private readonly now: () => Date = () => new Date(),
     /** Turns an edit token into what is stored; the server passes SHA-256. */
     private readonly hash: (token: string) => string = (t) => t,
-  ) {}
+  ) {
+    migrateOpponentIds(data);
+  }
 
   snapshot(): GameData {
     return this.data;
